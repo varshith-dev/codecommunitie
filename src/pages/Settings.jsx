@@ -13,7 +13,9 @@ import {
     X as XIcon,
     Code2,
     Calendar,
-    ArrowLeft
+    ArrowLeft,
+    BadgeCheck,
+    Clock
 } from 'lucide-react'
 import { formatDate } from '../utils/timeAgo'
 import Avatar from '../components/Avatar'
@@ -36,6 +38,8 @@ export default function Settings({ session }) {
     const [originalProfile, setOriginalProfile] = useState(null)
     const [usernameError, setUsernameError] = useState('')
     const [checkingUsername, setCheckingUsername] = useState(false)
+    const [verificationRequest, setVerificationRequest] = useState(null)
+    const [requestingVerification, setRequestingVerification] = useState(false)
 
     useEffect(() => {
         if (!session) {
@@ -57,11 +61,56 @@ export default function Settings({ session }) {
             if (error) throw error
             setProfile(data)
             setOriginalProfile(data)
+
+            // Fetch verification request if exists
+            await fetchVerificationRequest()
         } catch (error) {
             console.error('Error fetching profile:', error)
             toast.error('Failed to load settings')
         } finally {
             setLoading(false)
+        }
+    }
+
+    const fetchVerificationRequest = async () => {
+        try {
+            const { data } = await supabase
+                .from('verification_requests')
+                .select('*')
+                .eq('user_id', session.user.id)
+                .order('requested_at', { ascending: false })
+                .limit(1)
+                .single()
+
+            setVerificationRequest(data)
+        } catch (error) {
+            // No request exists, that's okay
+            setVerificationRequest(null)
+        }
+    }
+
+    const handleRequestVerification = async () => {
+        if (!session) return
+
+        setRequestingVerification(true)
+        try {
+            const { error } = await supabase
+                .from('verification_requests')
+                .insert([{
+                    user_id: session.user.id,
+                    message: `Verification request from @${profile.username}`,
+                    status: 'pending'
+                }])
+
+            if (error) throw error
+
+            toast.success('Verification request submitted!')
+            await fetchVerificationRequest()
+        } catch (error) {
+            console.error('Error requesting verification:', error)
+            toast.error('Failed to submit request. You may already have a pending request.')
+        } finally {
+            setRequestingVerification(false)
         }
     }
 
@@ -349,6 +398,69 @@ export default function Settings({ session }) {
                                 <div className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm text-gray-500">
                                     <Shield size={14} />
                                     {session.user.email}
+                                </div>
+                            </div>
+
+                            {/* Verification Request Section */}
+                            <div className="bg-gradient-to-br from-blue-50 to-purple-50 rounded-xl p-4 border border-blue-200">
+                                <div className="flex items-start justify-between">
+                                    <div className="flex-1">
+                                        <div className="flex items-center gap-2 mb-2">
+                                            <BadgeCheck className="text-blue-600" size={20} />
+                                            <h3 className="font-semibold text-gray-900">Verification Badge</h3>
+                                        </div>
+                                        {profile.is_verified ? (
+                                            <div className="flex items-center gap-2 text-sm text-green-700">
+                                                <Check size={16} />
+                                                <span>Your account is verified</span>
+                                            </div>
+                                        ) : verificationRequest?.status === 'pending' ? (
+                                            <div className="space-y-2">
+                                                <div className="flex items-center gap-2 text-sm text-orange-700">
+                                                    <Clock size={16} />
+                                                    <span>Verification request pending review</span>
+                                                </div>
+                                                <p className="text-xs text-gray-600">
+                                                    Submitted {new Date(verificationRequest.requested_at).toLocaleDateString()}
+                                                </p>
+                                            </div>
+                                        ) : verificationRequest?.status === 'rejected' ? (
+                                            <div className="space-y-2">
+                                                <div className="flex items-center gap-2 text-sm text-red-700">
+                                                    <XIcon size={16} />
+                                                    <span>Previous request was rejected</span>
+                                                </div>
+                                                {verificationRequest.admin_notes && (
+                                                    <p className="text-xs text-gray-600 bg-white p-2 rounded">
+                                                        Reason: {verificationRequest.admin_notes}
+                                                    </p>
+                                                )}
+                                            </div>
+                                        ) : (
+                                            <p className="text-sm text-gray-600">
+                                                Get a verification badge to show you're a trusted member of the community.
+                                            </p>
+                                        )}
+                                    </div>
+                                    {!profile.is_verified && verificationRequest?.status !== 'pending' && (
+                                        <button
+                                            onClick={handleRequestVerification}
+                                            disabled={requestingVerification}
+                                            className="px-4 py-2 bg-blue-600 text-white text-sm font-semibold rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                                        >
+                                            {requestingVerification ? (
+                                                <>
+                                                    <Loader size={16} className="animate-spin" />
+                                                    Requesting...
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <BadgeCheck size={16} />
+                                                    Request Verification
+                                                </>
+                                            )}
+                                        </button>
+                                    )}
                                 </div>
                             </div>
 

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { supabase } from '../supabaseClient'
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism'
-import { Heart, MessageCircle, Trash2, Code2, Share2, Edit2, TrendingUp, Clock, Users } from 'lucide-react'
+import { Heart, MessageCircle, Trash2, Code2, Share2, Edit2, TrendingUp, Clock, Users, AlertTriangle } from 'lucide-react'
 import toast from 'react-hot-toast'
 import CommentSection from '../components/CommentSection'
 import Avatar from '../components/Avatar'
@@ -405,8 +405,8 @@ export default function Feed({ session }) {
 
             <div className="flex items-center gap-2">
               <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${post.type === 'code' ? 'bg-blue-50 text-blue-600' :
-                  post.type === 'blog' ? 'bg-purple-50 text-purple-600' :
-                    'bg-pink-50 text-pink-600'
+                post.type === 'blog' ? 'bg-purple-50 text-purple-600' :
+                  'bg-pink-50 text-pink-600'
                 }`}>
                 {post.type.toUpperCase()}
               </span>
@@ -442,6 +442,15 @@ export default function Feed({ session }) {
                 ))}
               </div>
             )}
+
+            {/* Content Rating Warning */}
+            {post.content_rating === 'risk' && (
+              <div className="mb-2 p-2 bg-yellow-50 border border-yellow-200 rounded-lg flex items-center gap-2">
+                <AlertTriangle size={16} className="text-yellow-600 flex-shrink-0" />
+                <span className="text-xs font-medium text-yellow-800">⚠️ Watch at your own risk</span>
+              </div>
+            )}
+
             {post.title && (
               <h2 className="text-lg font-semibold text-gray-900">{post.title}</h2>
             )}

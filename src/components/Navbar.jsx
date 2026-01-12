@@ -5,7 +5,7 @@ import { Home, PlusSquare, User, LogOut, Code2, Search as SearchIcon, Settings, 
 import Avatar from './Avatar'
 import UserBadges from './UserBadges'
 
-export default function Navbar({ session }) {
+export default function Navbar({ session, isMobile = false }) {
   const location = useLocation()
   const [profile, setProfile] = useState(null)
 
@@ -40,9 +40,37 @@ export default function Navbar({ session }) {
     }
   }
 
+  // === MOBILE LAYOUT ===
+  if (isMobile) {
+    return (
+      <nav className="w-full h-16 px-4 flex items-center justify-between">
+        {/* Logo */}
+        <Link to="/" className="flex items-center gap-2">
+          <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
+            <Code2 className="w-5 h-5 text-white" strokeWidth={2.5} />
+          </div>
+          <span className="font-bold text-xl text-gray-900 tracking-tight">CodeKrafts</span>
+        </Link>
+
+        {/* Mobile Profile Actions */}
+        <div className="flex items-center gap-2">
+          {session ? (
+            <Link to="/settings" className="p-2 rounded-full hover:bg-gray-100 transition-colors">
+              <Settings size={22} className="text-gray-600" />
+            </Link>
+          ) : (
+            <Link to="/login" className="px-4 py-1.5 text-xs font-bold text-white bg-blue-600 rounded-full">
+              Sign In
+            </Link>
+          )}
+        </div>
+      </nav>
+    )
+  }
+
+  // === DESKTOP LAYOUT ===
   return (
     <>
-      {/* DESKTOP TOP BAR */}
       <nav className="fixed top-0 w-full bg-white border-b border-gray-100 z-50">
         <div className="max-w-[1400px] mx-auto px-6 h-16 flex items-center justify-between">
           {/* Logo */}

@@ -26,7 +26,7 @@ export default function Sidebar({ session }) {
             // Fetch all tags with pinned and featured status
             const { data: allTags } = await supabase
                 .from('tags')
-                .select('id, name, slug, is_pinned, is_featured, pin_order')
+                .select('id, name, slug, is_pinned, is_featured, pin_order, feature_label')
                 .order('is_pinned', { ascending: false })
                 .order('pin_order', { ascending: true })
                 .limit(20)
@@ -107,11 +107,18 @@ export default function Sidebar({ session }) {
                                     to={`/search?q=${tag.name}`}
                                     className="block group cursor-pointer hover:bg-purple-50/50 p-3 rounded-xl transition-all"
                                 >
-                                    <div className="flex items-center gap-3">
-                                        <Pin size={14} className="text-purple-500 flex-shrink-0" />
-                                        <span className="font-bold text-gray-900 group-hover:text-purple-600 transition-colors">
-                                            #{tag.name}
-                                        </span>
+                                    <div className="flex items-center justify-between gap-3">
+                                        <div className="flex items-center gap-3">
+                                            <Pin size={14} className="text-purple-500 flex-shrink-0" />
+                                            <span className="font-bold text-gray-900 group-hover:text-purple-600 transition-colors">
+                                                #{tag.name}
+                                            </span>
+                                        </div>
+                                        {tag.feature_label && (
+                                            <span className="bg-gray-800 text-white text-[10px] px-1.5 py-0.5 rounded uppercase tracking-wide font-bold">
+                                                {tag.feature_label}
+                                            </span>
+                                        )}
                                     </div>
                                 </Link>
                             ))}

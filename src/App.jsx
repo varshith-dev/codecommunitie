@@ -26,15 +26,6 @@ import PostDetails from './pages/PostDetails'
 import Settings from './pages/Settings'
 import Bookmarks from './pages/Bookmarks'
 
-// Admin Components
-import AdminLayout from './admin/AdminLayout'
-import Dashboard from './admin/Dashboard'
-import TableViewer from './admin/TableViewer'
-
-import TagManager from './admin/TagManager'
-
-import UserManager from './admin/UserManager'
-
 // Wrapper for the Standard App UI (Navbar + Footer/etc)
 const StandardLayout = ({ session }) => {
   const location = useLocation()
@@ -126,14 +117,6 @@ export default function App() {
       />
 
       <Routes>
-        {/* === ADMIN ROUTES === */}
-        <Route path="/admin" element={<AdminLayout />}>
-          <Route index element={<Dashboard />} />
-          <Route path="tags" element={<TagManager />} />
-          <Route path="users/:userId" element={<UserManager />} />
-          <Route path="table/:tableName" element={<TableViewer />} />
-        </Route>
-
         {/* === STANDARD APP ROUTES === */}
         <Route element={<StandardLayout session={session} />}>
           {/* Public Routes */}

@@ -188,12 +188,15 @@ export default function VideoPlayer({ src, title, poster, className = "" }) {
 
             <video
                 ref={videoRef}
-                src={`${src}#t=0.001`} // Force first frame as thumbnail
+                src={src}
                 className={`w-full max-h-[85vh] object-contain ${isFullscreen ? 'h-full max-h-none' : ''}`}
                 poster={poster}
                 onClick={togglePlay}
                 playsInline
                 preload="metadata"
+                onError={() => {
+                    // Silently handle video load errors
+                }}
             />
 
             {/* Play/Pause Overlay Icon (Center) */}

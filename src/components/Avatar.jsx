@@ -1,5 +1,6 @@
 import { User } from 'lucide-react'
 import { Link } from 'react-router-dom'
+import { useState } from 'react'
 
 /**
  * Reusable Avatar component with fallback to initials
@@ -11,6 +12,8 @@ import { Link } from 'react-router-dom'
  * @param {string} props.userId - Optional user ID for linking to profile
  */
 export default function Avatar({ src, alt = 'User', size = 'md', className = '', userId = null }) {
+    const [imageError, setImageError] = useState(false)
+
     const sizeClasses = {
         xs: 'w-6 h-6 text-xs',
         sm: 'w-8 h-8 text-xs',
@@ -20,6 +23,17 @@ export default function Avatar({ src, alt = 'User', size = 'md', className = '',
         '2xl': 'w-20 h-20 text-2xl',
         '3xl': 'w-24 h-24 text-3xl',
         'full': 'w-full h-full'
+    }
+
+    const iconSizes = {
+        xs: 12,
+        sm: 16,
+        md: 20,
+        lg: 24,
+        xl: 32,
+        '2xl': 40,
+        '3xl': 48,
+        'full': 32
     }
 
     const getInitials = (name) => {
@@ -33,24 +47,23 @@ export default function Avatar({ src, alt = 'User', size = 'md', className = '',
 
     const avatarContent = (
         <div className={`relative rounded-full ${sizeClasses[size]} ${className}`}>
-            {src ? (
+            {src && !imageError ? (
                 <img
                     src={src}
                     alt={alt}
                     className="w-full h-full rounded-full object-cover border-2 border-white shadow-sm bg-white"
-                    onError={(e) => {
-                        // Fallback if image fails to load
-                        e.target.style.display = 'none'
-                        e.target.nextSibling.style.display = 'flex'
-                    }}
+                    onError={() => setImageError(true)}
+                    loading="lazy"
                 />
-            ) : null}
-            <div
-                className={`${src ? 'hidden' : 'flex'} w-full h-full rounded-full items-center justify-center font-bold bg-gradient-to-br from-blue-500 to-purple-600 text-white border-2 border-white shadow-sm`}
-                style={{ display: src ? 'none' : 'flex' }}
-            >
-                {getInitials(alt)}
-            </div>
+            ) : (
+                <div className="w-full h-full rounded-full flex items-center justify-center font-bold bg-gradient-to-br from-blue-500 to-purple-600 text-white border-2 border-white shadow-sm">
+                    {alt && alt !== 'User' ? (
+                        getInitials(alt)
+                    ) : (
+                        <User size={iconSizes[size]} />
+                    )}
+                </div>
+            )}
         </div>
     )
 
@@ -64,3 +77,4 @@ export default function Avatar({ src, alt = 'User', size = 'md', className = '',
 
     return avatarContent
 }
+
