@@ -1,12 +1,14 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../supabaseClient'
-import { useParams, useNavigate } from 'react-router-dom'
-import { Calendar, Link as LinkIcon, Users, Edit2, Trash2, Clock, Lock } from 'lucide-react'
+import { useParams, useNavigate, Link } from 'react-router-dom'
+import { Calendar, Link as LinkIcon, Users, Edit2, Trash2, Clock, Lock, Code2 } from 'lucide-react'
 import Avatar from '../components/Avatar'
 import { formatDate } from '../utils/timeAgo'
 import { ProfileSkeleton } from '../components/SkeletonLoader'
 import toast from 'react-hot-toast'
 import EditPostModal from '../components/EditPostModal'
+import UserListModal from '../components/UserListModal'
+import UserBadges from '../components/UserBadges'
 
 export default function PublicProfile({ session }) {
     const { userId } = useParams()
@@ -16,6 +18,8 @@ export default function PublicProfile({ session }) {
     const [loading, setLoading] = useState(true)
     const [isFollowing, setIsFollowing] = useState(false)
     const [editingPost, setEditingPost] = useState(null)
+    const [showFollowersModal, setShowFollowersModal] = useState(false)
+    const [showFollowingModal, setShowFollowingModal] = useState(false)
 
     useEffect(() => {
         fetchProfile()
@@ -246,8 +250,9 @@ export default function PublicProfile({ session }) {
 
                     {/* Profile Info */}
                     <div>
-                        <h1 className="text-2xl md:text-3xl font-bold text-gray-900">
+                        <h1 className="text-2xl md:text-3xl font-bold text-gray-900 flex items-center gap-2">
                             {profile.display_name || profile.username || 'User'}
+                            <UserBadges user={profile} />
                         </h1>
                         <p className="text-gray-500">@{profile.username}</p>
 
@@ -256,14 +261,14 @@ export default function PublicProfile({ session }) {
                         )}
 
                         <div className="flex flex-wrap gap-4 mt-4 text-sm">
-                            <div className="flex items-center gap-2">
+                            <button onClick={() => setShowFollowersModal(true)} className="flex items-center gap-2 hover:text-blue-600 transition-colors">
                                 <span className="font-semibold text-gray-900">{profile.follower_count || 0}</span>
                                 <span className="text-gray-500">Followers</span>
-                            </div>
-                            <div className="flex items-center gap-2">
+                            </button>
+                            <button onClick={() => setShowFollowingModal(true)} className="flex items-center gap-2 hover:text-blue-600 transition-colors">
                                 <span className="font-semibold text-gray-900">{profile.following_count || 0}</span>
                                 <span className="text-gray-500">Following</span>
-                            </div>
+                            </button>
                             <div className="flex items-center gap-2">
                                 <span className="font-semibold text-gray-900">{posts.length}</span>
                                 <span className="text-gray-500">Posts</span>
@@ -300,7 +305,7 @@ export default function PublicProfile({ session }) {
             {posts.length > 0 ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 animate-fade-in">
                     {posts.map(post => (
-                        <div key={post.id} className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm hover-lift transition-all group relative">
+                        <Link to={`/post/${post.id}`} key={post.id} className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm hover-lift transition-all group relative block">
                             <div className="flex justify-between items-start mb-3">
                                 <div className="flex gap-2">
                                     <span className={`text-xs font-bold px-2 py-1 rounded-md ${post.type === 'code' ? 'bg-blue-50 text-blue-600' : 'bg-pink-50 text-pink-600'}`}>
@@ -314,15 +319,21 @@ export default function PublicProfile({ session }) {
                                 </div>
 
                                 {isOwnProfile && (
-                                    <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity absolute top-4 right-4 bg-white shadow-sm rounded-lg p-1 border border-gray-100">
+                                    <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity absolute top-4 right-4 bg-white shadow-sm rounded-lg p-1 border border-gray-100 z-10">
                                         <button
-                                            onClick={() => setEditingPost(post)}
+                                            onClick={(e) => {
+                                                e.preventDefault() // Prevent navigation
+                                                setEditingPost(post)
+                                            }}
                                             className="p-1.5 text-gray-400 hover:text-blue-500 hover:bg-blue-50 rounded-md"
                                         >
                                             <Edit2 size={14} />
                                         </button>
                                         <button
-                                            onClick={() => handleDelete(post.id)}
+                                            onClick={(e) => {
+                                                e.preventDefault() // Prevent navigation
+                                                handleDelete(post.id)
+                                            }}
                                             className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-md"
                                         >
                                             <Trash2 size={14} />
@@ -346,10 +357,21 @@ export default function PublicProfile({ session }) {
                                 </div>
                             ) : (
                                 <>
-                                    <div className="h-32 bg-gray-100 rounded-lg overflow-hidden mb-2">
+                                    <div className="h-32 bg-gray-100 rounded-lg overflow-hidden mb-2 relative group-hover:opacity-90 transition-opacity">
                                         {post.content_url && (
-                                            post.content_url.endsWith('.mp4') ? (
-                                                <video src={post.content_url} className="w-full h-full object-cover" />
+                                            (post.content_url.match(/\.(mp4|webm|ogg|mov|mkv|avi|qt)$/i) || post.content_url.includes('video')) ? (
+                                                <>
+                                                    <video
+                                                        src={`${post.content_url}#t=0.001`}
+                                                        className="w-full h-full object-cover"
+                                                        preload="metadata"
+                                                    />
+                                                    <div className="absolute inset-0 flex items-center justify-center bg-black/20">
+                                                        <div className="bg-black/50 p-2 rounded-full text-white backdrop-blur-sm">
+                                                            <Code2 size={16} />
+                                                        </div>
+                                                    </div>
+                                                </>
                                             ) : (
                                                 <img src={post.content_url} alt={post.title} className="w-full h-full object-cover" />
                                             )
@@ -360,13 +382,30 @@ export default function PublicProfile({ session }) {
                                     )}
                                 </>
                             )}
-                        </div>
+                        </Link>
                     ))}
                 </div>
             ) : (
                 <div className="text-center py-16 bg-gray-50 rounded-2xl border border-dashed border-gray-200 animate-fade-in">
                     <p className="text-gray-500">No posts yet</p>
                 </div>
+            )}
+            {showFollowersModal && (
+                <UserListModal
+                    userId={profile?.id}
+                    type="followers"
+                    title="Followers"
+                    onClose={() => setShowFollowersModal(false)}
+                />
+            )}
+
+            {showFollowingModal && (
+                <UserListModal
+                    userId={profile?.id}
+                    type="following"
+                    title="Following"
+                    onClose={() => setShowFollowingModal(false)}
+                />
             )}
         </div>
     )

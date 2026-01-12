@@ -3,13 +3,15 @@ import { supabase } from '../supabaseClient'
 import { useNavigate } from 'react-router-dom'
 import {
     Settings as SettingsIcon,
-    Activity,
-    BarChart3,
-    Heart,
-    MessageCircle,
-    Users,
-    FileText,
-    TrendingUp,
+    User,
+    Palette,
+    Shield,
+    Save,
+    Loader,
+    Camera,
+    Check,
+    X as XIcon,
+    Code2,
     Calendar,
     ArrowLeft
 } from 'lucide-react'
@@ -19,99 +21,154 @@ import toast from 'react-hot-toast'
 
 export default function Settings({ session }) {
     const navigate = useNavigate()
-    const [activeTab, setActiveTab] = useState('overview')
+    const [activeTab, setActiveTab] = useState('profile')
     const [loading, setLoading] = useState(true)
-    const [stats, setStats] = useState({
-        totalPosts: 0,
-        totalLikes: 0,
-        totalComments: 0,
-        followers: 0,
-        following: 0
+    const [saving, setSaving] = useState(false)
+    const [profile, setProfile] = useState({
+        username: '',
+        display_name: '',
+        bio: '',
+        website: '',
+        syntax_theme: 'vscDarkPlus',
+        profile_picture_url: '',
+        banner_image_url: ''
     })
-    const [recentActivity, setRecentActivity] = useState([])
-    const [profile, setProfile] = useState(null)
+    const [originalProfile, setOriginalProfile] = useState(null)
+    const [usernameError, setUsernameError] = useState('')
+    const [checkingUsername, setCheckingUsername] = useState(false)
 
     useEffect(() => {
         if (!session) {
             navigate('/login')
             return
         }
-        fetchData()
+        fetchProfile()
     }, [session])
 
-    const fetchData = async () => {
+    const fetchProfile = async () => {
         try {
             setLoading(true)
-
-            // Fetch profile
-            const { data: profileData } = await supabase
+            const { data, error } = await supabase
                 .from('profiles')
                 .select('*')
                 .eq('id', session.user.id)
                 .single()
 
-            setProfile(profileData)
-
-            // Fetch stats
-            const [postsResult, likesResult, commentsResult] = await Promise.all([
-                supabase.from('posts').select('*', { count: 'exact' }).eq('user_id', session.user.id),
-                supabase.from('likes').select('*', { count: 'exact' }).eq('user_id', session.user.id),
-                supabase.from('comments').select('*', { count: 'exact' }).eq('user_id', session.user.id)
-            ])
-
-            setStats({
-                totalPosts: postsResult.count || 0,
-                totalLikes: likesResult.count || 0,
-                totalComments: commentsResult.count || 0,
-                followers: profileData?.follower_count || 0,
-                following: profileData?.following_count || 0
-            })
-
-            // Fetch recent posts for activity
-            const { data: postsData } = await supabase
-                .from('posts')
-                .select('*')
-                .eq('user_id', session.user.id)
-                .order('created_at', { ascending: false })
-                .limit(10)
-
-            setRecentActivity(postsData || [])
+            if (error) throw error
+            setProfile(data)
+            setOriginalProfile(data)
         } catch (error) {
-            console.error('Error fetching data:', error)
+            console.error('Error fetching profile:', error)
             toast.error('Failed to load settings')
         } finally {
             setLoading(false)
         }
     }
 
+    const handleInputChange = (e) => {
+        const { name, value } = e.target
+        setProfile(prev => ({ ...prev, [name]: value }))
+
+        if (name === 'username') {
+            checkUsername(value)
+        }
+    }
+
+    const checkUsername = async (username) => {
+        if (username === originalProfile.username) {
+            setUsernameError('')
+            return
+        }
+        if (username.length < 3) {
+            setUsernameError('Username must be at least 3 characters')
+            return
+        }
+
+        setCheckingUsername(true)
+        try {
+            const { data, error } = await supabase
+                .from('profiles')
+                .select('id')
+                .eq('username', username)
+                .single()
+
+            if (data && data.id !== session.user.id) {
+                setUsernameError('Username is already taken')
+            } else {
+                setUsernameError('')
+            }
+        } catch (error) {
+            // Error means not found (good) or actual error
+            if (error.code === 'PGRST116') {
+                setUsernameError('')
+            } else {
+                console.error(error)
+            }
+        } finally {
+            setCheckingUsername(false)
+        }
+    }
+
+    const handleSave = async () => {
+        if (usernameError) return
+
+        setSaving(true)
+        try {
+            const { error } = await supabase
+                .from('profiles')
+                .update({
+                    username: profile.username,
+                    display_name: profile.display_name,
+                    bio: profile.bio,
+                    website: profile.website,
+                    syntax_theme: profile.syntax_theme,
+                    updated_at: new Date().toISOString()
+                })
+                .eq('id', session.user.id)
+
+            if (error) throw error
+
+            toast.success('Settings saved successfully')
+            setOriginalProfile(profile)
+        } catch (error) {
+            console.error('Error saving settings:', error)
+            if (error.message.includes('unique constraint')) {
+                toast.error('Username already taken')
+                setUsernameError('Username already taken')
+            } else {
+                toast.error('Failed to save settings')
+            }
+        } finally {
+            setSaving(false)
+        }
+    }
+
     const tabs = [
-        { id: 'overview', label: 'Overview', icon: BarChart3 },
-        { id: 'activity', label: 'Activity', icon: Activity },
-        { id: 'posts', label: 'Posts', icon: FileText },
-        { id: 'engagement', label: 'Engagement', icon: Heart }
+        { id: 'profile', label: 'Edit Profile', icon: User },
+        { id: 'appearance', label: 'Appearance', icon: Palette },
+        { id: 'account', label: 'Account', icon: Shield },
     ]
 
-    const statCards = [
-        { label: 'Total Posts', value: stats.totalPosts, icon: FileText, color: 'blue' },
-        { label: 'Likes Given', value: stats.totalLikes, icon: Heart, color: 'pink' },
-        { label: 'Comments Made', value: stats.totalComments, icon: MessageCircle, color: 'green' },
-        { label: 'Followers', value: stats.followers, icon: Users, color: 'purple' },
-        { label: 'Following', value: stats.following, icon: TrendingUp, color: 'orange' }
+    const themes = [
+        { id: 'vscDarkPlus', name: 'VS Code Dark' },
+        { id: 'dracula', name: 'Dracula' },
+        { id: 'github', name: 'GitHub Light' },
+        { id: 'monokai', name: 'Monokai' },
     ]
 
     if (loading) {
         return (
-            <div className="max-w-6xl mx-auto">
+            <div className="max-w-4xl mx-auto p-6">
                 <div className="animate-pulse space-y-4">
                     <div className="h-8 bg-gray-200 rounded w-1/4"></div>
-                    <div className="h-64 bg-gray-200 rounded"></div>
+                    <div className="h-96 bg-gray-200 rounded-2xl"></div>
                 </div>
             </div>
         )
     }
 
     return (
-        <div className="max-w-6xl mx-auto">
+        <div className="max-w-4xl mx-auto pb-20">
             {/* Header */}
             <div className="mb-6 flex items-center gap-4">
                 <button
@@ -120,170 +177,225 @@ export default function Settings({ session }) {
                 >
                     <ArrowLeft size={20} />
                 </button>
-                <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 bg-gradient-to-br from-blue-600 to-purple-600 rounded-full flex items-center justify-center">
-                        <SettingsIcon className="w-6 h-6 text-white" />
-                    </div>
-                    <div>
-                        <h1 className="text-2xl font-bold text-gray-900">Settings & Activity</h1>
-                        <p className="text-sm text-gray-500">View your stats and manage your account</p>
-                    </div>
+                <div>
+                    <h1 className="text-2xl font-bold text-gray-900">Settings</h1>
+                    <p className="text-sm text-gray-500">Manage your profile and preferences</p>
                 </div>
             </div>
 
-            {/* User Info Card */}
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-6">
-                <div className="flex items-center gap-4">
-                    <Avatar
-                        src={profile?.profile_picture_url}
-                        alt={profile?.display_name || profile?.username}
-                        size="xl"
-                    />
-                    <div className="flex-1">
-                        <h2 className="text-xl font-bold text-gray-900">
-                            {profile?.display_name || profile?.username || 'User'}
-                        </h2>
-                        <p className="text-gray-500">@{profile?.username}</p>
-                        <p className="text-sm text-gray-400 mt-1">
-                            <Calendar size={14} className="inline mr-1" />
-                            Joined {formatDate(profile?.created_at)}
-                        </p>
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden flex flex-col md:flex-row min-h-[600px]">
+                {/* Sidebar */}
+                <div className="w-full md:w-64 border-b md:border-b-0 md:border-r border-gray-100 bg-gray-50/50 p-4">
+                    <div className="space-y-1">
+                        {tabs.map(tab => (
+                            <button
+                                key={tab.id}
+                                onClick={() => setActiveTab(tab.id)}
+                                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition-all ${activeTab === tab.id
+                                    ? 'bg-blue-50 text-blue-600 shadow-sm'
+                                    : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+                                    }`}
+                            >
+                                <tab.icon size={18} />
+                                {tab.label}
+                            </button>
+                        ))}
                     </div>
                 </div>
-            </div>
 
-            {/* Tabs */}
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden mb-6">
-                <div className="flex border-b border-gray-100 overflow-x-auto">
-                    {tabs.map(tab => (
-                        <button
-                            key={tab.id}
-                            onClick={() => setActiveTab(tab.id)}
-                            className={`flex items-center gap-2 px-6 py-4 font-medium transition-colors whitespace-nowrap ${activeTab === tab.id
-                                    ? 'text-blue-600 border-b-2 border-blue-600 bg-blue-50'
-                                    : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
-                                }`}
-                        >
-                            <tab.icon size={18} />
-                            {tab.label}
-                        </button>
-                    ))}
-                </div>
+                {/* Content */}
+                <div className="flex-1 p-6 md:p-8">
+                    {/* Profile Settings */}
+                    {activeTab === 'profile' && (
+                        <div className="space-y-6 animate-fade-in">
+                            <div>
+                                <h2 className="text-xl font-bold text-gray-900 mb-1">Profile Details</h2>
+                                <p className="text-sm text-gray-500">Update your public profile information</p>
+                            </div>
 
-                {/* Tab Content */}
-                <div className="p-6">
-                    {/* Overview Tab */}
-                    {activeTab === 'overview' && (
-                        <div className="space-y-6">
-                            <h3 className="text-lg font-semibold text-gray-900">Your Statistics</h3>
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                                {statCards.map(stat => (
-                                    <div
-                                        key={stat.label}
-                                        className={`bg-gradient-to-br from-${stat.color}-50 to-${stat.color}-100 border border-${stat.color}-200 rounded-xl p-6 hover:shadow-md transition-shadow`}
-                                    >
-                                        <div className="flex items-center justify-between mb-2">
-                                            <stat.icon className={`text-${stat.color}-600`} size={24} />
-                                            <span className={`text-3xl font-bold text-${stat.color}-900`}>
-                                                {stat.value}
-                                            </span>
-                                        </div>
-                                        <p className={`text-sm font-medium text-${stat.color}-700`}>{stat.label}</p>
+                            <div className="flex items-center gap-6 pb-6 border-b border-gray-100">
+                                <div className="relative group cursor-pointer">
+                                    <Avatar src={profile.profile_picture_url} size="xl" />
+                                    <div className="absolute inset-0 bg-black/40 rounded-full opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white">
+                                        <Camera size={24} />
                                     </div>
-                                ))}
+                                </div>
+                                <div className="flex-1">
+                                    <h3 className="font-semibold text-gray-900">Profile Picture</h3>
+                                    <p className="text-xs text-gray-500 mt-1">
+                                        Upload a new avatar. Recommended size: 400x400px.
+                                    </p>
+                                    <button className="mt-3 px-4 py-2 bg-white border border-gray-200 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors">
+                                        Change Photo
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div className="space-y-4">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">Display Name</label>
+                                        <input
+                                            type="text"
+                                            name="display_name"
+                                            value={profile.display_name || ''}
+                                            onChange={handleInputChange}
+                                            className="w-full px-4 py-2 rounded-xl border border-gray-200 focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">Username</label>
+                                        <div className="relative">
+                                            <input
+                                                type="text"
+                                                name="username"
+                                                value={profile.username || ''}
+                                                onChange={handleInputChange}
+                                                className={`w-full px-4 py-2 rounded-xl border ${usernameError ? 'border-red-300 focus:border-red-500 focus:ring-red-100' : 'border-gray-200 focus:border-blue-500 focus:ring-blue-100'} focus:ring-2 outline-none transition-all`}
+                                            />
+                                            <div className="absolute right-3 top-2.5">
+                                                {checkingUsername ? (
+                                                    <Loader size={16} className="animate-spin text-gray-400" />
+                                                ) : usernameError ? (
+                                                    <XIcon size={16} className="text-red-500" />
+                                                ) : profile.username && profile.username !== originalProfile.username ? (
+                                                    <Check size={16} className="text-green-500" />
+                                                ) : null}
+                                            </div>
+                                        </div>
+                                        {usernameError && (
+                                            <p className="text-xs text-red-500 mt-1 ml-1">{usernameError}</p>
+                                        )}
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Bio</label>
+                                    <textarea
+                                        name="bio"
+                                        value={profile.bio || ''}
+                                        onChange={handleInputChange}
+                                        rows="3"
+                                        className="w-full px-4 py-2 rounded-xl border border-gray-200 focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all resize-none"
+                                        placeholder="Tell us about yourself..."
+                                    />
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Website</label>
+                                    <input
+                                        type="url"
+                                        name="website"
+                                        value={profile.website || ''}
+                                        onChange={handleInputChange}
+                                        placeholder="https://yourwebsite.com"
+                                        className="w-full px-4 py-2 rounded-xl border border-gray-200 focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all"
+                                    />
+                                </div>
                             </div>
                         </div>
                     )}
 
-                    {/* Activity Tab */}
-                    {activeTab === 'activity' && (
-                        <div className="space-y-4">
-                            <h3 className="text-lg font-semibold text-gray-900">Recent Activity</h3>
-                            {recentActivity.length > 0 ? (
-                                <div className="space-y-3">
-                                    {recentActivity.map(post => (
-                                        <div
-                                            key={post.id}
-                                            className="flex items-start gap-3 p-4 rounded-lg border border-gray-100 hover:bg-gray-50 transition-colors"
+                    {/* Appearance Settings */}
+                    {activeTab === 'appearance' && (
+                        <div className="space-y-6 animate-fade-in">
+                            <div>
+                                <h2 className="text-xl font-bold text-gray-900 mb-1">Appearance</h2>
+                                <p className="text-sm text-gray-500">Customize how CodeKrafts looks for you</p>
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-3">Syntax Highlighting Theme</label>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    {themes.map(theme => (
+                                        <button
+                                            key={theme.id}
+                                            onClick={() => setProfile(p => ({ ...p, syntax_theme: theme.id }))}
+                                            className={`p-4 rounded-xl border text-left transition-all ${profile.syntax_theme === theme.id
+                                                ? 'border-blue-500 bg-blue-50 ring-2 ring-blue-100'
+                                                : 'border-gray-200 hover:bg-gray-50'
+                                                }`}
                                         >
-                                            <div className={`p-2 rounded-lg ${post.type === 'code' ? 'bg-blue-100' : 'bg-pink-100'
-                                                }`}>
-                                                <FileText size={18} className={
-                                                    post.type === 'code' ? 'text-blue-600' : 'text-pink-600'
-                                                } />
+                                            <div className="flex items-center justify-between mb-2">
+                                                <span className={`font-semibold ${profile.syntax_theme === theme.id ? 'text-blue-700' : 'text-gray-900'}`}>
+                                                    {theme.name}
+                                                </span>
+                                                {profile.syntax_theme === theme.id && (
+                                                    <Check size={18} className="text-blue-600" />
+                                                )}
                                             </div>
-                                            <div className="flex-1 min-w-0">
-                                                <p className="font-semibold text-gray-900 truncate">{post.title}</p>
-                                                <p className="text-sm text-gray-500">{formatDate(post.created_at)}</p>
+                                            <div className="flex items-center gap-2 text-xs text-gray-500">
+                                                <Code2 size={14} />
+                                                <span>Preview</span>
                                             </div>
-                                            <span className={`text-xs font-bold px-2 py-1 rounded-md ${post.type === 'code' ? 'bg-blue-50 text-blue-600' : 'bg-pink-50 text-pink-600'
-                                                }`}>
-                                                {post.type.toUpperCase()}
-                                            </span>
-                                        </div>
+                                        </button>
                                     ))}
                                 </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Account Settings */}
+                    {activeTab === 'account' && (
+                        <div className="space-y-6 animate-fade-in">
+                            <div>
+                                <h2 className="text-xl font-bold text-gray-900 mb-1">Account</h2>
+                                <p className="text-sm text-gray-500">Manage your account security and data</p>
+                            </div>
+
+                            <div className="bg-gray-50 rounded-xl p-4 border border-gray-200">
+                                <h3 className="font-medium text-gray-900 mb-1">Email Address</h3>
+                                <p className="text-gray-600 text-sm mb-3">Your email address is managed via Supabase Auth.</p>
+                                <div className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm text-gray-500">
+                                    <Shield size={14} />
+                                    {session.user.email}
+                                </div>
+                            </div>
+
+                            <div className="pt-6 border-t border-gray-100">
+                                <h3 className="font-semibold text-red-600 mb-2">Danger Zone</h3>
+                                <div className="p-4 border border-red-200 bg-red-50 rounded-xl flex items-center justify-between">
+                                    <div>
+                                        <p className="font-medium text-red-900">Delete Account</p>
+                                        <p className="text-xs text-red-700 mt-1">
+                                            Permanently delete your account and all data.
+                                        </p>
+                                    </div>
+                                    <button className="px-4 py-2 bg-red-600 text-white text-sm font-semibold rounded-lg hover:bg-red-700 transition-colors">
+                                        Delete
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Save Button (Floating for mobile, Fixed bottom right for desktop) */}
+                    <div className="mt-8 pt-6 border-t border-gray-100 flex justify-end">
+                        <button
+                            onClick={handleSave}
+                            disabled={saving || !!usernameError}
+                            className={`px-8 py-3 rounded-xl font-semibold flex items-center gap-2 transition-all ${saving || usernameError
+                                ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                                : 'bg-blue-600 text-white hover:bg-blue-700 shadow-lg shadow-blue-200'
+                                }`}
+                        >
+                            {saving ? (
+                                <>
+                                    <Loader size={18} className="animate-spin" />
+                                    Saving...
+                                </>
                             ) : (
-                                <p className="text-center text-gray-400 py-12">No activity yet</p>
+                                <>
+                                    <Save size={18} />
+                                    Save Changes
+                                </>
                             )}
-                        </div>
-                    )}
-
-                    {/* Posts Tab */}
-                    {activeTab === 'posts' && (
-                        <div className="space-y-4">
-                            <div className="flex items-center justify-between">
-                                <h3 className="text-lg font-semibold text-gray-900">Your Posts</h3>
-                                <span className="text-2xl font-bold text-blue-600">{stats.totalPosts}</span>
-                            </div>
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                                    <p className="text-sm text-blue-600 font-medium">Code Posts</p>
-                                    <p className="text-2xl font-bold text-blue-900">
-                                        {recentActivity.filter(p => p.type === 'code').length}
-                                    </p>
-                                </div>
-                                <div className="bg-pink-50 border border-pink-200 rounded-lg p-4">
-                                    <p className="text-sm text-pink-600 font-medium">Meme Posts</p>
-                                    <p className="text-2xl font-bold text-pink-900">
-                                        {recentActivity.filter(p => p.type === 'meme').length}
-                                    </p>
-                                </div>
-                            </div>
-                        </div>
-                    )}
-
-                    {/* Engagement Tab */}
-                    {activeTab === 'engagement' && (
-                        <div className="space-y-4">
-                            <h3 className="text-lg font-semibold text-gray-900">Engagement Stats</h3>
-                            <div className="space-y-3">
-                                <div className="flex items-center justify-between p-4 bg-pink-50 border border-pink-200 rounded-lg">
-                                    <div className="flex items-center gap-3">
-                                        <Heart className="text-pink-600" size={24} />
-                                        <span className="font-medium text-gray-900">Total Likes Given</span>
-                                    </div>
-                                    <span className="text-2xl font-bold text-pink-600">{stats.totalLikes}</span>
-                                </div>
-                                <div className="flex items-center justify-between p-4 bg-green-50 border border-green-200 rounded-lg">
-                                    <div className="flex items-center gap-3">
-                                        <MessageCircle className="text-green-600" size={24} />
-                                        <span className="font-medium text-gray-900">Total Comments Made</span>
-                                    </div>
-                                    <span className="text-2xl font-bold text-green-600">{stats.totalComments}</span>
-                                </div>
-                                <div className="flex items-center justify-between p-4 bg-purple-50 border border-purple-200 rounded-lg">
-                                    <div className="flex items-center gap-3">
-                                        <Users className="text-purple-600" size={24} />
-                                        <span className="font-medium text-gray-900">Followers</span>
-                                    </div>
-                                    <span className="text-2xl font-bold text-purple-600">{stats.followers}</span>
-                                </div>
-                            </div>
-                        </div>
-                    )}
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
     )
 }
+
+

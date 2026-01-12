@@ -18,7 +18,8 @@ export default function Avatar({ src, alt = 'User', size = 'md', className = '',
         lg: 'w-12 h-12 text-base',
         xl: 'w-16 h-16 text-xl',
         '2xl': 'w-20 h-20 text-2xl',
-        '3xl': 'w-24 h-24 text-3xl'
+        '3xl': 'w-24 h-24 text-3xl',
+        'full': 'w-full h-full'
     }
 
     const getInitials = (name) => {
@@ -31,12 +32,12 @@ export default function Avatar({ src, alt = 'User', size = 'md', className = '',
     }
 
     const avatarContent = (
-        <div className={`relative ${sizeClasses[size]} ${className}`}>
+        <div className={`relative rounded-full ${sizeClasses[size]} ${className}`}>
             {src ? (
                 <img
                     src={src}
                     alt={alt}
-                    className="w-full h-full rounded-full object-cover border-2 border-white shadow-sm"
+                    className="w-full h-full rounded-full object-cover border-2 border-white shadow-sm bg-white"
                     onError={(e) => {
                         // Fallback if image fails to load
                         e.target.style.display = 'none'

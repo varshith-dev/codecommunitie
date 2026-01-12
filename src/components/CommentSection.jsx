@@ -5,6 +5,7 @@ import toast from 'react-hot-toast'
 import Avatar from './Avatar'
 import { CommentSkeleton } from './SkeletonLoader'
 import { timeAgo } from '../utils/timeAgo'
+import UserBadges from './UserBadges'
 
 export default function CommentSection({ postId, session, onCommentAdded }) {
   const [comments, setComments] = useState([])
@@ -40,7 +41,7 @@ export default function CommentSection({ postId, session, onCommentAdded }) {
       // Fetch profiles separately
       const { data: profilesData } = await supabase
         .from('profiles')
-        .select('id, username, display_name, profile_picture_url')
+        .select('id, username, display_name, profile_picture_url, is_verified')
         .in('id', userIds)
 
       // Create a map of profiles by user_id
@@ -117,8 +118,9 @@ export default function CommentSection({ postId, session, onCommentAdded }) {
               <div className="flex-1 min-w-0">
                 <div className="bg-white p-3 rounded-lg rounded-tl-none border border-gray-200 shadow-sm">
                   <div className="flex items-center justify-between mb-1">
-                    <span className="font-bold text-gray-900 text-sm">
+                    <span className="font-bold text-gray-900 text-sm flex items-center gap-1">
                       {comment.profiles?.display_name || comment.profiles?.username || 'Anonymous'}
+                      <UserBadges user={comment.profiles} />
                     </span>
                     <span className="text-xs text-gray-400">
                       {timeAgo(comment.created_at)}

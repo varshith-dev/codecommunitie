@@ -87,7 +87,11 @@ export async function uploadPostMedia(file, userId) {
         // Upload to Supabase Storage
         const { error: uploadError } = await supabase.storage
             .from('meme-uploads')
-            .upload(filePath, file)
+            .upload(filePath, file, {
+                contentType: file.type,
+                cacheControl: '3600',
+                upsert: false
+            })
 
         if (uploadError) throw uploadError
 

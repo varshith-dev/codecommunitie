@@ -1,19 +1,44 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../supabaseClient'
-import { Search as SearchIcon, User, Code2, FileText, Loader2 } from 'lucide-react'
-import { Link } from 'react-router-dom'
+import { Search as SearchIcon, User, Code2, FileText, Loader2, LayoutGrid } from 'lucide-react'
+import { Link, useSearchParams } from 'react-router-dom'
 import Avatar from '../components/Avatar'
+import UserBadges from '../components/UserBadges'
 import { timeAgo } from '../utils/timeAgo'
+import { PostSkeleton, UserCardSkeleton } from '../components/SkeletonLoader'
 
 export default function Search() {
-    const [query, setQuery] = useState('')
-    const [activeTab, setActiveTab] = useState('users') // 'users', 'posts', 'code'
+    const [searchParams, setSearchParams] = useSearchParams()
+    const initialQuery = searchParams.get('q') || ''
+
+    const [query, setQuery] = useState(initialQuery)
+    const [activeTab, setActiveTab] = useState('all') // 'all', 'users', 'posts', 'code'
     const [searching, setSearching] = useState(false)
     const [results, setResults] = useState({
         users: [],
         posts: [],
         code: []
     })
+
+    // Sync URL param to state
+    useEffect(() => {
+        if (initialQuery !== query) {
+            setQuery(initialQuery)
+            if (initialQuery && initialQuery.startsWith('#')) {
+                setActiveTab('posts')
+            }
+        }
+    }, [initialQuery])
+
+    // Update URL when query changes (optional, but good for shareability)
+    const handleSearchChange = (val) => {
+        setQuery(val)
+        if (val) {
+            setSearchParams({ q: val })
+        } else {
+            setSearchParams({})
+        }
+    }
 
     // Debounced search
     useEffect(() => {
@@ -34,24 +59,41 @@ export default function Search() {
             // Search Users
             const { data: usersData } = await supabase
                 .from('profiles')
-                .select('id, username, display_name, profile_picture_url, bio')
+                .select('id, username, display_name, profile_picture_url, bio, is_verified')
                 .or(`username.ilike.%${searchQuery}%,display_name.ilike.%${searchQuery}%`)
                 .limit(10)
 
-            // Search Posts (all types)
-            const { data: postsData } = await supabase
+            // Search Posts (by title/description)
+            const { data: textPostsData } = await supabase
                 .from('posts')
                 .select('id, title, type, content_url, code_language, created_at, user_id, description')
+                .eq('status', 'published')
                 .or(`title.ilike.%${searchQuery}%,description.ilike.%${searchQuery}%`)
                 .order('created_at', { ascending: false })
-                .limit(10)
+                .limit(20)
+
+            // Search Posts (by tag)
+            const { data: tagPostsData } = await supabase
+                .from('posts')
+                .select('id, title, type, content_url, code_language, created_at, user_id, description, post_tags!inner(tags!inner(name))')
+                .eq('status', 'published')
+                .ilike('post_tags.tags.name', `%${searchQuery}%`)
+                .order('created_at', { ascending: false })
+                .limit(20)
+
+            // Merge and Deduplicate Posts
+            const allPosts = [...(textPostsData || []), ...(tagPostsData || [])]
+            const uniquePosts = [...new Map(allPosts.map(item => [item['id'], item])).values()]
+
+            // Re-sort after merge
+            uniquePosts.sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
 
             // Fetch profiles for posts
-            if (postsData && postsData.length > 0) {
-                const userIds = [...new Set(postsData.map(post => post.user_id))]
+            if (uniquePosts.length > 0) {
+                const userIds = [...new Set(uniquePosts.map(post => post.user_id))]
                 const { data: profilesData } = await supabase
                     .from('profiles')
-                    .select('id, username, display_name, profile_picture_url')
+                    .select('id, username, display_name, profile_picture_url, is_verified')
                     .in('id', userIds)
 
                 const profilesMap = {}
@@ -59,7 +101,7 @@ export default function Search() {
                     profilesMap[profile.id] = profile
                 })
 
-                postsData.forEach(post => {
+                uniquePosts.forEach(post => {
                     post.profile = profilesMap[post.user_id] || {
                         username: 'Anonymous',
                         display_name: null,
@@ -68,11 +110,14 @@ export default function Search() {
                 })
             }
 
-            // Search Code Posts by language
+            // Search Code Posts by language (Specific tab)
+            // Note: Reuse uniquePosts filtering if type='code', but user might want explicit code search too.
+            // Let's keep the existing logic for 'code' tab as it targets code specific fields.
             const { data: codeData } = await supabase
                 .from('posts')
                 .select('id, title, type, code_snippet, code_language, created_at, user_id')
                 .eq('type', 'code')
+                .eq('status', 'published')
                 .or(`code_language.ilike.%${searchQuery}%,title.ilike.%${searchQuery}%,code_snippet.ilike.%${searchQuery}%`)
                 .order('created_at', { ascending: false })
                 .limit(10)
@@ -82,7 +127,7 @@ export default function Search() {
                 const userIds = [...new Set(codeData.map(post => post.user_id))]
                 const { data: profilesData } = await supabase
                     .from('profiles')
-                    .select('id, username, display_name, profile_picture_url')
+                    .select('id, username, display_name, profile_picture_url, is_verified')
                     .in('id', userIds)
 
                 const profilesMap = {}
@@ -101,7 +146,7 @@ export default function Search() {
 
             setResults({
                 users: usersData || [],
-                posts: postsData || [],
+                posts: uniquePosts || [],
                 code: codeData || []
             })
         } catch (error) {
@@ -112,10 +157,13 @@ export default function Search() {
     }
 
     const tabs = [
-        { id: 'users', label: 'Users', icon: User, count: results.users.length },
+        { id: 'all', label: 'All', icon: LayoutGrid, count: results.users.length + results.posts.length + results.code.length },
+        { id: 'users', label: 'People', icon: User, count: results.users.length },
         { id: 'posts', label: 'Posts', icon: FileText, count: results.posts.length },
         { id: 'code', label: 'Code', icon: Code2, count: results.code.length }
     ]
+
+    const hasResults = results.users.length > 0 || results.posts.length > 0 || results.code.length > 0
 
     return (
         <div className="max-w-4xl mx-auto">
@@ -132,7 +180,7 @@ export default function Search() {
                             placeholder="Search for users, posts, or code..."
                             className="w-full pl-12 pr-4 py-3 rounded-xl border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition-all"
                             value={query}
-                            onChange={(e) => setQuery(e.target.value)}
+                            onChange={(e) => handleSearchChange(e.target.value)}
                             autoFocus
                         />
                         {searching && (
@@ -148,12 +196,13 @@ export default function Search() {
                             key={tab.id}
                             onClick={() => setActiveTab(tab.id)}
                             className={`flex items-center gap-2 px-6 py-3 font-medium transition-colors whitespace-nowrap ${activeTab === tab.id
-                                    ? 'text-blue-600 border-b-2 border-blue-600'
-                                    : 'text-gray-500 hover:text-gray-700'
+                                ? 'text-blue-600 border-b-2 border-blue-600'
+                                : 'text-gray-500 hover:text-gray-700'
                                 }`}
                         >
                             <tab.icon size={18} />
                             {tab.label}
+                            {/* Show count only if > 0 and not 'all' tab (since all sum might be weird if duplicates exist, but here they are disparate) */}
                             {tab.count > 0 && (
                                 <span className={`px-2 py-0.5 text-xs rounded-full ${activeTab === tab.id ? 'bg-blue-100 text-blue-600' : 'bg-gray-100 text-gray-600'
                                     }`}>
@@ -166,22 +215,32 @@ export default function Search() {
 
                 {/* Results */}
                 <div className="p-6">
-                    {query.trim().length < 2 ? (
+                    {searching ? (
+                        <div className="space-y-4 animate-fade-in">
+                            {[1, 2, 3].map(i => <PostSkeleton key={i} />)}
+                        </div>
+                    ) : query.trim().length < 2 ? (
                         <div className="text-center py-12 text-gray-400">
                             <SearchIcon size={48} className="mx-auto mb-3 opacity-50" />
                             <p>Start typing to search...</p>
                         </div>
+                    ) : !hasResults ? (
+                        <div className="text-center py-12 text-gray-400">
+                            <SearchIcon size={48} className="mx-auto mb-3 opacity-50" />
+                            <p>No results found for "{query}"</p>
+                        </div>
                     ) : (
-                        <div className="space-y-4">
-                            {/* Users Tab */}
-                            {activeTab === 'users' && (
-                                <>
-                                    {results.users.length > 0 ? (
-                                        results.users.map(user => (
+                        <div className="space-y-8">
+                            {/* Users Tab/Section */}
+                            {(activeTab === 'all' || activeTab === 'users') && results.users.length > 0 && (
+                                <div className="animate-fade-in">
+                                    {activeTab === 'all' && <h3 className="font-bold text-gray-900 mb-3 flex items-center gap-2"><User size={18} /> People</h3>}
+                                    <div className="grid grid-cols-1 gap-4">
+                                        {results.users.map(user => (
                                             <Link
                                                 key={user.id}
                                                 to={`/user/@${user.username}`}
-                                                className="flex items-center gap-4 p-4 rounded-xl hover:bg-gray-50 transition-colors border border-gray-100"
+                                                className="flex items-center gap-4 p-4 rounded-xl hover:bg-gray-50 transition-colors border border-gray-100 group"
                                             >
                                                 <Avatar
                                                     src={user.profile_picture_url}
@@ -189,8 +248,9 @@ export default function Search() {
                                                     size="lg"
                                                 />
                                                 <div className="flex-1 min-w-0">
-                                                    <h3 className="font-semibold text-gray-900 truncate">
+                                                    <h3 className="font-semibold text-gray-900 truncate flex items-center gap-1 group-hover:text-blue-600 transition-colors">
                                                         {user.display_name || user.username}
+                                                        <UserBadges user={user} />
                                                     </h3>
                                                     <p className="text-sm text-gray-500">@{user.username}</p>
                                                     {user.bio && (
@@ -198,47 +258,41 @@ export default function Search() {
                                                     )}
                                                 </div>
                                             </Link>
-                                        ))
-                                    ) : (
-                                        <div className="text-center py-12 text-gray-400">
-                                            <User size={48} className="mx-auto mb-3 opacity-50" />
-                                            <p>No users found</p>
-                                        </div>
-                                    )}
-                                </>
+                                        ))}
+                                    </div>
+                                </div>
                             )}
 
-                            {/* Posts Tab */}
-                            {activeTab === 'posts' && (
-                                <>
-                                    {results.posts.length > 0 ? (
-                                        results.posts.map(post => (
-                                            <div
+                            {/* Posts Tab/Section */}
+                            {(activeTab === 'all' || activeTab === 'posts') && results.posts.length > 0 && (
+                                <div className="animate-fade-in">
+                                    {activeTab === 'all' && <h3 className="font-bold text-gray-900 mb-3 flex items-center gap-2"><FileText size={18} /> Posts</h3>}
+                                    <div className="grid grid-cols-1 gap-4">
+                                        {results.posts.map(post => (
+                                            <Link
                                                 key={post.id}
-                                                className="p-4 rounded-xl border border-gray-100 hover:border-blue-200 transition-colors"
+                                                to={`/post/${post.id}`}
+                                                className="block p-4 rounded-xl border border-gray-100 hover:border-blue-200 transition-colors bg-white hover:bg-gray-50 group"
                                             >
                                                 <div className="flex items-start gap-3 mb-2">
-                                                    <Avatar
-                                                        src={post.profile?.profile_picture_url}
-                                                        alt={post.profile?.display_name || post.profile?.username}
-                                                        size="sm"
-                                                        userId={post.user_id}
-                                                    />
-                                                    <div className="flex-1 min-w-0">
-                                                        <Link
-                                                            to={`/user/@${post.profile?.username}`}
-                                                            className="font-semibold text-gray-900 hover:text-blue-600 text-sm"
-                                                        >
+                                                    <div className="flex-1 min-w-0 flex items-center gap-2">
+                                                        <Avatar
+                                                            src={post.profile?.profile_picture_url}
+                                                            alt={post.profile?.display_name || post.profile?.username}
+                                                            size="sm"
+                                                        />
+                                                        <span className="font-semibold text-gray-900 text-sm flex items-center gap-1">
                                                             {post.profile?.display_name || post.profile?.username}
-                                                        </Link>
-                                                        <p className="text-xs text-gray-500">{timeAgo(post.created_at)}</p>
+                                                            <UserBadges user={post.profile} />
+                                                        </span>
+                                                        <span className="text-xs text-gray-500">{timeAgo(post.created_at)}</span>
                                                     </div>
                                                     <span className={`text-xs font-bold px-2 py-1 rounded-md ${post.type === 'code' ? 'bg-blue-50 text-blue-600' : 'bg-pink-50 text-pink-600'
                                                         }`}>
                                                         {post.type.toUpperCase()}
                                                     </span>
                                                 </div>
-                                                <h3 className="font-semibold text-gray-900 mb-1">{post.title}</h3>
+                                                <h3 className="font-semibold text-gray-900 mb-1 group-hover:text-blue-600 transition-colors">{post.title}</h3>
                                                 {post.description && (
                                                     <p className="text-sm text-gray-600 line-clamp-2">{post.description}</p>
                                                 )}
@@ -247,62 +301,51 @@ export default function Search() {
                                                         {post.code_language}
                                                     </span>
                                                 )}
-                                            </div>
-                                        ))
-                                    ) : (
-                                        <div className="text-center py-12 text-gray-400">
-                                            <FileText size={48} className="mx-auto mb-3 opacity-50" />
-                                            <p>No posts found</p>
-                                        </div>
-                                    )}
-                                </>
+                                            </Link>
+                                        ))}
+                                    </div>
+                                </div>
                             )}
 
-                            {/* Code Tab */}
-                            {activeTab === 'code' && (
-                                <>
-                                    {results.code.length > 0 ? (
-                                        results.code.map(post => (
-                                            <div
+                            {/* Code Tab/Section */}
+                            {(activeTab === 'all' || activeTab === 'code') && results.code.length > 0 && (
+                                <div className="animate-fade-in">
+                                    {activeTab === 'all' && <h3 className="font-bold text-gray-900 mb-3 flex items-center gap-2"><Code2 size={18} /> Code Snippets</h3>}
+                                    <div className="grid grid-cols-1 gap-4">
+                                        {results.code.map(post => (
+                                            <Link
                                                 key={post.id}
-                                                className="p-4 rounded-xl border border-gray-100 hover:border-blue-200 transition-colors"
+                                                to={`/post/${post.id}`}
+                                                className="block p-4 rounded-xl border border-gray-100 hover:border-blue-200 transition-colors bg-white hover:bg-gray-50 group"
                                             >
                                                 <div className="flex items-start gap-3 mb-2">
-                                                    <Avatar
-                                                        src={post.profile?.profile_picture_url}
-                                                        alt={post.profile?.display_name || post.profile?.username}
-                                                        size="sm"
-                                                        userId={post.user_id}
-                                                    />
-                                                    <div className="flex-1 min-w-0">
-                                                        <Link
-                                                            to={`/user/@${post.profile?.username}`}
-                                                            className="font-semibold text-gray-900 hover:text-blue-600 text-sm"
-                                                        >
+                                                    <div className="flex-1 min-w-0 flex items-center gap-2">
+                                                        <Avatar
+                                                            src={post.profile?.profile_picture_url}
+                                                            alt={post.profile?.display_name || post.profile?.username}
+                                                            size="sm"
+                                                        />
+                                                        <span className="font-semibold text-gray-900 text-sm flex items-center gap-1">
                                                             {post.profile?.display_name || post.profile?.username}
-                                                        </Link>
-                                                        <p className="text-xs text-gray-500">{timeAgo(post.created_at)}</p>
+                                                            <UserBadges user={post.profile} />
+                                                        </span>
+                                                        <span className="text-xs text-gray-500">{timeAgo(post.created_at)}</span>
                                                     </div>
                                                     <span className="text-xs bg-blue-100 text-blue-600 px-2 py-1 rounded font-medium">
                                                         {post.code_language}
                                                     </span>
                                                 </div>
-                                                <h3 className="font-semibold text-gray-900 mb-2">{post.title}</h3>
+                                                <h3 className="font-semibold text-gray-900 mb-2 group-hover:text-blue-600 transition-colors">{post.title}</h3>
                                                 <div className="bg-slate-900 rounded-lg p-3 overflow-hidden max-h-32 relative">
                                                     <pre className="text-xs text-slate-300 font-mono line-clamp-5">
                                                         {post.code_snippet}
                                                     </pre>
                                                     <div className="absolute inset-0 bg-gradient-to-t from-slate-900 via-transparent to-transparent pointer-events-none"></div>
                                                 </div>
-                                            </div>
-                                        ))
-                                    ) : (
-                                        <div className="text-center py-12 text-gray-400">
-                                            <Code2 size={48} className="mx-auto mb-3 opacity-50" />
-                                            <p>No code snippets found</p>
-                                        </div>
-                                    )}
-                                </>
+                                            </Link>
+                                        ))}
+                                    </div>
+                                </div>
                             )}
                         </div>
                     )}

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { supabase } from '../supabaseClient'
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism'
-import { Heart, MessageCircle, Trash2, Code2, Share2, Edit2, Zap, Clock, Users } from 'lucide-react'
+import { Heart, MessageCircle, Trash2, Code2, Share2, Edit2, TrendingUp, Clock, Users } from 'lucide-react'
 import toast from 'react-hot-toast'
 import CommentSection from '../components/CommentSection'
 import Avatar from '../components/Avatar'
@@ -11,7 +11,11 @@ import { PostSkeleton } from '../components/SkeletonLoader'
 import { timeAgo } from '../utils/timeAgo'
 import { Link } from 'react-router-dom'
 import BookmarkButton from '../components/BookmarkButton'
+import UserBadges from '../components/UserBadges'
+import VideoPlayer from '../components/VideoPlayer'
+
 import EditPostModal from '../components/EditPostModal'
+import ShareModal from '../components/ShareModal'
 
 export default function Feed({ session }) {
   const [posts, setPosts] = useState([])
@@ -23,6 +27,7 @@ export default function Feed({ session }) {
   const [connectionError, setConnectionError] = useState(false)
   const [activeTab, setActiveTab] = useState('latest') // 'latest', 'trending', 'following'
   const [editingPost, setEditingPost] = useState(null)
+  const [sharingPost, setSharingPost] = useState(null)
 
   useEffect(() => {
     fetchPosts()
@@ -84,7 +89,7 @@ export default function Feed({ session }) {
       // Fetch profiles
       const { data: profilesData } = await supabase
         .from('profiles')
-        .select('id, username, display_name, profile_picture_url')
+        .select('id, username, display_name, profile_picture_url, is_verified, role')
         .in('id', userIds)
 
       // Fetch tags for these posts
@@ -313,32 +318,29 @@ export default function Feed({ session }) {
   }
 
   return (
-    <div className="max-w-2xl mx-auto pb-20">
-      {/* Tabs */}
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-1 mb-6 flex">
-        <button
-          onClick={() => setActiveTab('latest')}
-          className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-medium transition-all ${activeTab === 'latest' ? 'bg-blue-50 text-blue-600 shadow-sm' : 'text-gray-500 hover:bg-gray-50'
-            }`}
-        >
-          <Clock size={18} /> Latest
-        </button>
-        <button
-          onClick={() => setActiveTab('trending')}
-          className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-medium transition-all ${activeTab === 'trending' ? 'bg-pink-50 text-pink-600 shadow-sm' : 'text-gray-500 hover:bg-gray-50'
-            }`}
-        >
-          <Zap size={18} /> Trending
-        </button>
-        {session && (
+    <div className="max-w-full mx-auto pb-20">
+      {/* Feed Toggle - Smooth & Satisfying Design */}
+      <div className="sticky top-20 z-30 bg-white/80 backdrop-blur-xl border border-gray-100 rounded-2xl p-1.5 mb-6 shadow-sm flex items-center justify-between max-w-2xl mx-auto">
+        {[
+          { id: 'latest', label: 'Latest', icon: Clock },
+          { id: 'trending', label: 'Trending', icon: TrendingUp },
+          { id: 'following', label: 'Following', icon: Users }
+        ].map(tab => (
           <button
-            onClick={() => setActiveTab('following')}
-            className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-medium transition-all ${activeTab === 'following' ? 'bg-purple-50 text-purple-600 shadow-sm' : 'text-gray-500 hover:bg-gray-50'
-              }`}
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id)}
+            className={`
+              flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl font-bold text-sm transition-all duration-300 relative overflow-hidden
+              ${activeTab === tab.id
+                ? 'text-blue-600 bg-blue-50 shadow-sm'
+                : 'text-gray-500 hover:text-gray-900 hover:bg-gray-50'
+              }
+            `}
           >
-            <Users size={18} /> Following
+            <tab.icon size={18} className={`transition-transform duration-300 ${activeTab === tab.id ? 'scale-110' : 'group-hover:scale-105'}`} strokeWidth={2.5} />
+            <span>{tab.label}</span>
           </button>
-        )}
+        ))}
       </div>
 
       {editingPost && (
@@ -349,10 +351,32 @@ export default function Feed({ session }) {
         />
       )}
 
+      <ShareModal
+        isOpen={!!sharingPost}
+        onClose={() => setSharingPost(null)}
+        post={sharingPost}
+      />
+
       {connectionError && (
         <div className="bg-red-50 border border-red-200 text-red-600 p-4 rounded-xl mb-6 text-center">
           <p className="font-semibold">Connection Error</p>
           <p className="text-sm">Please ensure the database is set up correctly.</p>
+          <div className="mt-4 text-left bg-white p-4 rounded-lg border border-red-100 font-mono text-xs overflow-x-auto">
+            <h3 className="font-bold text-gray-900 mb-2">Troubleshooting Steps:</h3>
+            <div className="mb-2">
+              <h3 className="font-bold text-gray-900 mb-2">1. Run Completions</h3>
+              <p className="text-sm text-gray-600">Open SQL Editor in Supabase and run the contents of <code className="bg-gray-100 px-2 py-1 rounded">database_complete.sql</code></p>
+            </div>
+            <div>
+              <h3 className="font-bold text-gray-900 mb-2">3. Create Storage Buckets</h3>
+              <p className="text-sm text-gray-600">Create public buckets: <code className="bg-gray-100 px-1 rounded text-xs">profile-pictures</code>, <code className="bg-gray-100 px-1 rounded text-xs">banner-images</code>, <code className="bg-gray-100 px-1 rounded text-xs">meme-uploads</code></p>
+            </div>
+            <div>
+              <h3 className="font-bold text-gray-900 mb-2">4. Configure Environment</h3>
+              <p className="text-sm text-gray-600">Copy <code className="bg-gray-100 px-2 py-1 rounded">.env.example</code> to <code className="bg-gray-100 px-2 py-1 rounded">.env.local</code> and add your Supabase credentials</p>
+            </div>
+          </div>
+          <p className="text-sm text-gray-500 mt-4">See README.md for detailed instructions</p>
         </div>
       )}
 
@@ -361,12 +385,13 @@ export default function Feed({ session }) {
           {/* Post Header */}
           <div className="p-4 flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <Link to={`/user/${post.user_id}`}>
+              <Link to={`/user/@${post.profile?.username || post.user_id}`}>
                 <Avatar src={post.profile?.profile_picture_url} alt={post.profile?.display_name || post.profile?.username} />
               </Link>
               <div>
-                <Link to={`/user/${post.user_id}`} className="font-semibold text-gray-900 hover:text-blue-600 transition-colors">
+                <Link to={`/user/@${post.profile?.username || post.user_id}`} className="font-semibold text-gray-900 hover:text-blue-600 transition-colors flex items-center gap-1">
                   {post.profile?.display_name || post.profile?.username || 'Anonymous'}
+                  <UserBadges user={post.profile} />
                 </Link>
                 <div className="flex items-center gap-2 text-xs text-gray-500">
                   <span>@{post.profile?.username || 'user'}</span>
@@ -379,7 +404,9 @@ export default function Feed({ session }) {
             </div>
 
             <div className="flex items-center gap-2">
-              <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${post.type === 'code' ? 'bg-blue-50 text-blue-600' : 'bg-pink-50 text-pink-600'
+              <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${post.type === 'code' ? 'bg-blue-50 text-blue-600' :
+                  post.type === 'blog' ? 'bg-purple-50 text-purple-600' :
+                    'bg-pink-50 text-pink-600'
                 }`}>
                 {post.type.toUpperCase()}
               </span>
@@ -425,10 +452,14 @@ export default function Feed({ session }) {
             {post.type === 'meme' && post.content_url && (
               <>
                 <div className="rounded-xl overflow-hidden bg-black/5 border border-gray-100">
-                  {post.content_url.endsWith('.mp4') || post.content_url.includes('video') ? (
-                    <video src={post.content_url} controls className="w-full max-h-[600px] object-contain bg-black" />
+                  {/* Robust Video Detection */}
+                  {(post.content_url.match(/\.(mp4|webm|ogg|mov|mkv|avi|qt)$/i) || post.content_url.includes('video')) ? (
+                    <VideoPlayer
+                      src={post.content_url}
+                      title={post.title}
+                    />
                   ) : (
-                    <img src={post.content_url} alt={post.title} className="w-full max-h-[600px] object-contain" />
+                    <img src={post.content_url} alt={post.title} className="w-full max-h-[600px] object-contain" loading="lazy" />
                   )}
                 </div>
                 {post.description && (
@@ -457,6 +488,22 @@ export default function Feed({ session }) {
                 </SyntaxHighlighter>
               </div>
             )}
+
+            {post.type === 'blog' && post.description && (
+              <div className="prose prose-sm max-w-none">
+                <div
+                  className="text-gray-800 leading-relaxed whitespace-pre-wrap break-words"
+                  dangerouslySetInnerHTML={{
+                    __html: post.description
+                      .replace(/&/g, '&amp;')
+                      .replace(/</g, '&lt;')
+                      .replace(/>/g, '&gt;')
+                      .replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:text-blue-700 underline">$1</a>')
+                      .replace(/\n/g, '<br/>')
+                  }}
+                />
+              </div>
+            )}
           </div>
 
           {/* Post Actions */}
@@ -483,15 +530,13 @@ export default function Feed({ session }) {
             <BookmarkButton postId={post.id} session={session} size={20} />
 
             <button
-              onClick={() => handleShare(post)}
-              className="flex items-center gap-1 px-3 py-2 rounded-lg text-gray-500 hover:text-green-600 hover:bg-gray-100 transition-all ml-auto"
-              title="Share post"
+              onClick={() => setSharingPost(post)}
+              className="flex items-center gap-1 px-3 py-2 rounded-lg text-gray-500 hover:text-blue-600 hover:bg-gray-100 transition-all ml-auto"
             >
               <Share2 size={20} />
             </button>
           </div>
 
-          {/* Comments Section */}
           {activeCommentId === post.id && (
             <CommentSection
               postId={post.id}
@@ -527,6 +572,6 @@ export default function Feed({ session }) {
           </div>
         )
       }
-    </div >
+    </div>
   )
 }

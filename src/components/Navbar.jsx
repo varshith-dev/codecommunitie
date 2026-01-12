@@ -3,14 +3,16 @@ import { useState, useEffect } from 'react'
 import { supabase } from '../supabaseClient'
 import { Home, PlusSquare, User, LogOut, Code2, Search as SearchIcon, Settings, Bookmark } from 'lucide-react'
 import Avatar from './Avatar'
+import UserBadges from './UserBadges'
 
 export default function Navbar({ session }) {
   const location = useLocation()
   const [profile, setProfile] = useState(null)
 
-  const isActive = (path) => location.pathname === path
-    ? "text-blue-600"
-    : "text-gray-600 hover:text-gray-900"
+  const isActive = (path) => {
+    if (path === '/') return location.pathname === '/'
+    return location.pathname.startsWith(path)
+  }
 
   useEffect(() => {
     if (session) {
@@ -22,7 +24,7 @@ export default function Navbar({ session }) {
     try {
       const { data } = await supabase
         .from('profiles')
-        .select('profile_picture_url, username, display_name')
+        .select('profile_picture_url, username, display_name, is_verified, role')
         .eq('id', session.user.id)
         .single()
 
@@ -33,125 +35,109 @@ export default function Navbar({ session }) {
   }
 
   const handleLogout = async () => {
-    await supabase.auth.signOut()
+    if (window.confirm('Are you sure you want to sign out?')) {
+      await supabase.auth.signOut()
+    }
   }
 
   return (
     <>
       {/* DESKTOP TOP BAR */}
-      <nav className="fixed top-0 w-full glass border-b border-gray-200/50 z-50 shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
+      <nav className="fixed top-0 w-full bg-white border-b border-gray-100 z-50">
+        <div className="max-w-[1400px] mx-auto px-6 h-16 flex items-center justify-between">
           {/* Logo */}
-          <Link to="/" className="flex items-center gap-2 font-bold text-xl text-gray-900 hover:text-blue-600 transition-colors">
-            <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-purple-600 rounded-xl flex items-center justify-center rotate-3 hover:rotate-0 transition-transform">
-              <Code2 className="w-6 h-6 text-white" />
+          <Link to="/" className="flex items-center gap-2 group mr-8">
+            <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
+              <Code2 className="w-5 h-5 text-white" strokeWidth={2.5} />
             </div>
-            <span className="hidden sm:block">CodeKrafts</span>
+            <span className="font-bold text-xl text-gray-900 tracking-tight">CodeKrafts</span>
           </Link>
 
-          {/* Desktop Links */}
-          <div className="hidden md:flex items-center gap-6">
-            <Link to="/" className={`flex items-center gap-2 font-medium transition-all hover:scale-105 ${isActive('/')}`}>
-              <Home size={20} />
+          {/* Center/Right Nav Items */}
+          <div className="flex-1 flex items-center justify-end gap-1">
+
+            {/* Main Links */}
+            <Link
+              to="/"
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${isActive('/') ? 'text-blue-600 bg-blue-50' : 'text-gray-600 hover:bg-gray-50'}`}
+            >
+              <Home size={18} />
               <span>Home</span>
             </Link>
 
-            <Link to="/search" className={`flex items-center gap-2 font-medium transition-all hover:scale-105 ${isActive('/search')}`}>
-              <SearchIcon size={20} />
+            <Link
+              to="/search"
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${isActive('/search') ? 'text-blue-600 bg-blue-50' : 'text-gray-600 hover:bg-gray-50'}`}
+            >
+              <SearchIcon size={18} />
               <span>Search</span>
             </Link>
 
             {session && (
               <>
-                <Link to="/create" className={`flex items-center gap-2 font-medium transition-all hover:scale-105 ${isActive('/create')}`}>
-                  <PlusSquare size={20} />
+                <Link
+                  to="/create"
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${isActive('/create') ? 'text-blue-600 bg-blue-50' : 'text-gray-600 hover:bg-gray-50'}`}
+                >
+                  <PlusSquare size={18} />
                   <span>Create</span>
                 </Link>
 
-                <Link to="/profile" className={`flex items-center gap-2 font-medium transition-all ${isActive('/profile')}`}>
-                  <Avatar
-                    src={profile?.profile_picture_url}
-                    alt={profile?.display_name || profile?.username || 'User'}
-                    size="sm"
-                  />
-                  <span>{profile?.display_name || profile?.username || 'Profile'}</span>
+                <Link
+                  to="/profile"
+                  className="flex items-center gap-2 px-2 py-1 transition-opacity hover:opacity-80"
+                >
+                  <div className="w-8 h-8 rounded-full border-[3px] border-green-500 overflow-hidden bg-white">
+                    <Avatar src={profile?.profile_picture_url} size="full" alt="Me" />
+                  </div>
+                  <div className="flex items-center gap-1 max-w-[150px]">
+                    <span className="truncate font-semibold text-gray-700 text-sm">
+                      {profile?.username || 'Profile'}
+                    </span>
+                    <div className="flex-shrink-0">
+                      <UserBadges user={profile} />
+                    </div>
+                  </div>
                 </Link>
 
-                <Link to="/settings" className={`flex items-center gap-2 font-medium transition-all hover:scale-105 ${isActive('/settings')}`}>
-                  <Settings size={20} />
+                <Link
+                  to="/settings"
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${isActive('/settings') ? 'text-blue-600 bg-blue-50' : 'text-gray-600 hover:bg-gray-50'}`}
+                >
+                  <Settings size={18} />
                   <span>Settings</span>
                 </Link>
 
-                <Link to="/bookmarks" className={`flex items-center gap-2 font-medium transition-all hover:scale-105 ${isActive('/bookmarks')}`}>
-                  <Bookmark size={20} />
+                <Link
+                  to="/bookmarks"
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${isActive('/bookmarks') ? 'text-blue-600 bg-blue-50' : 'text-gray-600 hover:bg-gray-50'}`}
+                >
+                  <Bookmark size={18} />
                   <span>Saved</span>
                 </Link>
 
+                {/* Divider */}
+                <div className="w-px h-6 bg-gray-200 mx-2"></div>
+
+                {/* Sign Out */}
                 <button
                   onClick={handleLogout}
-                  className="px-4 py-2 text-sm font-semibold text-red-600 bg-red-50 hover:bg-red-100 rounded-full transition-all active:scale-95"
+                  className="flex items-center gap-2 px-5 py-2 rounded-full text-sm font-bold bg-red-50 text-red-600 hover:bg-red-100 transition-colors"
                 >
-                  <span className="hidden lg:inline">Sign Out</span>
-                  <LogOut size={16} className="lg:hidden" />
+                  <span>Sign Out</span>
                 </button>
               </>
             )}
 
             {!session && (
-              <Link to="/login" className="px-5 py-2.5 text-sm font-semibold text-white bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 rounded-full shadow-md transition-all hover:shadow-lg hover:scale-105">
-                Get Started
+              <Link to="/login" className="px-6 py-2 text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-full transition-colors ml-4">
+                Sign In
               </Link>
             )}
+
           </div>
         </div>
       </nav>
-
-      {/* MOBILE BOTTOM TAB BAR */}
-      <div className="md:hidden fixed bottom-0 w-full glass border-t border-gray-200/50 z-50 pb-safe shadow-lg">
-        <div className="flex justify-around items-center h-16 px-2">
-          <Link to="/" className={`flex flex-col items-center p-2 min-w-[60px] transition-all ${isActive('/') ? 'text-blue-600 scale-110' : 'text-gray-500'}`}>
-            <Home size={24} />
-            <span className="text-[10px] mt-1 font-medium">Feed</span>
-          </Link>
-
-          <Link to="/search" className={`flex flex-col items-center p-2 min-w-[60px] transition-all ${isActive('/search') ? 'text-blue-600 scale-110' : 'text-gray-500'}`}>
-            <SearchIcon size={24} />
-            <span className="text-[10px] mt-1 font-medium">Search</span>
-          </Link>
-
-          {session && (
-            <>
-              <Link to="/create" className={`flex flex-col items-center p-2 min-w-[60px] transition-all ${isActive('/create') ? 'text-blue-600 scale-110' : 'text-gray-500'}`}>
-                <div className={`p-2 rounded-full ${isActive('/create') ? 'bg-blue-100' : ''}`}>
-                  <PlusSquare size={24} />
-                </div>
-                <span className="text-[10px] mt-1 font-medium">Post</span>
-              </Link>
-
-              <Link to="/profile" className={`flex flex-col items-center p-2 min-w-[60px] transition-all ${isActive('/profile') ? 'text-blue-600 scale-110' : 'text-gray-500'}`}>
-                <Avatar
-                  src={profile?.profile_picture_url}
-                  alt={profile?.display_name || profile?.username || 'User'}
-                  size="sm"
-                />
-                <span className="text-[10px] mt-1 font-medium">Profile</span>
-              </Link>
-
-              <button onClick={handleLogout} className="flex flex-col items-center p-2 min-w-[60px] text-gray-500 hover:text-red-600 transition-all">
-                <LogOut size={24} />
-                <span className="text-[10px] mt-1 font-medium">Logout</span>
-              </button>
-            </>
-          )}
-
-          {!session && (
-            <Link to="/login" className="flex flex-col items-center p-2 min-w-[60px] text-blue-600">
-              <User size={24} />
-              <span className="text-[10px] mt-1 font-medium">Login</span>
-            </Link>
-          )}
-        </div>
-      </div>
     </>
   )
 }
