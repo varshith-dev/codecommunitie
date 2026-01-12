@@ -112,7 +112,7 @@ export default function CommentSection({ postId, session, onCommentAdded }) {
                 src={comment.profiles?.profile_picture_url}
                 alt={comment.profiles?.display_name || comment.profiles?.username || 'User'}
                 size="sm"
-                userId={comment.user_id}
+                userId={comment.profiles?.username ? `@${comment.profiles.username}` : comment.user_id}
               />
               <div className="flex-1 min-w-0">
                 <div className="bg-white p-3 rounded-lg rounded-tl-none border border-gray-200 shadow-sm">

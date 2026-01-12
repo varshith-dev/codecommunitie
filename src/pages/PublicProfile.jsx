@@ -24,21 +24,47 @@ export default function PublicProfile({ session }) {
         try {
             setLoading(true)
 
-            // Fetch user profile
-            const { data: profileData, error: profileError } = await supabase
-                .from('profiles')
-                .select('*')
-                .eq('id', userId)
-                .single()
+            let profileData = null
 
-            if (profileError) throw profileError
+            // Check if userId starts with @ (username) or is a UUID
+            if (userId.startsWith('@')) {
+                // Username-based lookup
+                const username = userId.substring(1) // Remove @ prefix
+                const { data, error: profileError } = await supabase
+                    .from('profiles')
+                    .select('*')
+                    .eq('username', username)
+                    .single()
+
+                if (profileError) {
+                    console.error('Error fetching profile by username:', profileError)
+                    setLoading(false)
+                    return
+                }
+                profileData = data
+            } else {
+                // UUID-based lookup
+                const { data, error: profileError } = await supabase
+                    .from('profiles')
+                    .select('*')
+                    .eq('id', userId)
+                    .single()
+
+                if (profileError) {
+                    console.error('Error fetching profile by ID:', profileError)
+                    setLoading(false)
+                    return
+                }
+                profileData = data
+            }
+
             setProfile(profileData)
 
-            // Fetch user's posts
+            // Fetch user's posts using the profile id
             const { data: postsData } = await supabase
                 .from('posts')
                 .select('*')
-                .eq('user_id', userId)
+                .eq('user_id', profileData.id)
                 .order('created_at', { ascending: false })
 
             setPosts(postsData || [])
@@ -172,15 +198,20 @@ export default function PublicProfile({ session }) {
                                     <div className="absolute inset-0 bg-gradient-to-t from-slate-900 via-transparent to-transparent pointer-events-none"></div>
                                 </div>
                             ) : (
-                                <div className="h-32 bg-gray-100 rounded-lg overflow-hidden">
-                                    {post.content_url && (
-                                        post.content_url.endsWith('.mp4') ? (
-                                            <video src={post.content_url} className="w-full h-full object-cover" />
-                                        ) : (
-                                            <img src={post.content_url} alt={post.title} className="w-full h-full object-cover" />
-                                        )
+                                <>
+                                    <div className="h-32 bg-gray-100 rounded-lg overflow-hidden mb-2">
+                                        {post.content_url && (
+                                            post.content_url.endsWith('.mp4') ? (
+                                                <video src={post.content_url} className="w-full h-full object-cover" />
+                                            ) : (
+                                                <img src={post.content_url} alt={post.title} className="w-full h-full object-cover" />
+                                            )
+                                        )}
+                                    </div>
+                                    {post.description && (
+                                        <p className="text-xs text-gray-600 line-clamp-2">{post.description}</p>
                                     )}
-                                </div>
+                                </>
                             )}
                         </div>
                     ))}

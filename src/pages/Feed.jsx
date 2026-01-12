@@ -261,11 +261,11 @@ export default function Feed({ session }) {
                 src={post.profiles?.profile_picture_url}
                 alt={post.profiles?.display_name || post.profiles?.username || 'User'}
                 size="md"
-                userId={post.user_id}
+                userId={post.profiles?.username ? `@${post.profiles.username}` : post.user_id}
               />
               <div className="flex-1 min-w-0">
                 <Link
-                  to={`/user/${post.user_id}`}
+                  to={`/user/@${post.profiles?.username}`}
                   className="font-semibold text-gray-900 leading-tight hover:text-blue-600 transition-colors block truncate"
                 >
                   {post.profiles?.display_name || post.profiles?.username || 'Anonymous'}
@@ -316,13 +316,18 @@ export default function Feed({ session }) {
           {/* Post Content */}
           <div className="px-4 pb-2">
             {post.type === 'meme' && post.content_url && (
-              <div className="rounded-xl overflow-hidden bg-black/5 border border-gray-100">
-                {post.content_url.endsWith('.mp4') || post.content_url.includes('video') ? (
-                  <video src={post.content_url} controls className="w-full max-h-[600px] object-contain bg-black" />
-                ) : (
-                  <img src={post.content_url} alt={post.title} className="w-full max-h-[600px] object-contain" />
+              <>
+                <div className="rounded-xl overflow-hidden bg-black/5 border border-gray-100">
+                  {post.content_url.endsWith('.mp4') || post.content_url.includes('video') ? (
+                    <video src={post.content_url} controls className="w-full max-h-[600px] object-contain bg-black" />
+                  ) : (
+                    <img src={post.content_url} alt={post.title} className="w-full max-h-[600px] object-contain" />
+                  )}
+                </div>
+                {post.description && (
+                  <p className="mt-3 text-gray-700 text-sm leading-relaxed">{post.description}</p>
                 )}
-              </div>
+              </>
             )}
 
             {post.type === 'code' && post.code_snippet && (

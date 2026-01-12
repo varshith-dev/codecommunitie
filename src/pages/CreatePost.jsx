@@ -8,6 +8,7 @@ import { uploadPostMedia } from '../services/uploadService'
 export default function CreatePost() {
   const [type, setType] = useState('code') // 'code' or 'meme'
   const [title, setTitle] = useState('')
+  const [description, setDescription] = useState('')
   const [contentUrl, setContentUrl] = useState('')
   const [codeSnippet, setCodeSnippet] = useState('')
   const [codeLanguage, setCodeLanguage] = useState('JavaScript')
@@ -40,6 +41,7 @@ export default function CreatePost() {
           user_id: user.id,
           title,
           type,
+          description: type === 'meme' ? description : null,
           content_url: finalUrl,
           code_snippet: type === 'code' ? codeSnippet : null,
           code_language: type === 'code' ? codeLanguage : null
@@ -124,19 +126,35 @@ export default function CreatePost() {
               </div>
             </div>
           ) : (
-            <div className="p-6 border-2 border-dashed border-gray-200 rounded-xl hover:bg-gray-50 transition-colors text-center cursor-pointer relative">
-              <input
-                type="file"
-                accept="image/*,video/*"
-                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                onChange={(e) => setFile(e.target.files[0])}
-              />
-              <div className="flex flex-col items-center gap-2 text-gray-500">
-                <ImageIcon size={32} className="text-gray-300" />
-                <span className="text-sm font-medium text-blue-600">
-                  {file ? file.name : "Click to upload image or video"}
-                </span>
-                <span className="text-xs text-gray-400">Max 20MB</span>
+            <div className="space-y-4">
+              <div className="p-6 border-2 border-dashed border-gray-200 rounded-xl hover:bg-gray-50 transition-colors text-center cursor-pointer relative">
+                <input
+                  type="file"
+                  accept="image/*,video/*"
+                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                  onChange={(e) => setFile(e.target.files[0])}
+                />
+                <div className="flex flex-col items-center gap-2 text-gray-500">
+                  <ImageIcon size={32} className="text-gray-300" />
+                  <span className="text-sm font-medium text-blue-600">
+                    {file ? file.name : "Click to upload image or video"}
+                  </span>
+                  <span className="text-xs text-gray-400">Max 20MB</span>
+                </div>
+              </div>
+
+              {/* Description for Meme */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Description <span className="text-gray-400 font-normal">(Optional)</span>
+                </label>
+                <textarea
+                  placeholder="Add a description or caption for your image..."
+                  className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition-all resize-none"
+                  rows={3}
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                />
               </div>
             </div>
           )}

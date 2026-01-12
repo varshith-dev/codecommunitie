@@ -1,7 +1,7 @@
 import { Link, useLocation } from 'react-router-dom'
 import { useState, useEffect } from 'react'
 import { supabase } from '../supabaseClient'
-import { Home, PlusSquare, User, LogOut, Code2 } from 'lucide-react'
+import { Home, PlusSquare, User, LogOut, Code2, Search as SearchIcon } from 'lucide-react'
 import Avatar from './Avatar'
 
 export default function Navbar({ session }) {
@@ -56,6 +56,11 @@ export default function Navbar({ session }) {
               <span>Home</span>
             </Link>
 
+            <Link to="/search" className={`flex items-center gap-2 font-medium transition-all hover:scale-105 ${isActive('/search')}`}>
+              <SearchIcon size={20} />
+              <span>Search</span>
+            </Link>
+
             {session && (
               <>
                 <Link to="/create" className={`flex items-center gap-2 font-medium transition-all hover:scale-105 ${isActive('/create')}`}>
@@ -97,6 +102,11 @@ export default function Navbar({ session }) {
           <Link to="/" className={`flex flex-col items-center p-2 min-w-[60px] transition-all ${isActive('/') ? 'text-blue-600 scale-110' : 'text-gray-500'}`}>
             <Home size={24} />
             <span className="text-[10px] mt-1 font-medium">Feed</span>
+          </Link>
+
+          <Link to="/search" className={`flex flex-col items-center p-2 min-w-[60px] transition-all ${isActive('/search') ? 'text-blue-600 scale-110' : 'text-gray-500'}`}>
+            <SearchIcon size={24} />
+            <span className="text-[10px] mt-1 font-medium">Search</span>
           </Link>
 
           {session && (

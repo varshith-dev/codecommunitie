@@ -18,6 +18,7 @@ import Feed from './pages/Feed'
 import CreatePost from './pages/CreatePost'
 import UserProfile from './pages/UserProfile'
 import PublicProfile from './pages/PublicProfile'
+import Search from './pages/Search'
 
 export default function App() {
   const [session, setSession] = useState(null)
@@ -77,7 +78,12 @@ export default function App() {
             <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/login-otp" element={!session ? <LoginWithOTP /> : <Navigate to="/" />} />
             <Route path="/verify-email" element={<VerifyEmail />} />
+
+            {/* User Profile Routes (support both @username and UUID) */}
             <Route path="/user/:userId" element={<PublicProfile session={session} />} />
+
+            {/* Search Route */}
+            <Route path="/search" element={<Search />} />
 
             {/* Protected Routes */}
             <Route

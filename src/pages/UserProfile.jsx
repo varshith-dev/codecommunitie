@@ -348,15 +348,20 @@ export default function UserProfile() {
                   <div className="absolute inset-0 bg-gradient-to-t from-slate-900 via-transparent to-transparent pointer-events-none"></div>
                 </div>
               ) : (
-                <div className="h-32 bg-gray-100 rounded-lg overflow-hidden">
-                  {post.content_url && (
-                    post.content_url.endsWith('.mp4') ? (
-                      <video src={post.content_url} className="w-full h-full object-cover" />
-                    ) : (
-                      <img src={post.content_url} alt={post.title} className="w-full h-full object-cover" />
-                    )
+                <>
+                  <div className="h-32 bg-gray-100 rounded-lg overflow-hidden mb-2">
+                    {post.content_url && (
+                      post.content_url.endsWith('.mp4') ? (
+                        <video src={post.content_url} className="w-full h-full object-cover" />
+                      ) : (
+                        <img src={post.content_url} alt={post.title} className="w-full h-full object-cover" />
+                      )
+                    )}
+                  </div>
+                  {post.description && (
+                    <p className="text-xs text-gray-600 line-clamp-2">{post.description}</p>
                   )}
-                </div>
+                </>
               )}
             </div>
           ))}
