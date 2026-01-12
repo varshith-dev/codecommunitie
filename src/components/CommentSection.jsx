@@ -19,21 +19,48 @@ export default function CommentSection({ postId, session, onCommentAdded }) {
   const fetchComments = async () => {
     setFetching(true)
     try {
-      const { data, error } = await supabase
+      // Fetch comments first
+      const { data: commentsData, error: commentsError } = await supabase
         .from('comments')
-        .select(`
-          *,
-          profiles:user_id (
-            id,
-            username,
-            display_name,
-            profile_picture_url
-          )
-        `)
+        .select('*')
         .eq('post_id', postId)
         .order('created_at', { ascending: true })
 
-      if (!error) setComments(data || [])
+      if (commentsError) throw commentsError
+
+      if (!commentsData || commentsData.length === 0) {
+        setComments([])
+        setFetching(false)
+        return
+      }
+
+      // Get unique user IDs
+      const userIds = [...new Set(commentsData.map(comment => comment.user_id))]
+
+      // Fetch profiles separately
+      const { data: profilesData } = await supabase
+        .from('profiles')
+        .select('id, username, display_name, profile_picture_url')
+        .in('id', userIds)
+
+      // Create a map of profiles by user_id
+      const profilesMap = {}
+      profilesData?.forEach(profile => {
+        profilesMap[profile.id] = profile
+      })
+
+      // Combine comments with profiles
+      const commentsWithProfiles = commentsData.map(comment => ({
+        ...comment,
+        profiles: profilesMap[comment.user_id] || {
+          id: comment.user_id,
+          username: 'Anonymous',
+          display_name: null,
+          profile_picture_url: null
+        }
+      }))
+
+      setComments(commentsWithProfiles)
     } catch (error) {
       console.error('Error fetching comments:', error)
     } finally {

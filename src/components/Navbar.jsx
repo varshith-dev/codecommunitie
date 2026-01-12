@@ -1,7 +1,7 @@
 import { Link, useLocation } from 'react-router-dom'
 import { useState, useEffect } from 'react'
 import { supabase } from '../supabaseClient'
-import { Home, PlusSquare, User, LogOut, Code2, BarChart3 } from 'lucide-react'
+import { Home, PlusSquare, User, LogOut, Code2 } from 'lucide-react'
 import Avatar from './Avatar'
 
 export default function Navbar({ session }) {
@@ -63,11 +63,6 @@ export default function Navbar({ session }) {
                   <span>Create</span>
                 </Link>
 
-                <Link to="/admin" className={`flex items-center gap-2 font-medium transition-all hover:scale-105 ${isActive('/admin')}`}>
-                  <BarChart3 size={20} />
-                  <span>Dashboard</span>
-                </Link>
-
                 <Link to="/profile" className={`flex items-center gap-2 font-medium transition-all ${isActive('/profile')}`}>
                   <Avatar
                     src={profile?.profile_picture_url}
@@ -111,11 +106,6 @@ export default function Navbar({ session }) {
                   <PlusSquare size={24} />
                 </div>
                 <span className="text-[10px] mt-1 font-medium">Post</span>
-              </Link>
-
-              <Link to="/admin" className={`flex flex-col items-center p-2 min-w-[60px] transition-all ${isActive('/admin') ? 'text-blue-600 scale-110' : 'text-gray-500'}`}>
-                <BarChart3 size={24} />
-                <span className="text-[10px] mt-1 font-medium">Stats</span>
               </Link>
 
               <Link to="/profile" className={`flex flex-col items-center p-2 min-w-[60px] transition-all ${isActive('/profile') ? 'text-blue-600 scale-110' : 'text-gray-500'}`}>

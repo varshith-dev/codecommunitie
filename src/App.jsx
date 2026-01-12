@@ -18,7 +18,6 @@ import Feed from './pages/Feed'
 import CreatePost from './pages/CreatePost'
 import UserProfile from './pages/UserProfile'
 import PublicProfile from './pages/PublicProfile'
-import AdminDashboard from './pages/AdminDashboard'
 
 export default function App() {
   const [session, setSession] = useState(null)
@@ -88,10 +87,6 @@ export default function App() {
             <Route
               path="/profile"
               element={session ? <UserProfile /> : <Navigate to="/login" />}
-            />
-            <Route
-              path="/admin"
-              element={session ? <AdminDashboard session={session} /> : <Navigate to="/login" />}
             />
 
             <Route path="*" element={<Navigate to="/" />} />

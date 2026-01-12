@@ -2,14 +2,13 @@ import { useEffect, useState } from 'react'
 import { supabase } from '../supabaseClient'
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism'
-import { Heart, MessageCircle, Trash2, Code2, BarChart3 } from 'lucide-react'
+import { Heart, MessageCircle, Trash2, Code2, Share2 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import CommentSection from '../components/CommentSection'
 import Avatar from '../components/Avatar'
 import FollowButton from '../components/FollowButton'
 import { PostSkeleton } from '../components/SkeletonLoader'
 import { timeAgo } from '../utils/timeAgo'
-import { usePostAnalytics } from '../hooks/usePostAnalytics'
 import { Link } from 'react-router-dom'
 
 export default function Feed({ session }) {
@@ -190,22 +189,24 @@ export default function Feed({ session }) {
         setUserLikes(prev => new Set([...prev, postId]))
         setLikeCounts(prev => ({ ...prev, [postId]: (prev[postId] || 0) + 1 }))
       }
-    } catch (err) {
-      console.error(err)
-      toast.error('Something went wrong')
+    } catch (error) {
+      console.error('Error toggling like:', error)
+      toast.error('Failed to update like')
     }
   }
 
-  // Track view for analytics
-  const PostWithAnalytics = ({ post, children }) => {
-    const { trackView } = usePostAnalytics(post.id)
-
-    useEffect(() => {
-      trackView(session?.user?.id)
-    }, [])
-
-    return children
+  const handleShare = async (postId) => {
+    try {
+      const url = `${window.location.origin}/post/${postId}`
+      await navigator.clipboard.writeText(url)
+      toast.success('Link copied to clipboard!')
+    } catch (error) {
+      console.error('Error sharing:', error)
+      toast.error('Failed to copy link')
+    }
   }
+
+
 
   if (loading) {
     return (
@@ -251,183 +252,181 @@ export default function Feed({ session }) {
   return (
     <div className="space-y-6 pb-20">
       {posts.map((post) => (
-        <PostWithAnalytics key={post.id} post={post}>
-          <article className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden hover-lift animate-slide-up">
+        <article key={post.id} className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden hover-lift animate-slide-up">
 
-            {/* Post Header */}
-            <div className="p-4 flex items-center justify-between">
-              <div className="flex items-center gap-3 flex-1 min-w-0">
-                <Avatar
-                  src={post.profiles?.profile_picture_url}
-                  alt={post.profiles?.display_name || post.profiles?.username || 'User'}
-                  size="md"
-                  userId={post.user_id}
-                />
-                <div className="flex-1 min-w-0">
-                  <Link
-                    to={`/user/${post.user_id}`}
-                    className="font-semibold text-gray-900 leading-tight hover:text-blue-600 transition-colors block truncate"
-                  >
-                    {post.profiles?.display_name || post.profiles?.username || 'Anonymous'}
-                  </Link>
-                  <div className="flex items-center gap-2 text-xs text-gray-500">
-                    <span>{timeAgo(post.created_at)}</span>
-                    {post.type === 'code' && post.code_language && (
-                      <>
-                        <span>•</span>
-                        <span className="text-blue-600 font-medium">{post.code_language}</span>
-                      </>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-2">
-                {/* Follow Button */}
-                {post.user_id !== session?.user?.id && (
-                  <FollowButton
-                    targetUserId={post.user_id}
-                    session={session}
-                    size="sm"
-                    variant="outline"
-                  />
-                )}
-
-                {/* Delete Button (Only if you own the post) */}
-                {session && session.user.id === post.user_id && (
-                  <button
-                    onClick={() => handleDelete(post.id)}
-                    className="text-gray-400 hover:text-red-500 transition-colors p-2 rounded-full hover:bg-red-50"
-                    title="Delete post"
-                  >
-                    <Trash2 size={18} />
-                  </button>
-                )}
-              </div>
-            </div>
-
-            {/* Post Title */}
-            {post.title && (
-              <div className="px-4 pb-2">
-                <h2 className="text-lg font-semibold text-gray-900">{post.title}</h2>
-              </div>
-            )}
-
-            {/* Post Content */}
-            <div className="px-4 pb-2">
-              {post.type === 'meme' && post.content_url && (
-                <div className="rounded-xl overflow-hidden bg-black/5 border border-gray-100">
-                  {post.content_url.endsWith('.mp4') || post.content_url.includes('video') ? (
-                    <video src={post.content_url} controls className="w-full max-h-[600px] object-contain bg-black" />
-                  ) : (
-                    <img src={post.content_url} alt={post.title} className="w-full max-h-[600px] object-contain" />
+          {/* Post Header */}
+          <div className="p-4 flex items-center justify-between">
+            <div className="flex items-center gap-3 flex-1 min-w-0">
+              <Avatar
+                src={post.profiles?.profile_picture_url}
+                alt={post.profiles?.display_name || post.profiles?.username || 'User'}
+                size="md"
+                userId={post.user_id}
+              />
+              <div className="flex-1 min-w-0">
+                <Link
+                  to={`/user/${post.user_id}`}
+                  className="font-semibold text-gray-900 leading-tight hover:text-blue-600 transition-colors block truncate"
+                >
+                  {post.profiles?.display_name || post.profiles?.username || 'Anonymous'}
+                </Link>
+                <div className="flex items-center gap-2 text-xs text-gray-500">
+                  <span>{timeAgo(post.created_at)}</span>
+                  {post.type === 'code' && post.code_language && (
+                    <>
+                      <span>•</span>
+                      <span className="text-blue-600 font-medium">{post.code_language}</span>
+                    </>
                   )}
                 </div>
-              )}
-
-              {post.type === 'code' && post.code_snippet && (
-                <div className="rounded-xl overflow-hidden border border-gray-800 shadow-md">
-                  <div className="bg-[#1e1e1e] px-4 py-2 flex justify-between items-center border-b border-gray-700">
-                    <span className="text-xs font-mono text-blue-400 flex items-center gap-1">
-                      <Code2 size={12} />
-                      {post.code_language || 'PLAINTEXT'}
-                    </span>
-                    <span className="text-[10px] text-gray-500">Read-only</span>
-                  </div>
-                  <SyntaxHighlighter
-                    language={(post.code_language || 'javascript').toLowerCase()}
-                    style={vscDarkPlus}
-                    customStyle={{ margin: 0, padding: '1.5rem', fontSize: '0.9rem' }}
-                    showLineNumbers={true}
-                    wrapLongLines={true}
-                  >
-                    {post.code_snippet}
-                  </SyntaxHighlighter>
-                </div>
-              )}
-            </div>
-
-            {/* Action Buttons (Likes/Comments) */}
-            <div className="p-4 border-t border-gray-50 flex items-center justify-between">
-              <div className="flex gap-6">
-                <button
-                  onClick={() => toggleLike(post.id)}
-                  className={`flex items-center gap-2 transition-all group ${userLikes.has(post.id)
-                    ? 'text-pink-500'
-                    : 'text-gray-500 hover:text-pink-500'
-                    }`}
-                >
-                  <Heart
-                    size={20}
-                    className={`group-hover:scale-110 transition-transform ${userLikes.has(post.id) ? 'fill-pink-500' : ''
-                      }`}
-                  />
-                  <span className="text-sm font-medium">
-                    {likeCounts[post.id] || 0}
-                  </span>
-                </button>
-
-                <button
-                  onClick={() => setActiveCommentId(activeCommentId === post.id ? null : post.id)}
-                  className={`flex items-center gap-2 transition-colors ${activeCommentId === post.id
-                    ? 'text-blue-600'
-                    : 'text-gray-500 hover:text-blue-500'
-                    }`}
-                >
-                  <MessageCircle size={20} />
-                  <span className="text-sm font-medium">
-                    {commentCounts[post.id] || 0}
-                  </span>
-                </button>
               </div>
-
-              {/* Admin insights button */}
-              {session?.user && (
-                <Link
-                  to={`/admin?post=${post.id}`}
-                  className="text-gray-400 hover:text-blue-600 transition-colors p-2"
-                  title="View insights"
-                >
-                  <BarChart3 size={18} />
-                </Link>
-              )}
             </div>
 
-            {/* Comments Section */}
-            {activeCommentId === post.id && (
-              <CommentSection
-                postId={post.id}
-                session={session}
-                onCommentAdded={() => {
-                  setCommentCounts(prev => ({
-                    ...prev,
-                    [post.id]: (prev[post.id] || 0) + 1
-                  }))
-                }}
-              />
+            <div className="flex items-center gap-2">
+              {/* Follow Button */}
+              {post.user_id !== session?.user?.id && (
+                <FollowButton
+                  targetUserId={post.user_id}
+                  session={session}
+                  size="sm"
+                  variant="outline"
+                />
+              )}
+
+              {/* Delete Button (Only if you own the post) */}
+              {session && session.user.id === post.user_id && (
+                <button
+                  onClick={() => handleDelete(post.id)}
+                  className="text-gray-400 hover:text-red-500 transition-colors p-2 rounded-full hover:bg-red-50"
+                  title="Delete post"
+                >
+                  <Trash2 size={18} />
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Post Title */}
+          {post.title && (
+            <div className="px-4 pb-2">
+              <h2 className="text-lg font-semibold text-gray-900">{post.title}</h2>
+            </div>
+          )}
+
+          {/* Post Content */}
+          <div className="px-4 pb-2">
+            {post.type === 'meme' && post.content_url && (
+              <div className="rounded-xl overflow-hidden bg-black/5 border border-gray-100">
+                {post.content_url.endsWith('.mp4') || post.content_url.includes('video') ? (
+                  <video src={post.content_url} controls className="w-full max-h-[600px] object-contain bg-black" />
+                ) : (
+                  <img src={post.content_url} alt={post.title} className="w-full max-h-[600px] object-contain" />
+                )}
+              </div>
             )}
 
-          </article>
-        </PostWithAnalytics>
+            {post.type === 'code' && post.code_snippet && (
+              <div className="rounded-xl overflow-hidden border border-gray-800 shadow-md">
+                <div className="bg-[#1e1e1e] px-4 py-2 flex justify-between items-center border-b border-gray-700">
+                  <span className="text-xs font-mono text-blue-400 flex items-center gap-1">
+                    <Code2 size={12} />
+                    {post.code_language || 'PLAINTEXT'}
+                  </span>
+                  <span className="text-[10px] text-gray-500">Read-only</span>
+                </div>
+                <SyntaxHighlighter
+                  language={(post.code_language || 'javascript').toLowerCase()}
+                  style={vscDarkPlus}
+                  customStyle={{ margin: 0, padding: '1.5rem', fontSize: '0.9rem' }}
+                  showLineNumbers={true}
+                  wrapLongLines={true}
+                >
+                  {post.code_snippet}
+                </SyntaxHighlighter>
+              </div>
+            )}
+          </div>
+
+          {/* Action Buttons (Likes/Comments) */}
+          <div className="p-4 border-t border-gray-50 flex items-center justify-between">
+            <div className="flex gap-6">
+              <button
+                onClick={() => toggleLike(post.id)}
+                className={`flex items-center gap-2 transition-all group ${userLikes.has(post.id)
+                  ? 'text-pink-500'
+                  : 'text-gray-500 hover:text-pink-500'
+                  }`}
+              >
+                <Heart
+                  size={20}
+                  className={`group-hover:scale-110 transition-transform ${userLikes.has(post.id) ? 'fill-pink-500' : ''
+                    }`}
+                />
+                <span className="text-sm font-medium">
+                  {likeCounts[post.id] || 0}
+                </span>
+              </button>
+
+              <button
+                onClick={() => setActiveCommentId(activeCommentId === post.id ? null : post.id)}
+                className={`flex items-center gap-2 transition-colors ${activeCommentId === post.id
+                  ? 'text-blue-600'
+                  : 'text-gray-500 hover:text-blue-500'
+                  }`}
+              >
+                <MessageCircle size={20} />
+                <span className="text-sm font-medium">
+                  {commentCounts[post.id] || 0}
+                </span>
+              </button>
+            </div>
+
+            {/* Share button */}
+            <button
+              onClick={() => handleShare(post.id)}
+              className="text-gray-400 hover:text-blue-600 transition-colors p-2"
+              title="Share post"
+            >
+              <Share2 size={18} />
+            </button>
+          </div>
+
+          {/* Comments Section */}
+          {activeCommentId === post.id && (
+            <CommentSection
+              postId={post.id}
+              session={session}
+              onCommentAdded={() => {
+                setCommentCounts(prev => ({
+                  ...prev,
+                  [post.id]: (prev[post.id] || 0) + 1
+                }))
+              }}
+            />
+          )}
+
+        </article>
       ))}
 
-      {posts.length === 0 && (
-        <div className="text-center py-20 bg-white rounded-2xl border border-dashed border-gray-200 animate-fade-in">
-          <div className="bg-blue-50 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
-            <Code2 className="text-blue-500" size={32} />
+      {
+        posts.length === 0 && (
+          <div className="text-center py-20 bg-white rounded-2xl border border-dashed border-gray-200 animate-fade-in">
+            <div className="bg-blue-50 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+              <Code2 className="text-blue-500" size={32} />
+            </div>
+            <h3 className="text-lg font-semibold text-gray-900">No posts yet</h3>
+            <p className="text-gray-500 mt-2">Be the first to share something amazing!</p>
+            {session && (
+              <Link
+                to="/create"
+                className="mt-4 inline-block px-6 py-2 bg-blue-600 text-white rounded-full font-semibold hover:bg-blue-700 transition-colors"
+              >
+                Create Post
+              </Link>
+            )}
           </div>
-          <h3 className="text-lg font-semibold text-gray-900">No posts yet</h3>
-          <p className="text-gray-500 mt-2">Be the first to share something amazing!</p>
-          {session && (
-            <Link
-              to="/create"
-              className="mt-4 inline-block px-6 py-2 bg-blue-600 text-white rounded-full font-semibold hover:bg-blue-700 transition-colors"
-            >
-              Create Post
-            </Link>
-          )}
-        </div>
-      )}
-    </div>
+        )
+      }
+    </div >
   )
 }
