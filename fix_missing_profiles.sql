@@ -6,12 +6,12 @@
 -- ================================================================
 
 -- Step 1: Create profiles for any users who don't have one
-INSERT INTO public.profiles (id, username, display_name, created_at)
+-- (Removed created_at from the insert as it's auto-generated)
+INSERT INTO public.profiles (id, username, display_name)
 SELECT 
   u.id, 
   COALESCE(u.raw_user_meta_data->>'username', split_part(u.email, '@', 1)) as username,
-  COALESCE(u.raw_user_meta_data->>'full_name', u.raw_user_meta_data->>'display_name') as display_name,
-  u.created_at
+  COALESCE(u.raw_user_meta_data->>'full_name', u.raw_user_meta_data->>'display_name') as display_name
 FROM auth.users u
 WHERE u.id NOT IN (SELECT id FROM public.profiles)
 ON CONFLICT (id) DO NOTHING;
