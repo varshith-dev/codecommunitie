@@ -10,6 +10,7 @@ import FollowButton from '../components/FollowButton'
 import { PostSkeleton } from '../components/SkeletonLoader'
 import { timeAgo } from '../utils/timeAgo'
 import { Link } from 'react-router-dom'
+import BookmarkButton from '../components/BookmarkButton'
 
 export default function Feed({ session }) {
   const [posts, setPosts] = useState([])
@@ -156,7 +157,7 @@ export default function Feed({ session }) {
     }
   }
 
-  const toggleLike = async (postId) => {
+  const handleLike = async (postId) => {
     if (!session) {
       toast.error('Please login to like posts')
       return
@@ -195,9 +196,9 @@ export default function Feed({ session }) {
     }
   }
 
-  const handleShare = async (postId) => {
+  const handleShare = async (post) => {
     try {
-      const url = `${window.location.origin}/post/${postId}`
+      const url = `${window.location.origin}/post/${post.id}`
       await navigator.clipboard.writeText(url)
       toast.success('Link copied to clipboard!')
     } catch (error) {
@@ -206,6 +207,9 @@ export default function Feed({ session }) {
     }
   }
 
+  const toggleComments = (postId) => {
+    setActiveCommentId(activeCommentId === postId ? null : postId)
+  }
 
 
   if (loading) {
@@ -352,47 +356,35 @@ export default function Feed({ session }) {
             )}
           </div>
 
-          {/* Action Buttons (Likes/Comments) */}
-          <div className="p-4 border-t border-gray-50 flex items-center justify-between">
-            <div className="flex gap-6">
-              <button
-                onClick={() => toggleLike(post.id)}
-                className={`flex items-center gap-2 transition-all group ${userLikes.has(post.id)
-                  ? 'text-pink-500'
-                  : 'text-gray-500 hover:text-pink-500'
-                  }`}
-              >
-                <Heart
-                  size={20}
-                  className={`group-hover:scale-110 transition-transform ${userLikes.has(post.id) ? 'fill-pink-500' : ''
-                    }`}
-                />
-                <span className="text-sm font-medium">
-                  {likeCounts[post.id] || 0}
-                </span>
-              </button>
-
-              <button
-                onClick={() => setActiveCommentId(activeCommentId === post.id ? null : post.id)}
-                className={`flex items-center gap-2 transition-colors ${activeCommentId === post.id
-                  ? 'text-blue-600'
-                  : 'text-gray-500 hover:text-blue-500'
-                  }`}
-              >
-                <MessageCircle size={20} />
-                <span className="text-sm font-medium">
-                  {commentCounts[post.id] || 0}
-                </span>
-              </button>
-            </div>
-
-            {/* Share button */}
+          {/* Post Actions */}
+          <div className="px-4 pb-3 flex items-center gap-2 border-t border-gray-100 pt-3">
             <button
-              onClick={() => handleShare(post.id)}
-              className="text-gray-400 hover:text-blue-600 transition-colors p-2"
+              onClick={() => handleLike(post.id)}
+              className={`flex items-center gap-1 px-3 py-2 rounded-lg transition-all ${userLikes.has(post.id)
+                  ? 'text-pink-600 bg-pink-50 hover:bg-pink-100'
+                  : 'text-gray-500 hover:text-pink-600 hover:bg-gray-100'
+                }`}
+            >
+              <Heart size={20} className={userLikes.has(post.id) ? 'fill-current' : ''} />
+              <span className="text-sm font-medium">{likeCounts[post.id] || 0}</span>
+            </button>
+
+            <button
+              onClick={() => toggleComments(post.id)}
+              className="flex items-center gap-1 px-3 py-2 rounded-lg text-gray-500 hover:text-blue-600 hover:bg-gray-100 transition-all"
+            >
+              <MessageCircle size={20} />
+              <span className="text-sm font-medium">{commentCounts[post.id] || 0}</span>
+            </button>
+
+            <BookmarkButton postId={post.id} session={session} size={20} />
+
+            <button
+              onClick={() => handleShare(post)}
+              className="flex items-center gap-1 px-3 py-2 rounded-lg text-gray-500 hover:text-green-600 hover:bg-gray-100 transition-all ml-auto"
               title="Share post"
             >
-              <Share2 size={18} />
+              <Share2 size={20} />
             </button>
           </div>
 

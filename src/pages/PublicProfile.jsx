@@ -1,24 +1,26 @@
-import { useEffect, useState } from 'react'
-import { useParams } from 'react-router-dom'
+import { useState, useEffect } from 'react'
 import { supabase } from '../supabaseClient'
-import { MapPin, Link as LinkIcon, Calendar, Users } from 'lucide-react'
+import { useParams, useNavigate } from 'react-router-dom'
+import { Calendar, Link as LinkIcon, Users } from 'lucide-react'
 import Avatar from '../components/Avatar'
-import FollowButton from '../components/FollowButton'
-import { ProfileSkeleton } from '../components/SkeletonLoader'
 import { formatDate } from '../utils/timeAgo'
+import { ProfileSkeleton } from '../components/SkeletonLoader'
 import toast from 'react-hot-toast'
 
 export default function PublicProfile({ session }) {
     const { userId } = useParams()
-    const [loading, setLoading] = useState(true)
+    const navigate = useNavigate()
     const [profile, setProfile] = useState(null)
     const [posts, setPosts] = useState([])
+    const [loading, setLoading] = useState(true)
+    const [isFollowing, setIsFollowing] = useState(false)
 
     useEffect(() => {
-        if (userId) {
-            fetchProfile()
+        fetchProfile()
+        if (session) {
+            checkFollowStatus()
         }
-    }, [userId])
+    }, [userId, session])
 
     const fetchProfile = async () => {
         try {
@@ -65,6 +67,7 @@ export default function PublicProfile({ session }) {
                 .from('posts')
                 .select('*')
                 .eq('user_id', profileData.id)
+                .eq('status', 'published')
                 .order('created_at', { ascending: false })
 
             setPosts(postsData || [])
@@ -75,6 +78,81 @@ export default function PublicProfile({ session }) {
             setLoading(false)
         }
     }
+
+    const checkFollowStatus = async () => {
+        if (!session || !profile) return
+
+        try {
+            const { data } = await supabase
+                .from('follows')
+                .select('id')
+                .eq('follower_id', session.user.id)
+                .eq('following_id', profile.id)
+                .single()
+
+            setIsFollowing(!!data)
+        } catch (error) {
+            // Not following
+            setIsFollowing(false)
+        }
+    }
+
+    const handleFollow = async () => {
+        if (!session) {
+            toast.error('Please login to follow users')
+            return
+        }
+
+        if (!profile) return
+
+        try {
+            if (isFollowing) {
+                // Unfollow
+                const { error } = await supabase
+                    .from('follows')
+                    .delete()
+                    .eq('follower_id', session.user.id)
+                    .eq('following_id', profile.id)
+
+                if (error) throw error
+
+                setIsFollowing(false)
+                setProfile(prev => ({
+                    ...prev,
+                    follower_count: Math.max(0, (prev?.follower_count || 0) - 1)
+                }))
+
+                toast.success('Unfollowed successfully')
+            } else {
+                // Follow
+                const { error } = await supabase
+                    .from('follows')
+                    .insert({
+                        follower_id: session.user.id,
+                        following_id: profile.id
+                    })
+
+                if (error) throw error
+
+                setIsFollowing(true)
+                setProfile(prev => ({
+                    ...prev,
+                    follower_count: (prev?.follower_count || 0) + 1
+                }))
+
+                toast.success('Followed successfully')
+            }
+        } catch (error) {
+            console.error('Follow error:', error)
+            toast.error(error.message || 'Failed to update follow status')
+        }
+    }
+
+    useEffect(() => {
+        if (profile && session) {
+            checkFollowStatus()
+        }
+    }, [profile, session])
 
     if (loading) {
         return (
@@ -95,7 +173,7 @@ export default function PublicProfile({ session }) {
         )
     }
 
-    const isOwnProfile = session?.user?.id === userId
+    const isOwnProfile = session?.user?.id === profile.id
 
     return (
         <div className="max-w-4xl mx-auto">
@@ -118,33 +196,35 @@ export default function PublicProfile({ session }) {
                         <Avatar
                             src={profile.profile_picture_url}
                             alt={profile.display_name || profile.username || 'User'}
-                            size="3xl"
-                            className="border-4 border-white shadow-lg"
+                            size="2xl"
                         />
 
-                        {!isOwnProfile && (
-                            <FollowButton
-                                targetUserId={userId}
-                                session={session}
-                                size="md"
-                            />
+                        {!isOwnProfile && session && (
+                            <button
+                                onClick={handleFollow}
+                                className={`px-6 py-2.5 rounded-xl font-semibold transition-all shadow-sm ${isFollowing
+                                        ? 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                                        : 'bg-blue-600 text-white hover:bg-blue-700'
+                                    }`}
+                            >
+                                {isFollowing ? 'Following' : 'Follow'}
+                            </button>
                         )}
                     </div>
 
                     {/* Profile Info */}
                     <div>
-                        <h1 className="text-2xl font-bold text-gray-900">
-                            {profile.display_name || profile.username || 'Anonymous'}
+                        <h1 className="text-2xl md:text-3xl font-bold text-gray-900">
+                            {profile.display_name || profile.username || 'User'}
                         </h1>
-                        {profile.username && profile.display_name && (
-                            <p className="text-gray-500 text-sm">@{profile.username}</p>
-                        )}
-                        <p className="text-gray-600 mt-2">{profile.bio || 'No bio yet.'}</p>
+                        <p className="text-gray-500">@{profile.username}</p>
 
-                        {/* Stats */}
-                        <div className="flex gap-6 mt-4 text-sm">
+                        {profile.bio && (
+                            <p className="mt-4 text-gray-700">{profile.bio}</p>
+                        )}
+
+                        <div className="flex flex-wrap gap-4 mt-4 text-sm">
                             <div className="flex items-center gap-2">
-                                <Users size={16} className="text-gray-400" />
                                 <span className="font-semibold text-gray-900">{profile.follower_count || 0}</span>
                                 <span className="text-gray-500">Followers</span>
                             </div>
@@ -218,7 +298,7 @@ export default function PublicProfile({ session }) {
                 </div>
             ) : (
                 <div className="text-center py-16 bg-gray-50 rounded-2xl border border-dashed border-gray-200 animate-fade-in">
-                    <p className="text-gray-500">No posts yet.</p>
+                    <p className="text-gray-500">No posts yet</p>
                 </div>
             )}
         </div>
