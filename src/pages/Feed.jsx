@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { supabase } from '../supabaseClient'
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism'
-import { Heart, MessageCircle, Trash2, Code2, Share2 } from 'lucide-react'
+import { Heart, MessageCircle, Trash2, Code2, Share2, Edit2, Zap, Clock, Users } from 'lucide-react'
 import toast from 'react-hot-toast'
 import CommentSection from '../components/CommentSection'
 import Avatar from '../components/Avatar'
@@ -11,6 +11,7 @@ import { PostSkeleton } from '../components/SkeletonLoader'
 import { timeAgo } from '../utils/timeAgo'
 import { Link } from 'react-router-dom'
 import BookmarkButton from '../components/BookmarkButton'
+import EditPostModal from '../components/EditPostModal'
 
 export default function Feed({ session }) {
   const [posts, setPosts] = useState([])
@@ -20,6 +21,8 @@ export default function Feed({ session }) {
   const [commentCounts, setCommentCounts] = useState({})
   const [userLikes, setUserLikes] = useState(new Set())
   const [connectionError, setConnectionError] = useState(false)
+  const [activeTab, setActiveTab] = useState('latest') // 'latest', 'trending', 'following'
+  const [editingPost, setEditingPost] = useState(null)
 
   useEffect(() => {
     fetchPosts()
@@ -33,11 +36,33 @@ export default function Feed({ session }) {
       setLoading(true)
       setConnectionError(false)
 
-      // Fetch posts first
-      const { data: postsData, error: postsError } = await supabase
+      // Fetch posts based on tab
+      let query = supabase
         .from('posts')
         .select('*')
+        .eq('status', 'published')
+        .eq('visibility', 'public')
         .order('created_at', { ascending: false })
+
+      if (activeTab === 'following' && session) {
+        // First get followed user IDs
+        const { data: follows } = await supabase
+          .from('follows')
+          .select('following_id')
+          .eq('follower_id', session.user.id)
+
+        const followingIds = follows?.map(f => f.following_id) || []
+        if (followingIds.length > 0) {
+          query = query.in('user_id', followingIds)
+        } else {
+          // If following no one, return empty
+          setPosts([])
+          setLoading(false)
+          return
+        }
+      }
+
+      const { data: postsData, error: postsError } = await query
 
       if (postsError) {
         console.error('Error fetching posts:', postsError)
@@ -56,16 +81,24 @@ export default function Feed({ session }) {
       // Get unique user IDs
       const userIds = [...new Set(postsData.map(post => post.user_id))]
 
-      // Fetch profiles separately
-      const { data: profilesData, error: profilesError } = await supabase
+      // Fetch profiles
+      const { data: profilesData } = await supabase
         .from('profiles')
         .select('id, username, display_name, profile_picture_url')
         .in('id', userIds)
 
-      if (profilesError) {
-        console.error('Error fetching profiles:', profilesError)
-        // Continue with Anonymous fallback
-      }
+      // Fetch tags for these posts
+      const { data: tagsData } = await supabase
+        .from('post_tags')
+        .select('post_id, tags (id, name, slug)')
+        .in('post_id', postsData.map(p => p.id))
+
+      // Map tags to posts
+      const tagsMap = {}
+      tagsData?.forEach(item => {
+        if (!tagsMap[item.post_id]) tagsMap[item.post_id] = []
+        if (item.tags) tagsMap[item.post_id].push(item.tags)
+      })
 
       // Create a map of profiles by user_id
       const profilesMap = {}
@@ -73,22 +106,29 @@ export default function Feed({ session }) {
         profilesMap[profile.id] = profile
       })
 
-      // Combine posts with profiles
-      const postsWithProfiles = postsData.map(post => ({
+      // Combine posts with profiles and tags
+      let postsWithData = postsData.map(post => ({
         ...post,
-        profiles: profilesMap[post.user_id] || {
+        profile: profilesMap[post.user_id] || {
           id: post.user_id,
           username: 'Anonymous',
-          display_name: null,
+          display_name: 'Anonymous User',
           profile_picture_url: null
-        }
+        },
+        tags: tagsMap[post.id] || []
       }))
 
-      setPosts(postsWithProfiles)
+      // If trending, sort client-side (mocking trending logic since we fetch in batch)
+      if (activeTab === 'trending') {
+        // We'll sort after fetching counts effectively, but for now simple sort by view_count if available or keep default
+        // In a real app we'd do this on DB. Let's rely on default order for now and maybe specific query later.
+      }
+
+      setPosts(postsWithData)
 
       // Fetch counts for all posts
-      if (postsWithProfiles.length > 0) {
-        await fetchAllCounts(postsWithProfiles.map(p => p.id))
+      if (postsWithData.length > 0) {
+        await fetchAllCounts(postsWithData.map(p => p.id))
       }
     } catch (error) {
       if (!connectionError) {
@@ -99,6 +139,20 @@ export default function Feed({ session }) {
       setLoading(false)
     }
   }
+
+  // Sort posts whenever activeTab or counts change
+  const getSortedPosts = () => {
+    if (activeTab === 'trending') {
+      return [...posts].sort((a, b) => {
+        const scoreA = (likeCounts[a.id] || 0) + (commentCounts[a.id] || 0) * 2
+        const scoreB = (likeCounts[b.id] || 0) + (commentCounts[b.id] || 0) * 2
+        return scoreB - scoreA
+      })
+    }
+    return posts
+  }
+
+  const displayedPosts = getSortedPosts()
 
   const fetchAllCounts = async (postIds) => {
     try {
@@ -155,6 +209,11 @@ export default function Feed({ session }) {
     } catch (error) {
       toast.error('Error deleting post')
     }
+  }
+
+  const handlePostUpdate = (updatedPost) => {
+    setPosts(posts.map(p => p.id === updatedPost.id ? { ...p, ...updatedPost } : p))
+    setEditingPost(null)
   }
 
   const handleLike = async (postId) => {
@@ -254,68 +313,112 @@ export default function Feed({ session }) {
   }
 
   return (
-    <div className="space-y-6 pb-20">
-      {posts.map((post) => (
-        <article key={post.id} className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden hover-lift animate-slide-up">
+    <div className="max-w-2xl mx-auto pb-20">
+      {/* Tabs */}
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-1 mb-6 flex">
+        <button
+          onClick={() => setActiveTab('latest')}
+          className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-medium transition-all ${activeTab === 'latest' ? 'bg-blue-50 text-blue-600 shadow-sm' : 'text-gray-500 hover:bg-gray-50'
+            }`}
+        >
+          <Clock size={18} /> Latest
+        </button>
+        <button
+          onClick={() => setActiveTab('trending')}
+          className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-medium transition-all ${activeTab === 'trending' ? 'bg-pink-50 text-pink-600 shadow-sm' : 'text-gray-500 hover:bg-gray-50'
+            }`}
+        >
+          <Zap size={18} /> Trending
+        </button>
+        {session && (
+          <button
+            onClick={() => setActiveTab('following')}
+            className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-medium transition-all ${activeTab === 'following' ? 'bg-purple-50 text-purple-600 shadow-sm' : 'text-gray-500 hover:bg-gray-50'
+              }`}
+          >
+            <Users size={18} /> Following
+          </button>
+        )}
+      </div>
 
+      {editingPost && (
+        <EditPostModal
+          post={editingPost}
+          onClose={() => setEditingPost(null)}
+          onUpdate={handlePostUpdate}
+        />
+      )}
+
+      {connectionError && (
+        <div className="bg-red-50 border border-red-200 text-red-600 p-4 rounded-xl mb-6 text-center">
+          <p className="font-semibold">Connection Error</p>
+          <p className="text-sm">Please ensure the database is set up correctly.</p>
+        </div>
+      )}
+
+      {displayedPosts.map(post => (
+        <article key={post.id} className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden mb-6 animate-slide-up">
           {/* Post Header */}
           <div className="p-4 flex items-center justify-between">
-            <div className="flex items-center gap-3 flex-1 min-w-0">
-              <Avatar
-                src={post.profiles?.profile_picture_url}
-                alt={post.profiles?.display_name || post.profiles?.username || 'User'}
-                size="md"
-                userId={post.profiles?.username ? `@${post.profiles.username}` : post.user_id}
-              />
-              <div className="flex-1 min-w-0">
-                <Link
-                  to={`/user/@${post.profiles?.username}`}
-                  className="font-semibold text-gray-900 leading-tight hover:text-blue-600 transition-colors block truncate"
-                >
-                  {post.profiles?.display_name || post.profiles?.username || 'Anonymous'}
+            <div className="flex items-center gap-3">
+              <Link to={`/user/${post.user_id}`}>
+                <Avatar src={post.profile?.profile_picture_url} alt={post.profile?.display_name || post.profile?.username} />
+              </Link>
+              <div>
+                <Link to={`/user/${post.user_id}`} className="font-semibold text-gray-900 hover:text-blue-600 transition-colors">
+                  {post.profile?.display_name || post.profile?.username || 'Anonymous'}
                 </Link>
                 <div className="flex items-center gap-2 text-xs text-gray-500">
+                  <span>@{post.profile?.username || 'user'}</span>
+                  <span>•</span>
                   <span>{timeAgo(post.created_at)}</span>
-                  {post.type === 'code' && post.code_language && (
-                    <>
-                      <span>•</span>
-                      <span className="text-blue-600 font-medium">{post.code_language}</span>
-                    </>
-                  )}
+                  {post.edited_at && <span className="text-gray-400 italic">(edited)</span>}
+                  {post.visibility === 'followers' && <span className="bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded text-[10px]">Followers</span>}
                 </div>
               </div>
             </div>
 
             <div className="flex items-center gap-2">
-              {/* Follow Button */}
-              {post.user_id !== session?.user?.id && (
-                <FollowButton
-                  targetUserId={post.user_id}
-                  session={session}
-                  size="sm"
-                  variant="outline"
-                />
-              )}
+              <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${post.type === 'code' ? 'bg-blue-50 text-blue-600' : 'bg-pink-50 text-pink-600'
+                }`}>
+                {post.type.toUpperCase()}
+              </span>
 
-              {/* Delete Button (Only if you own the post) */}
+              {/* Edit/Delete Buttons */}
               {session && session.user.id === post.user_id && (
-                <button
-                  onClick={() => handleDelete(post.id)}
-                  className="text-gray-400 hover:text-red-500 transition-colors p-2 rounded-full hover:bg-red-50"
-                  title="Delete post"
-                >
-                  <Trash2 size={18} />
-                </button>
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => setEditingPost(post)}
+                    className="text-gray-400 hover:text-blue-500 transition-colors p-2 rounded-full hover:bg-blue-50"
+                  >
+                    <Edit2 size={16} />
+                  </button>
+                  <button
+                    onClick={() => handleDelete(post.id)}
+                    className="text-gray-400 hover:text-red-500 transition-colors p-2 rounded-full hover:bg-red-50"
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                </div>
               )}
             </div>
           </div>
 
-          {/* Post Title */}
-          {post.title && (
-            <div className="px-4 pb-2">
+          {/* Post Title & Tags */}
+          <div className="px-4 pb-2">
+            {post.tags && post.tags.length > 0 && (
+              <div className="flex flex-wrap gap-2 mb-2">
+                {post.tags.map(tag => (
+                  <span key={tag.id} className="text-xs font-medium text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full">
+                    #{tag.name}
+                  </span>
+                ))}
+              </div>
+            )}
+            {post.title && (
               <h2 className="text-lg font-semibold text-gray-900">{post.title}</h2>
-            </div>
-          )}
+            )}
+          </div>
 
           {/* Post Content */}
           <div className="px-4 pb-2">
@@ -361,8 +464,8 @@ export default function Feed({ session }) {
             <button
               onClick={() => handleLike(post.id)}
               className={`flex items-center gap-1 px-3 py-2 rounded-lg transition-all ${userLikes.has(post.id)
-                  ? 'text-pink-600 bg-pink-50 hover:bg-pink-100'
-                  : 'text-gray-500 hover:text-pink-600 hover:bg-gray-100'
+                ? 'text-pink-600 bg-pink-50 hover:bg-pink-100'
+                : 'text-gray-500 hover:text-pink-600 hover:bg-gray-100'
                 }`}
             >
               <Heart size={20} className={userLikes.has(post.id) ? 'fill-current' : ''} />

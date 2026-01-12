@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { supabase } from '../supabaseClient'
 import { useNavigate } from 'react-router-dom'
-import { Image as ImageIcon, Code, Send, Loader2 } from 'lucide-react'
+import { Image as ImageIcon, Code, Send, Loader2, Save } from 'lucide-react'
+import TagInput from '../components/TagInput'
 import toast from 'react-hot-toast'
 import { uploadPostMedia } from '../services/uploadService'
 
@@ -14,10 +15,12 @@ export default function CreatePost() {
   const [codeLanguage, setCodeLanguage] = useState('JavaScript')
   const [file, setFile] = useState(null)
   const [uploading, setUploading] = useState(false)
+  const [tags, setTags] = useState([])
+  const [visibility, setVisibility] = useState('public')
 
   const navigate = useNavigate()
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (e, isDraft = false) => {
     e.preventDefault()
     setUploading(true)
 
@@ -35,7 +38,7 @@ export default function CreatePost() {
       }
 
       // 2. Insert into Database
-      const { error: dbError } = await supabase
+      const { data: newPost, error: dbError } = await supabase
         .from('posts')
         .insert([{
           user_id: user.id,
@@ -44,12 +47,46 @@ export default function CreatePost() {
           description: type === 'meme' ? description : null,
           content_url: finalUrl,
           code_snippet: type === 'code' ? codeSnippet : null,
-          code_language: type === 'code' ? codeLanguage : null
+          code_language: type === 'code' ? codeLanguage : null,
+          status: isDraft ? 'draft' : 'published',
+          visibility: visibility
         }])
+        .select()
+        .single()
 
       if (dbError) throw dbError
 
-      toast.success('Post created successfully!')
+      // 3. Add tags if any
+      if (tags.length > 0 && newPost) {
+        for (const tagName of tags) {
+          const slug = tagName.toLowerCase().replace(/\s+/g, '-')
+
+          // Get or create tag
+          let { data: tag } = await supabase
+            .from('tags')
+            .select('id')
+            .eq('slug', slug)
+            .single()
+
+          if (!tag) {
+            const { data: newTag } = await supabase
+              .from('tags')
+              .insert({ name: tagName, slug })
+              .select('id')
+              .single()
+            tag = newTag
+          }
+
+          // Link tag to post
+          if (tag) {
+            await supabase
+              .from('post_tags')
+              .insert({ post_id: newPost.id, tag_id: tag.id })
+          }
+        }
+      }
+
+      toast.success(isDraft ? 'Draft saved!' : 'Post created successfully!')
       navigate('/')
 
     } catch (error) {
@@ -159,15 +196,43 @@ export default function CreatePost() {
             </div>
           )}
 
-          {/* Submit Button */}
-          <button
-            type="submit"
-            disabled={uploading}
-            className="w-full flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-xl transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed mt-4"
-          >
-            {uploading ? <Loader2 className="animate-spin" /> : <Send size={18} />}
-            {uploading ? 'Posting...' : 'Share Post'}
-          </button>
+          {/* Tags Input */}
+          <TagInput tags={tags} onChange={setTags} />
+
+          {/* Visibility Selector */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Visibility</label>
+            <select
+              value={visibility}
+              onChange={(e) => setVisibility(e.target.value)}
+              className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none bg-white transition-all"
+            >
+              <option value="public">🌍 Public (Everyone)</option>
+              <option value="followers">👥 Followers Only</option>
+              <option value="private">🔒 Private (Only Me)</option>
+            </select>
+          </div>
+
+          <div className="flex gap-3 pt-2">
+            <button
+              type="button"
+              onClick={(e) => handleSubmit(e, true)}
+              disabled={uploading}
+              className="flex-1 flex items-center justify-center gap-2 bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold py-3 rounded-xl transition-all active:scale-[0.98] disabled:opacity-50"
+            >
+              {uploading ? <Loader2 className="animate-spin" /> : <Save size={18} />}
+              Save Draft
+            </button>
+
+            <button
+              type="submit"
+              disabled={uploading}
+              className="flex-[2] flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-xl transition-all active:scale-[0.98] disabled:opacity-50"
+            >
+              {uploading ? <Loader2 className="animate-spin" /> : <Send size={18} />}
+              {uploading ? 'Posting...' : 'Share Post'}
+            </button>
+          </div>
         </form>
       </div>
     </div>

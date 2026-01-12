@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../supabaseClient'
 import { useParams, useNavigate } from 'react-router-dom'
-import { Calendar, Link as LinkIcon, Users } from 'lucide-react'
+import { Calendar, Link as LinkIcon, Users, Edit2, Trash2, Clock, Lock } from 'lucide-react'
 import Avatar from '../components/Avatar'
 import { formatDate } from '../utils/timeAgo'
 import { ProfileSkeleton } from '../components/SkeletonLoader'
 import toast from 'react-hot-toast'
+import EditPostModal from '../components/EditPostModal'
 
 export default function PublicProfile({ session }) {
     const { userId } = useParams()
@@ -14,6 +15,7 @@ export default function PublicProfile({ session }) {
     const [posts, setPosts] = useState([])
     const [loading, setLoading] = useState(true)
     const [isFollowing, setIsFollowing] = useState(false)
+    const [editingPost, setEditingPost] = useState(null)
 
     useEffect(() => {
         fetchProfile()
@@ -62,13 +64,24 @@ export default function PublicProfile({ session }) {
 
             setProfile(profileData)
 
-            // Fetch user's posts using the profile id
-            const { data: postsData } = await supabase
+            setProfile(profileData)
+
+            // Determine if viewing own profile
+            const isOwn = session?.user?.id === profileData.id
+
+            // Fetch user's posts 
+            let query = supabase
                 .from('posts')
                 .select('*')
                 .eq('user_id', profileData.id)
-                .eq('status', 'published')
                 .order('created_at', { ascending: false })
+
+            // If not own profile, show only published
+            if (!isOwn) {
+                query = query.eq('status', 'published').eq('visibility', 'public')
+            }
+
+            const { data: postsData } = await query
 
             setPosts(postsData || [])
         } catch (error) {
@@ -95,6 +108,25 @@ export default function PublicProfile({ session }) {
             // Not following
             setIsFollowing(false)
         }
+    }
+
+    const handleDelete = async (postId) => {
+        if (!window.confirm("Are you sure you want to delete this post?")) return
+
+        try {
+            const { error } = await supabase.from('posts').delete().eq('id', postId)
+            if (error) throw error
+
+            setPosts(posts.filter(post => post.id !== postId))
+            toast.success('Post deleted successfully')
+        } catch (error) {
+            toast.error('Error deleting post')
+        }
+    }
+
+    const handlePostUpdate = (updatedPost) => {
+        setPosts(posts.map(p => p.id === updatedPost.id ? { ...p, ...updatedPost } : p))
+        setEditingPost(null)
     }
 
     const handleFollow = async () => {
@@ -203,8 +235,8 @@ export default function PublicProfile({ session }) {
                             <button
                                 onClick={handleFollow}
                                 className={`px-6 py-2.5 rounded-xl font-semibold transition-all shadow-sm ${isFollowing
-                                        ? 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                                        : 'bg-blue-600 text-white hover:bg-blue-700'
+                                    ? 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                                    : 'bg-blue-600 text-white hover:bg-blue-700'
                                     }`}
                             >
                                 {isFollowing ? 'Following' : 'Follow'}
@@ -257,16 +289,51 @@ export default function PublicProfile({ session }) {
                 Posts ({posts.length})
             </h2>
 
+            {editingPost && (
+                <EditPostModal
+                    post={editingPost}
+                    onClose={() => setEditingPost(null)}
+                    onUpdate={handlePostUpdate}
+                />
+            )}
+
             {posts.length > 0 ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 animate-fade-in">
                     {posts.map(post => (
-                        <div key={post.id} className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm hover-lift transition-all">
+                        <div key={post.id} className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm hover-lift transition-all group relative">
                             <div className="flex justify-between items-start mb-3">
-                                <span className={`text-xs font-bold px-2 py-1 rounded-md ${post.type === 'code' ? 'bg-blue-50 text-blue-600' : 'bg-pink-50 text-pink-600'}`}>
-                                    {post.type.toUpperCase()}
-                                </span>
-                                <span className="text-xs text-gray-400">{formatDate(post.created_at)}</span>
+                                <div className="flex gap-2">
+                                    <span className={`text-xs font-bold px-2 py-1 rounded-md ${post.type === 'code' ? 'bg-blue-50 text-blue-600' : 'bg-pink-50 text-pink-600'}`}>
+                                        {post.type.toUpperCase()}
+                                    </span>
+                                    {post.status === 'draft' && (
+                                        <span className="text-xs font-bold px-2 py-1 rounded-md bg-gray-100 text-gray-600 border border-gray-200">
+                                            DRAFT
+                                        </span>
+                                    )}
+                                </div>
+
+                                {isOwnProfile && (
+                                    <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity absolute top-4 right-4 bg-white shadow-sm rounded-lg p-1 border border-gray-100">
+                                        <button
+                                            onClick={() => setEditingPost(post)}
+                                            className="p-1.5 text-gray-400 hover:text-blue-500 hover:bg-blue-50 rounded-md"
+                                        >
+                                            <Edit2 size={14} />
+                                        </button>
+                                        <button
+                                            onClick={() => handleDelete(post.id)}
+                                            className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-md"
+                                        >
+                                            <Trash2 size={14} />
+                                        </button>
+                                    </div>
+                                )}
                             </div>
+
+                            <span className="text-xs text-gray-400 block mb-2">{formatDate(post.created_at)}
+                                {post.edited_at && <span className="italic ml-1">(edited)</span>}
+                            </span>
 
                             <h3 className="font-semibold text-gray-900 mb-2 line-clamp-2">{post.title}</h3>
 
