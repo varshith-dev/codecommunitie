@@ -63,7 +63,7 @@ export default function Feed({ session }) {
 
       if (profilesError) {
         console.error('Error fetching profiles:', profilesError)
-        // Continue without profiles if they fail to load
+        // Continue with Anonymous fallback
       }
 
       // Create a map of profiles by user_id
