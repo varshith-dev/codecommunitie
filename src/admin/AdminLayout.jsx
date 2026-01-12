@@ -55,6 +55,18 @@ export default function AdminLayout() {
                         isActive={location.pathname === '/admin/tags'}
                     />
                     <SidebarItem
+                        to="/admin/verification-requests"
+                        icon={Settings}
+                        label="Verification"
+                        isActive={location.pathname === '/admin/verification-requests'}
+                    />
+                    <SidebarItem
+                        to="/admin/media-review"
+                        icon={Settings}
+                        label="Media Review"
+                        isActive={location.pathname === '/admin/media-review'}
+                    />
+                    <SidebarItem
                         to="/admin/table/profiles"
                         icon={Users}
                         label="User Management"
