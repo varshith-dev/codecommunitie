@@ -1,43 +1,66 @@
 -- ================================================================
--- CRITICAL FIX: Create Profiles for Users Without Them
+-- COMPREHENSIVE FIX: User Visibility Issue
 -- ================================================================
--- This script addresses the "Anonymous" user display issue
--- Run this in your Supabase SQL Editor NOW
+-- This fixes the issue where User 1 sees profiles correctly
+-- but User 2 sees "Anonymous"
 -- ================================================================
 
--- Step 1: Create profiles for any users who don't have one
--- (Removed created_at from the insert as it's auto-generated)
-INSERT INTO public.profiles (id, username, display_name)
+-- STEP 1: Check current state
 SELECT 
-  u.id, 
-  COALESCE(u.raw_user_meta_data->>'username', split_part(u.email, '@', 1)) as username,
-  COALESCE(u.raw_user_meta_data->>'full_name', u.raw_user_meta_data->>'display_name') as display_name
-FROM auth.users u
-WHERE u.id NOT IN (SELECT id FROM public.profiles)
-ON CONFLICT (id) DO NOTHING;
-
--- Step 2: Update any profiles that have NULL usernames
-UPDATE public.profiles
-SET username = split_part(
-  (SELECT email FROM auth.users WHERE id = profiles.id), 
-  '@', 
-  1
-)
-WHERE username IS NULL OR username = '';
-
--- Step 3: Verify all users now have profiles
-SELECT 
-  u.id as user_id,
   u.email,
   p.username,
   p.display_name,
   CASE 
-    WHEN p.id IS NULL THEN '❌ MISSING PROFILE' 
-    WHEN p.username IS NULL THEN '⚠️  NULL USERNAME'
-    ELSE '✅ OK' 
+    WHEN p.id IS NULL THEN '❌ NO PROFILE'
+    WHEN p.username IS NULL OR p.username = '' THEN '⚠️ NULL USERNAME'
+    ELSE '✅ HAS PROFILE'
+  END as status
+FROM auth.users u
+LEFT JOIN public.profiles p ON u.id = p.id;
+
+-- STEP 2: Create profiles for users without them
+INSERT INTO public.profiles (id, username, display_name)
+SELECT 
+  u.id, 
+  COALESCE(
+    u.raw_user_meta_data->>'username',
+    split_part(u.email, '@', 1),
+    'user_' || substring(u.id::text, 1, 8)
+  ) as username,
+  COALESCE(
+    u.raw_user_meta_data->>'full_name',
+    u.raw_user_meta_data->>'display_name',
+    split_part(u.email, '@', 1)
+  ) as display_name
+FROM auth.users u
+WHERE NOT EXISTS (SELECT 1 FROM public.profiles WHERE id = u.id);
+
+-- STEP 3: Fix NULL or empty usernames
+UPDATE public.profiles p
+SET username = COALESCE(
+  NULLIF(username, ''),
+  (SELECT split_part(email, '@', 1) FROM auth.users WHERE id = p.id),
+  'user_' || substring(p.id::text, 1, 8)
+)
+WHERE username IS NULL OR username = '';
+
+-- STEP 4: Ensure RLS policy allows public reads
+DROP POLICY IF EXISTS "Profiles are viewable by everyone" ON public.profiles;
+CREATE POLICY "Profiles are viewable by everyone" 
+  ON public.profiles FOR SELECT 
+  TO public
+  USING (true);
+
+-- STEP 5: Verify - all should show ✅
+SELECT 
+  u.email,
+  p.username,
+  p.display_name,
+  CASE 
+    WHEN p.id IS NULL THEN '❌ MISSING'
+    WHEN p.username IS NULL OR p.username = '' THEN '⚠️ NULL'
+    ELSE '✅ OK'
   END as status
 FROM auth.users u
 LEFT JOIN public.profiles p ON u.id = p.id
 ORDER BY u.created_at DESC;
-
--- Expected result: All users should have status = '✅ OK'
