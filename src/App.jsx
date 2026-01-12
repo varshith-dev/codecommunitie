@@ -19,6 +19,7 @@ import CreatePost from './pages/CreatePost'
 import UserProfile from './pages/UserProfile'
 import PublicProfile from './pages/PublicProfile'
 import Search from './pages/Search'
+import Settings from './pages/Settings'
 
 export default function App() {
   const [session, setSession] = useState(null)
@@ -93,6 +94,10 @@ export default function App() {
             <Route
               path="/profile"
               element={session ? <UserProfile /> : <Navigate to="/login" />}
+            />
+            <Route
+              path="/settings"
+              element={session ? <Settings session={session} /> : <Navigate to="/login" />}
             />
 
             <Route path="*" element={<Navigate to="/" />} />

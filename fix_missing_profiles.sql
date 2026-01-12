@@ -1,26 +1,43 @@
--- ================================================
--- FIX: Ensure All Users Have Profiles
--- ================================================
--- This script creates profiles for users who don't have one
--- Run this in your Supabase SQL Editor
+-- ================================================================
+-- CRITICAL FIX: Create Profiles for Users Without Them
+-- ================================================================
+-- This script addresses the "Anonymous" user display issue
+-- Run this in your Supabase SQL Editor NOW
+-- ================================================================
 
--- Create profiles for users without them
-INSERT INTO public.profiles (id, username)
+-- Step 1: Create profiles for any users who don't have one
+INSERT INTO public.profiles (id, username, display_name, created_at)
 SELECT 
-  id, 
-  COALESCE(raw_user_meta_data->>'username', split_part(email, '@', 1)) as username
-FROM auth.users
-WHERE id NOT IN (SELECT id FROM public.profiles);
+  u.id, 
+  COALESCE(u.raw_user_meta_data->>'username', split_part(u.email, '@', 1)) as username,
+  COALESCE(u.raw_user_meta_data->>'full_name', u.raw_user_meta_data->>'display_name') as display_name,
+  u.created_at
+FROM auth.users u
+WHERE u.id NOT IN (SELECT id FROM public.profiles)
+ON CONFLICT (id) DO NOTHING;
 
--- Verify all users now have profiles
+-- Step 2: Update any profiles that have NULL usernames
+UPDATE public.profiles
+SET username = split_part(
+  (SELECT email FROM auth.users WHERE id = profiles.id), 
+  '@', 
+  1
+)
+WHERE username IS NULL OR username = '';
+
+-- Step 3: Verify all users now have profiles
 SELECT 
   u.id as user_id,
   u.email,
   p.username,
   p.display_name,
-  CASE WHEN p.id IS NULL THEN 'MISSING' ELSE 'EXISTS' END as profile_status
+  CASE 
+    WHEN p.id IS NULL THEN '❌ MISSING PROFILE' 
+    WHEN p.username IS NULL THEN '⚠️  NULL USERNAME'
+    ELSE '✅ OK' 
+  END as status
 FROM auth.users u
 LEFT JOIN public.profiles p ON u.id = p.id
 ORDER BY u.created_at DESC;
 
--- Expected result: All users should have profile_status = 'EXISTS'
+-- Expected result: All users should have status = '✅ OK'

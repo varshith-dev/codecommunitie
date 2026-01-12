@@ -1,7 +1,7 @@
 import { Link, useLocation } from 'react-router-dom'
 import { useState, useEffect } from 'react'
 import { supabase } from '../supabaseClient'
-import { Home, PlusSquare, User, LogOut, Code2, Search as SearchIcon } from 'lucide-react'
+import { Home, PlusSquare, User, LogOut, Code2, Search as SearchIcon, Settings } from 'lucide-react'
 import Avatar from './Avatar'
 
 export default function Navbar({ session }) {
@@ -75,6 +75,11 @@ export default function Navbar({ session }) {
                     size="sm"
                   />
                   <span>{profile?.display_name || profile?.username || 'Profile'}</span>
+                </Link>
+
+                <Link to="/settings" className={`flex items-center gap-2 font-medium transition-all hover:scale-105 ${isActive('/settings')}`}>
+                  <Settings size={20} />
+                  <span>Settings</span>
                 </Link>
 
                 <button
