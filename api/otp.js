@@ -16,7 +16,7 @@ export default async function handler(req, res) {
         return;
     }
 
-    const { action, email, code } = req.body;
+    const { action, email, code, newPassword } = req.body;
 
     if (!email) {
         return res.status(400).json({ error: 'Email is required' });
@@ -35,13 +35,11 @@ export default async function handler(req, res) {
 
         const supabase = createClient(supabaseUrl, serviceRoleKey);
 
-        // === ACTION: SEND OTP ===
+        // === ACTION: SEND OTP (For Verification) ===
         if (action === 'send') {
-            // 1. Generate 6-digit Code
             const otp = Math.floor(100000 + Math.random() * 900000).toString();
             const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString(); // 10 mins
 
-            // 2. Store in DB (Delete old codes first)
             await supabase.from('verification_codes').delete().eq('email', email);
 
             const { error: dbError } = await supabase
@@ -50,135 +48,126 @@ export default async function handler(req, res) {
 
             if (dbError) throw dbError;
 
-            // 3. Send Email via Nodemailer
             const transporter = nodemailer.createTransport({
                 host: "smtp.zeptomail.in",
                 port: 587,
-                secure: false, // true for 465, false for other ports
+                secure: false,
                 auth: {
                     user: "emailapikey",
                     pass: process.env.SMTP_PASSWORD || "PHtE6r0KF7/s2TEt8BVStvG8EMGsZt59/75uK1FGt95AX/ADHk1Wq9F6wza2+U8jAaFFFvbPzIJuuemet7+BcGu4Nz1IDWqyqK3sx/VYSPOZsbq6x00UsFkTckHfXITpcdJq1SbXvNbZNA=="
                 },
             });
 
-            // Read Template or use basic HTML
-            const htmlContent = `
-                <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
-                    <h2>Verify your CodeCommunities Account</h2>
-                    <p>Your verification code is:</p>
-                    <h1 style="background: #f4f4f5; padding: 20px; font-size: 32px; letter-spacing: 5px; text-align: center; border-radius: 10px;">${otp}</h1>
-                    <p>This code expires in 10 minutes.</p>
-                </div>
-            `;
-
             await transporter.sendMail({
                 from: '"CodeCommunities" <varshith@truvgo.me>',
                 to: email,
                 subject: "Your Verification Code",
-                html: htmlContent,
+                html: `
+                    <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
+                        <h2>Verify your CodeCommunities Account</h2>
+                        <h1 style="background: #f4f4f5; padding: 20px; text-align: center; letter-spacing: 5px;">${otp}</h1>
+                    </div>
+                `,
             });
 
             return res.status(200).json({ success: true, message: 'OTP Sent' });
         }
 
-        // === ACTION: VERIFY OTP ===
+        // === ACTION: VERIFY OTP (Email Confirmation) ===
         if (action === 'verify') {
             if (!code) return res.status(400).json({ error: 'Code is required' });
 
-            // 1. Check DB
-            const { data, error } = await supabase
-                .from('verification_codes')
-                .select('*')
-                .eq('email', email)
-                .eq('code', code)
-                .single();
+            // 1. Check Code
+            const { data, error } = await supabase.from('verification_codes').select('*').eq('email', email).eq('code', code).single();
+            if (error || !data) return res.status(400).json({ success: false, error: 'Invalid or expired code' });
+            if (new Date(data.expires_at) < new Date()) return res.status(400).json({ success: false, error: 'Code expired' });
 
-            if (error || !data) {
-                return res.status(400).json({ success: false, error: 'Invalid or expired code' });
-            }
-
-            // Check Expiry
-            if (new Date(data.expires_at) < new Date()) {
-                return res.status(400).json({ success: false, error: 'Code expired' });
-            }
-
-            // 2. Confirm User in Supabase Auth
-            const { data: userData, error: userError } = await supabase
-                .from('auth.users') // Wait, need Admin API to find user by email first?
-            // supabase-js admin can verify user
-            // Actually `admin.updateUserById` needs ID.
-            // admin.listUsers?
-            // Let's use `confirmUser` logic? Not exposed.
-
-            // Find user ID
-            const { data: { users }, error: listError } = await supabase.auth.admin.listUsers();
-            // This is inefficient if many users.
-            // Better: `supabase.auth.admin.getUserByEmail(email)`? No such method?
-            // Actually `supabase.rpc`?
-            // Let's try:
-
-            // 2. Confirm User in Supabase Auth & Get Profile ID
+            // 2. Resolve User ID (Auto-Healing)
             let userId;
-
-            // Try explicit lowercased email lookup in profiles first
-            const { data: profile } = await supabase
-                .from('profiles')
-                .select('id')
-                .eq('email', email.toLowerCase()) // Try lowercase first
-                .maybeSingle(); // Use maybeSingle to avoid error on null
+            const { data: profile } = await supabase.from('profiles').select('id').eq('email', email.toLowerCase()).maybeSingle();
 
             if (profile) {
                 userId = profile.id;
             } else {
-                // FALLBACK: Profile missing? Try to find user in Auth Admin & Auto-Heal
                 console.log(`Profile missing for ${email}, attempting auto-heal...`);
+                const { data: { users } } = await supabase.auth.admin.listUsers({ perPage: 1000 });
+                const user = users?.find(u => u.email?.toLowerCase() === email.toLowerCase());
 
-                const { data: { users }, error: listError } = await supabase.auth.admin.listUsers({ perPage: 1000 });
-
-                if (listError || !users) {
-                    console.error("ListUsers failed", listError);
-                    return res.status(500).json({ error: 'Failed to retrieve user directory' });
-                }
-
-                const user = users.find(u => u.email?.toLowerCase() === email.toLowerCase());
-
-                if (!user) {
-                    return res.status(404).json({ error: 'User account not found. Please Sign Up.' });
-                }
-
+                if (!user) return res.status(404).json({ error: 'User account not found' });
                 userId = user.id;
 
-                // Auto-Create Profile
-                const { error: createProfileError } = await supabase
-                    .from('profiles')
-                    .insert({
-                        id: userId,
-                        username: email.split('@')[0],
-                        display_name: email.split('@')[0],
-                        email: email // Store email in profile for easier lookup later
-                    });
-
-                if (createProfileError) {
-                    // Ignore duplicate key error if race condition
-                    if (!createProfileError.message.includes('duplicate')) {
-                        console.error("Auto-heal profile failed", createProfileError);
-                    }
-                } else {
-                    console.log(`Auto-healed profile for ${userId}`);
-                }
+                await supabase.from('profiles').insert({
+                    id: userId,
+                    username: email.split('@')[0],
+                    display_name: email.split('@')[0],
+                    email: email
+                });
             }
 
-            const { error: updateError } = await supabase.auth.admin.updateUserById(
-                userId,
-                { email_confirm: true }
-            );
+            // 3. Confirm Email
+            await supabase.auth.admin.updateUserById(userId, { email_confirm: true });
 
-            if (updateError) throw updateError;
-
-            // 3. Cleanup
+            // 4. Cleanup
             await supabase.from('verification_codes').delete().eq('email', email);
 
             return res.status(200).json({ success: true, message: 'Verified' });
+        }
+
+        // === ACTION: FORGOT PASSWORD (Send OTP) ===
+        if (action === 'forgot_password') {
+            const otp = Math.floor(100000 + Math.random() * 900000).toString();
+            const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
+
+            await supabase.from('verification_codes').delete().eq('email', email);
+            await supabase.from('verification_codes').insert({ email, code: otp, expires_at: expiresAt });
+
+            const transporter = nodemailer.createTransport({
+                host: "smtp.zeptomail.in", port: 587, secure: false,
+                auth: { user: "emailapikey", pass: process.env.SMTP_PASSWORD }
+            });
+
+            await transporter.sendMail({
+                from: '"CodeCommunities" <varshith@truvgo.me>',
+                to: email,
+                subject: "Reset Your Password",
+                html: `
+                    <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
+                        <h2>Reset Your Password</h2>
+                        <h1 style="background: #f4f4f5; padding: 20px; text-align: center; letter-spacing: 5px;">${otp}</h1>
+                    </div>
+                `,
+            });
+
+            return res.status(200).json({ success: true, message: 'Reset OTP Sent' });
+        }
+
+        // === ACTION: RESET PASSWORD (Verify & Update) ===
+        if (action === 'reset_password') {
+            if (!code || !newPassword) return res.status(400).json({ error: 'Code and Password required' });
+
+            // 1. Verify Code
+            const { data, error } = await supabase.from('verification_codes').select('*').eq('email', email).eq('code', code).single();
+            if (error || !data) return res.status(400).json({ success: false, error: 'Invalid or expired code' });
+            if (new Date(data.expires_at) < new Date()) return res.status(400).json({ success: false, error: 'Code expired' });
+
+            // 2. Find User ID
+            const { data: profile } = await supabase.from('profiles').select('id').eq('email', email.toLowerCase()).maybeSingle();
+            let userId = profile?.id;
+
+            if (!userId) {
+                const { data: { users } } = await supabase.auth.admin.listUsers({ perPage: 1000 });
+                const user = users?.find(u => u.email?.toLowerCase() === email.toLowerCase());
+                if (!user) return res.status(404).json({ error: 'User not found' });
+                userId = user.id;
+            }
+
+            // 3. Update Password
+            await supabase.auth.admin.updateUserById(userId, { password: newPassword });
+
+            // 4. Cleanup
+            await supabase.from('verification_codes').delete().eq('email', email);
+
+            return res.status(200).json({ success: true, message: 'Password Updated' });
         }
 
     } catch (error) {

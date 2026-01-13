@@ -33,6 +33,34 @@ export const EmailService = {
         if (!response.ok) throw new Error(data.error || 'Failed to verified OTP')
         return data
     },
+
+    /**
+     * Send Password Reset OTP
+     */
+    sendResetOTP: async (email) => {
+        const response = await fetch(OTP_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'forgot_password', email })
+        })
+        const data = await response.json()
+        if (!response.ok) throw new Error(data.error || 'Failed to send Reset OTP')
+        return data
+    },
+
+    /**
+     * Reset Password with OTP
+     */
+    resetPasswordWithOTP: async (email, code, newPassword) => {
+        const response = await fetch(OTP_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'reset_password', email, code, newPassword })
+        })
+        const data = await response.json()
+        if (!response.ok) throw new Error(data.error || 'Failed to reset password')
+        return data
+    },
     /**
      * Sends an email via the local Python backend and logs it to Supabase.
      * @param {Object} params - { recipientEmail, memberName, subject, htmlContent, templateType, triggeredBy }

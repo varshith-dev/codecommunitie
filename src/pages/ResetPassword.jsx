@@ -1,91 +1,47 @@
 import { useState, useEffect } from 'react'
-import { useNavigate, Link } from 'react-router-dom'
-import { updatePassword } from '../services/authService'
+import { useNavigate, useLocation, Link } from 'react-router-dom'
+import { EmailService } from '../services/EmailService'
 import toast from 'react-hot-toast'
-import { Lock, CheckCircle, XCircle, Code2, KeyRound, Eye, EyeOff } from 'lucide-react'
+import { Lock, Code2, KeyRound, Eye, EyeOff, ArrowLeft } from 'lucide-react'
 
 export default function ResetPassword() {
     const navigate = useNavigate()
-    const [formData, setFormData] = useState({
-        password: '',
-        confirmPassword: ''
-    })
+    const location = useLocation()
+
+    // Get email from previous page state, or default to empty
+    const [email, setEmail] = useState(location.state?.email || '')
+    const [code, setCode] = useState('')
+    const [password, setPassword] = useState('')
+    const [confirmPassword, setConfirmPassword] = useState('')
+
     const [loading, setLoading] = useState(false)
-    const [hasAccess, setHasAccess] = useState(false)
     const [showPassword, setShowPassword] = useState(false)
-    const [showConfirmPassword, setShowConfirmPassword] = useState(false)
-
-    useEffect(() => {
-        // Check if user has valid reset token via hash or Auth Event
-        const checkAccess = async () => {
-            const hash = window.location.hash
-            if (hash && hash.includes('type=recovery')) {
-                setHasAccess(true)
-                return
-            }
-        }
-
-        checkAccess()
-
-        const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
-            if (event === 'PASSWORD_RECOVERY') {
-                setHasAccess(true)
-            }
-        })
-
-        return () => {
-            authListener.subscription.unsubscribe()
-        }
-    }, [navigate])
-
-    const getPasswordStrength = (password) => {
-        if (!password) return { strength: 0, label: '', color: '' }
-
-        let strength = 0
-        if (password.length >= 8) strength++
-        if (/[a-z]/.test(password) && /[A-Z]/.test(password)) strength++
-        if (/\d/.test(password)) strength++
-        if (/[^a-zA-Z\d]/.test(password)) strength++
-
-        if (strength <= 1) return { strength, label: 'Weak', color: 'bg-red-500' }
-        if (strength === 2) return { strength, label: 'Fair', color: 'bg-yellow-500' }
-        if (strength === 3) return { strength, label: 'Good', color: 'bg-blue-500' }
-        return { strength, label: 'Strong', color: 'bg-green-500' }
-    }
-
-    const passwordStrength = getPasswordStrength(formData.password)
-    const passwordsMatch = formData.password && formData.password === formData.confirmPassword
 
     const handleSubmit = async (e) => {
         e.preventDefault()
 
-        if (!formData.password || !formData.confirmPassword) {
+        if (!email || !code || !password || !confirmPassword) {
             toast.error('Please fill in all fields')
             return
         }
 
-        if (formData.password !== formData.confirmPassword) {
+        if (password !== confirmPassword) {
             toast.error('Passwords do not match')
-            return
-        }
-
-        if (formData.password.length < 8) {
-            toast.error('Password must be at least 8 characters')
             return
         }
 
         setLoading(true)
 
         try {
-            const { success, error } = await updatePassword(formData.password)
+            const { success, error } = await EmailService.resetPasswordWithOTP(email, code, password)
 
             if (error) {
-                toast.error(error.message || 'Failed to reset password')
+                toast.error(error || 'Failed to reset password')
                 return
             }
 
             if (success) {
-                toast.success('Password updated successfully!')
+                toast.success('Password updated successfully! Logging you in...')
                 setTimeout(() => navigate('/login'), 2000)
             }
         } catch (error) {
@@ -96,20 +52,9 @@ export default function ResetPassword() {
         }
     }
 
-    if (!hasAccess) {
-        return (
-            <div className="min-h-screen flex items-center justify-center bg-gray-50">
-                <div className="text-center">
-                    <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-                    <p className="text-gray-600">Validating reset link...</p>
-                </div>
-            </div>
-        )
-    }
-
     return (
         <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
-            <div className="w-full max-w-md">
+            <div className="w-full max-w-md animate-fade-in">
                 {/* Logo */}
                 <div className="text-center mb-8">
                     <div className="inline-flex items-center gap-3 mb-4">
@@ -118,96 +63,81 @@ export default function ResetPassword() {
                         </div>
                         <h1 className="text-2xl font-bold text-gray-900">CodeKrafts</h1>
                     </div>
-                    <h2 className="text-xl font-bold text-gray-900 mb-1">Reset Your Password</h2>
-                    <p className="text-gray-500">Enter your new password below</p>
+                    <h2 className="text-xl font-bold text-gray-900 mb-1">Set New Password</h2>
+                    <p className="text-gray-500">Enter the code sent to your email and your new password.</p>
                 </div>
 
                 {/* Form */}
                 <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 sm:p-8">
                     <form onSubmit={handleSubmit} className="space-y-5">
+
+                        {/* Email Field (Editable if needed, but pre-filled) */}
+                        <div>
+                            <label className="block text-sm font-semibold text-gray-700 mb-2">Email</label>
+                            <input
+                                type="email"
+                                value={email}
+                                onChange={(e) => setEmail(e.target.value)}
+                                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500"
+                                required
+                            />
+                        </div>
+
+                        {/* OTP Code */}
+                        <div>
+                            <label className="block text-sm font-semibold text-gray-700 mb-2">Verification Code</label>
+                            <div className="relative">
+                                <input
+                                    type="text"
+                                    value={code}
+                                    onChange={(e) => setCode(e.target.value)}
+                                    placeholder="123456"
+                                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 tracking-widest text-center text-lg font-mono"
+                                    maxLength={6}
+                                    required
+                                />
+                            </div>
+                        </div>
+
                         {/* New Password */}
                         <div>
-                            <label className="block text-sm font-semibold text-gray-700 mb-2">
-                                New Password
-                            </label>
+                            <label className="block text-sm font-semibold text-gray-700 mb-2">New Password</label>
                             <div className="relative">
                                 <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
                                 <input
                                     type={showPassword ? "text" : "password"}
-                                    value={formData.password}
-                                    onChange={(e) => setFormData(prev => ({ ...prev, password: e.target.value }))}
+                                    value={password}
+                                    onChange={(e) => setPassword(e.target.value)}
                                     placeholder="••••••••"
-                                    className="w-full pl-12 pr-12 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all text-gray-900"
-                                    disabled={loading}
+                                    className="w-full pl-12 pr-12 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500"
                                     required
                                 />
                                 <button
                                     type="button"
                                     onClick={() => setShowPassword(!showPassword)}
-                                    className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 outline-none"
+                                    className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400"
                                 >
                                     {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
                                 </button>
                             </div>
-                            {/* Password Strength Indicator */}
-                            {formData.password && (
-                                <div className="mt-2">
-                                    <div className="flex items-center gap-2 mb-1">
-                                        <div className="flex-1 h-2 bg-gray-200 rounded-full overflow-hidden">
-                                            <div
-                                                className={`h-full ${passwordStrength.color} transition-all duration-300`}
-                                                style={{ width: `${(passwordStrength.strength / 4) * 100}%` }}
-                                            />
-                                        </div>
-                                        <span className="text-xs font-medium text-gray-600">{passwordStrength.label}</span>
-                                    </div>
-                                    <p className="text-xs text-gray-500">At least 8 characters with uppercase, lowercase, and numbers</p>
-                                </div>
-                            )}
                         </div>
 
                         {/* Confirm Password */}
                         <div>
-                            <label className="block text-sm font-semibold text-gray-700 mb-2">
-                                Confirm New Password
-                            </label>
-                            <div className="relative">
-                                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
-                                <input
-                                    type={showConfirmPassword ? "text" : "password"}
-                                    value={formData.confirmPassword}
-                                    onChange={(e) => setFormData(prev => ({ ...prev, confirmPassword: e.target.value }))}
-                                    placeholder="••••••••"
-                                    className="w-full pl-12 pr-20 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all text-gray-900"
-                                    disabled={loading}
-                                    required
-                                />
-                                <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-2">
-                                    {formData.confirmPassword && (
-                                        <>
-                                            {passwordsMatch ? (
-                                                <CheckCircle className="text-green-500" size={20} />
-                                            ) : (
-                                                <XCircle className="text-red-500" size={20} />
-                                            )}
-                                        </>
-                                    )}
-                                    <button
-                                        type="button"
-                                        onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                                        className="text-gray-400 hover:text-gray-600 outline-none"
-                                    >
-                                        {showConfirmPassword ? <EyeOff size={20} /> : <Eye size={20} />}
-                                    </button>
-                                </div>
-                            </div>
+                            <label className="block text-sm font-semibold text-gray-700 mb-2">Confirm Password</label>
+                            <input
+                                type="password"
+                                value={confirmPassword}
+                                onChange={(e) => setConfirmPassword(e.target.value)}
+                                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500"
+                                required
+                            />
                         </div>
 
-                        {/* Submit Button */}
                         <button
                             type="submit"
-                            disabled={loading || !passwordsMatch}
-                            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-4 rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                            disabled={loading}
+                            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-4 rounded-xl transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
                         >
                             {loading ? (
                                 <>
@@ -224,12 +154,14 @@ export default function ResetPassword() {
                     </form>
 
                     {/* Back to Login */}
-                    <p className="mt-6 text-center text-sm text-gray-600">
-                        Remember your password?{' '}
-                        <Link to="/login" className="font-semibold text-blue-600 hover:text-blue-700">
-                            Sign in
+                    <div className="mt-6 text-center">
+                        <Link
+                            to="/login"
+                            className="text-sm font-semibold text-blue-600 hover:text-blue-700"
+                        >
+                            Back to Login
                         </Link>
-                    </p>
+                    </div>
                 </div>
             </div>
         </div>
