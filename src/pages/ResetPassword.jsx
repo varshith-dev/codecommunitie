@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, Link } from 'react-router-dom'
 import { updatePassword } from '../services/authService'
 import toast from 'react-hot-toast'
-import { Lock, CheckCircle, XCircle } from 'lucide-react'
+import { Lock, CheckCircle, XCircle, Code2, KeyRound } from 'lucide-react'
 
 export default function ResetPassword() {
     const navigate = useNavigate()
@@ -14,13 +14,25 @@ export default function ResetPassword() {
     const [hasAccess, setHasAccess] = useState(false)
 
     useEffect(() => {
-        // Check if user has valid reset token
-        const hash = window.location.hash
-        if (hash && hash.includes('type=recovery')) {
-            setHasAccess(true)
-        } else {
-            toast.error('Invalid or expired reset link')
-            setTimeout(() => navigate('/forgot-password'), 2000)
+        // Check if user has valid reset token via hash or Auth Event
+        const checkAccess = async () => {
+            const hash = window.location.hash
+            if (hash && hash.includes('type=recovery')) {
+                setHasAccess(true)
+                return
+            }
+        }
+
+        checkAccess()
+
+        const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
+            if (event === 'PASSWORD_RECOVERY') {
+                setHasAccess(true)
+            }
+        })
+
+        return () => {
+            authListener.subscription.unsubscribe()
         }
     }, [navigate])
 
@@ -84,7 +96,7 @@ export default function ResetPassword() {
 
     if (!hasAccess) {
         return (
-            <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-white to-purple-50">
+            <div className="min-h-screen flex items-center justify-center bg-gray-50">
                 <div className="text-center">
                     <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
                     <p className="text-gray-600">Validating reset link...</p>
@@ -94,36 +106,36 @@ export default function ResetPassword() {
     }
 
     return (
-        <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-white to-purple-50 px-4">
-            <div className="w-full max-w-md animate-fade-in">
-                {/* Header */}
+        <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
+            <div className="w-full max-w-md">
+                {/* Logo */}
                 <div className="text-center mb-8">
-                    <div className="inline-flex items-center gap-2 mb-4">
-                        <div className="w-12 h-12 bg-gradient-to-br from-blue-600 to-purple-600 rounded-xl flex items-center justify-center">
-                            <span className="text-2xl">💻</span>
+                    <div className="inline-flex items-center gap-3 mb-4">
+                        <div className="w-12 h-12 bg-blue-600 rounded-xl flex items-center justify-center">
+                            <Code2 size={28} className="text-white" />
                         </div>
-                        <h1 className="text-3xl font-bold gradient-text">CodeKrafts</h1>
+                        <h1 className="text-2xl font-bold text-gray-900">CodeKrafts</h1>
                     </div>
-                    <h2 className="text-2xl font-bold text-gray-900 mb-2">Reset Password</h2>
-                    <p className="text-gray-600">Enter your new password below</p>
+                    <h2 className="text-xl font-bold text-gray-900 mb-1">Reset Your Password</h2>
+                    <p className="text-gray-500">Enter your new password below</p>
                 </div>
 
                 {/* Form */}
-                <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-8 animate-scale-in">
-                    <form onSubmit={handleSubmit} className="space-y-6">
+                <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 sm:p-8">
+                    <form onSubmit={handleSubmit} className="space-y-5">
                         {/* New Password */}
                         <div>
                             <label className="block text-sm font-semibold text-gray-700 mb-2">
                                 New Password
                             </label>
                             <div className="relative">
-                                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
+                                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
                                 <input
                                     type="password"
                                     value={formData.password}
                                     onChange={(e) => setFormData(prev => ({ ...prev, password: e.target.value }))}
                                     placeholder="••••••••"
-                                    className="w-full pl-11 pr-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                                    className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all text-gray-900"
                                     disabled={loading}
                                     required
                                 />
@@ -151,18 +163,18 @@ export default function ResetPassword() {
                                 Confirm New Password
                             </label>
                             <div className="relative">
-                                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
+                                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
                                 <input
                                     type="password"
                                     value={formData.confirmPassword}
                                     onChange={(e) => setFormData(prev => ({ ...prev, confirmPassword: e.target.value }))}
                                     placeholder="••••••••"
-                                    className="w-full pl-11 pr-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                                    className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all text-gray-900"
                                     disabled={loading}
                                     required
                                 />
                                 {formData.confirmPassword && (
-                                    <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                                    <div className="absolute right-4 top-1/2 -translate-y-1/2">
                                         {passwordsMatch ? (
                                             <CheckCircle className="text-green-500" size={20} />
                                         ) : (
@@ -177,7 +189,7 @@ export default function ResetPassword() {
                         <button
                             type="submit"
                             disabled={loading || !passwordsMatch}
-                            className="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white font-semibold py-3 px-4 rounded-xl hover:shadow-lg hover:scale-[1.02] transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 flex items-center justify-center gap-2"
+                            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-4 rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                         >
                             {loading ? (
                                 <>
@@ -185,10 +197,21 @@ export default function ResetPassword() {
                                     Updating...
                                 </>
                             ) : (
-                                'Reset Password'
+                                <>
+                                    <KeyRound size={20} />
+                                    Reset Password
+                                </>
                             )}
                         </button>
                     </form>
+
+                    {/* Back to Login */}
+                    <p className="mt-6 text-center text-sm text-gray-600">
+                        Remember your password?{' '}
+                        <Link to="/login" className="font-semibold text-blue-600 hover:text-blue-700">
+                            Sign in
+                        </Link>
+                    </p>
                 </div>
             </div>
         </div>

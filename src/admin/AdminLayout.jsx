@@ -1,5 +1,5 @@
 import { Outlet, Link, useLocation } from 'react-router-dom'
-import { Database, Table as TableIcon, Home, Settings, LogOut, ChevronRight, Users, Activity } from 'lucide-react'
+import { Database, Table as TableIcon, Home, Settings, LogOut, ChevronRight, Users, Activity, ToggleRight, Sparkles, Megaphone } from 'lucide-react'
 
 export default function AdminLayout() {
     const location = useLocation()
@@ -77,6 +77,24 @@ export default function AdminLayout() {
                         icon={Settings}
                         label="Media Review"
                         isActive={location.pathname === '/admin/media-review'}
+                    />
+                    <SidebarItem
+                        to="/admin/features"
+                        icon={ToggleRight}
+                        label="Feature Manager"
+                        isActive={location.pathname === '/admin/features'}
+                    />
+                    <SidebarItem
+                        to="/admin/beta"
+                        icon={Sparkles}
+                        label="Beta Access"
+                        isActive={location.pathname === '/admin/beta'}
+                    />
+                    <SidebarItem
+                        to="/admin/releases"
+                        icon={Megaphone}
+                        label="Releases"
+                        isActive={location.pathname === '/admin/releases'}
                     />
                     <SidebarItem
                         to="/admin/table/profiles"

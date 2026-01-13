@@ -30,6 +30,7 @@ import Bookmarks from './pages/Bookmarks'
 import GetVerified from './pages/GetVerified'
 import TermsOfService from './pages/TermsOfService'
 import PrivacyPolicy from './pages/PrivacyPolicy'
+import Referrals from './pages/Referrals'
 
 // Admin Components
 import AdminLayout from './admin/AdminLayout'
@@ -43,6 +44,10 @@ import MediaReview from './admin/MediaReview'
 import UserManager from './admin/UserManager'
 import AdminSettings from './admin/AdminSettings'
 import UserMonitor from './admin/UserMonitor'
+import FeatureManager from './admin/FeatureManager'
+import BetaManager from './admin/BetaManager'
+import ReleaseManager from './admin/ReleaseManager'
+import { FeatureProvider } from './context/FeatureContext'
 
 // Wrapper for the Standard App UI (Navbar + Footer/etc)
 const StandardLayout = ({ session }) => {
@@ -121,82 +126,91 @@ export default function App() {
   }
 
   return (
-    <BrowserRouter>
-      {/* Universal Toaster */}
-      <Toaster
-        position="top-center"
-        toastOptions={{
-          duration: 3000,
-          style: {
-            borderRadius: '12px',
-            padding: '12px 20px',
-          },
-          success: {
-            iconTheme: {
-              primary: '#10b981',
-              secondary: '#fff',
+    <FeatureProvider session={session}>
+      <BrowserRouter>
+        {/* Universal Toaster */}
+        <Toaster
+          position="top-center"
+          toastOptions={{
+            duration: 3000,
+            style: {
+              borderRadius: '12px',
+              padding: '12px 20px',
             },
-          },
-        }}
-      />
+            success: {
+              iconTheme: {
+                primary: '#10b981',
+                secondary: '#fff',
+              },
+            },
+          }}
+        />
 
-      <Routes>
-        {/* === ADMIN ROUTES === */}
-        <Route path="/admin" element={<AdminLayout />}>
-          <Route index element={<Dashboard />} />
-          <Route path="tags" element={<TagManager />} />
-          <Route path="verification-requests" element={<VerificationRequests />} />
-          <Route path="media-review" element={<MediaReview />} />
-          <Route path="users/:userId" element={<UserManager />} />
-          <Route path="monitor" element={<UserMonitor />} />
-          <Route path="settings" element={<AdminSettings />} />
-          <Route path="table/:tableName" element={<TableViewer />} />
-        </Route>
+        <Routes>
+          {/* === ADMIN ROUTES === */}
+          <Route path="/admin" element={<AdminLayout />}>
+            <Route index element={<Dashboard />} />
+            <Route path="tags" element={<TagManager />} />
+            <Route path="verification-requests" element={<VerificationRequests />} />
+            <Route path="media-review" element={<MediaReview />} />
+            <Route path="users/:userId" element={<UserManager />} />
+            <Route path="monitor" element={<UserMonitor />} />
+            <Route path="settings" element={<AdminSettings />} />
+            <Route path="features" element={<FeatureManager />} />
+            <Route path="beta" element={<BetaManager />} />
+            <Route path="releases" element={<ReleaseManager />} />
+            <Route path="table/:tableName" element={<TableViewer />} />
+          </Route>
 
-        {/* === STANDARD APP ROUTES === */}
-        <Route element={<StandardLayout session={session} />}>
-          {/* Public Routes */}
-          <Route path="/" element={<Feed session={session} />} />
-          <Route path="/login" element={!session ? <Login /> : <Navigate to="/" />} />
-          <Route path="/signup" element={!session ? <Signup /> : <Navigate to="/" />} />
-          <Route path="/forgot-password" element={!session ? <ForgotPassword /> : <Navigate to="/" />} />
-          <Route path="/reset-password" element={<ResetPassword />} />
-          <Route path="/login-otp" element={!session ? <LoginWithOTP /> : <Navigate to="/" />} />
-          <Route path="/verify-email" element={<VerifyEmail />} />
-          <Route path="/terms" element={<TermsOfService />} />
-          <Route path="/privacy" element={<PrivacyPolicy />} />
+          {/* === STANDARD APP ROUTES === */}
+          <Route element={<StandardLayout session={session} />}>
+            {/* Public Routes */}
+            <Route path="/" element={<Feed session={session} />} />
+            <Route path="/login" element={!session ? <Login /> : <Navigate to="/" />} />
+            <Route path="/signup" element={!session ? <Signup /> : <Navigate to="/" />} />
+            <Route path="/forgot-password" element={!session ? <ForgotPassword /> : <Navigate to="/" />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
+            <Route path="/login-otp" element={!session ? <LoginWithOTP /> : <Navigate to="/" />} />
+            <Route path="/verify-email" element={<VerifyEmail />} />
+            <Route path="/terms" element={<TermsOfService />} />
+            <Route path="/privacy" element={<PrivacyPolicy />} />
 
-          {/* Public/Private Routes */}
-          <Route path="/user/:userId" element={<PublicProfile session={session} />} />
-          <Route path="/search" element={<Search />} />
-          <Route path="/post/:postId" element={<PostDetails session={session} />} />
+            {/* Public/Private Routes */}
+            <Route path="/user/:userId" element={<PublicProfile session={session} />} />
+            <Route path="/search" element={<Search />} />
+            <Route path="/post/:postId" element={<PostDetails session={session} />} />
 
-          {/* Protected Routes */}
-          <Route
-            path="/create"
-            element={session ? <CreatePost /> : <Navigate to="/login" />}
-          />
-          <Route
-            path="/profile"
-            element={session ? <UserProfile /> : <Navigate to="/login" />}
-          />
-          <Route
-            path="/settings"
-            element={session ? <Settings session={session} /> : <Navigate to="/login" />}
-          />
-          <Route
-            path="/get-verified"
-            element={session ? <GetVerified session={session} /> : <Navigate to="/login" />}
-          />
-          <Route
-            path="/bookmarks"
-            element={session ? <Bookmarks session={session} /> : <Navigate to="/login" />}
-          />
-        </Route>
+            {/* Protected Routes */}
+            <Route
+              path="/create"
+              element={session ? <CreatePost /> : <Navigate to="/login" />}
+            />
+            <Route
+              path="/profile"
+              element={session ? <UserProfile /> : <Navigate to="/login" />}
+            />
+            <Route
+              path="/settings"
+              element={session ? <Settings session={session} /> : <Navigate to="/login" />}
+            />
+            <Route
+              path="/get-verified"
+              element={session ? <GetVerified session={session} /> : <Navigate to="/login" />}
+            />
+            <Route
+              path="/bookmarks"
+              element={session ? <Bookmarks session={session} /> : <Navigate to="/login" />}
+            />
+            <Route
+              path="/referrals"
+              element={session ? <Referrals session={session} /> : <Navigate to="/login" />}
+            />
+          </Route>
 
-        {/* Fallback */}
-        <Route path="*" element={<Navigate to="/" />} />
-      </Routes>
-    </BrowserRouter>
+          {/* Fallback */}
+          <Route path="*" element={<Navigate to="/" />} />
+        </Routes>
+      </BrowserRouter>
+    </FeatureProvider>
   )
 }

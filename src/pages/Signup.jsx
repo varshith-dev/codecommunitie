@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useNavigate, Link } from 'react-router-dom'
+import { useNavigate, Link, useSearchParams } from 'react-router-dom'
 import { signUpWithEmail } from '../services/authService'
 import toast from 'react-hot-toast'
 import { Mail, Lock, User, CheckCircle, XCircle, Code2, UserPlus } from 'lucide-react'
@@ -41,6 +41,9 @@ export default function Signup() {
     const passwordStrength = getPasswordStrength(formData.password)
     const passwordsMatch = formData.password && formData.password === formData.confirmPassword
 
+    const [searchParams] = useSearchParams()
+    const referralCode = searchParams.get('ref')
+
     const handleSignup = async (e) => {
         e.preventDefault()
 
@@ -72,7 +75,8 @@ export default function Signup() {
                 formData.password,
                 {
                     username: formData.username,
-                    display_name: formData.username
+                    display_name: formData.username,
+                    referral_code: referralCode // Pass referral code
                 }
             )
 

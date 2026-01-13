@@ -25,7 +25,6 @@ export async function signUpWithEmail(email, password, metadata = {}) {
 
         if (error) throw error
 
-        // Create profile entry
         if (data.user) {
             const { error: profileError } = await supabase
                 .from('profiles')
@@ -39,7 +38,40 @@ export async function signUpWithEmail(email, password, metadata = {}) {
 
             if (profileError) {
                 console.error('Profile creation error:', profileError)
-                // Continue anyway - profile can be created later
+            } else {
+                // Handle Referral
+                if (metadata.referral_code) {
+                    try {
+                        // Find referral
+                        const { data: referral } = await supabase
+                            .from('referrals')
+                            .select('id, referrer_id')
+                            .eq('referral_code', metadata.referral_code) // Works with username now
+                            .single()
+
+                        if (referral) {
+                            // Record usage
+                            await supabase
+                                .from('referral_uses')
+                                .insert({
+                                    referral_id: referral.id,
+                                    referred_user_id: data.user.id
+                                })
+
+                            // Update profile with referrer
+                            await supabase
+                                .from('profiles')
+                                .update({ referred_by: referral.referrer_id })
+                                .eq('id', data.user.id)
+
+                            // Update uses count
+                            await supabase.rpc('increment_referral_uses', { referral_id: referral.id })
+                        }
+                    } catch (err) {
+                        console.error('Referral processing error:', err)
+                        // Don't fail signup if referral fails
+                    }
+                }
             }
         }
 

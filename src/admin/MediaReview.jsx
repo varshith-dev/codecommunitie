@@ -93,8 +93,26 @@ export default function MediaReview() {
                 // Keep it visible but stamped 'REMOVED' for the session
             }
         } else {
-            toast.success(`Marked as ${status.toUpperCase()} `)
-            // Here you would optimally save this status to the DB if a column existed
+            // Save review status to database
+            const { error } = await supabase
+                .from('posts')
+                .update({
+                    review_status: status,
+                    reviewed_at: new Date().toISOString()
+                })
+                .eq('id', id)
+
+            if (error) {
+                console.error('Review error:', error)
+                toast.error('Failed to save review')
+                setReviewStatus(prev => {
+                    const newSt = { ...prev }
+                    delete newSt[id]
+                    return newSt
+                })
+            } else {
+                toast.success(`Marked as ${status.toUpperCase()}`)
+            }
         }
     }
 

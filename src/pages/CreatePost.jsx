@@ -366,7 +366,7 @@ export default function CreatePost() {
                 </button>
               ) : (
                 <div className="relative">
-                  <DatePicker
+                  <CustomDatePicker
                     selected={scheduledDate}
                     onChange={(date) => setScheduledDate(date)}
                     showTimeSelect

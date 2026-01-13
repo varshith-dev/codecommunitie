@@ -57,11 +57,18 @@
                                 </tr>
                             </table>
 
-                            <p
-                                style="margin: 0; font-size: 14px; line-height: 1.6; color: #6b7280; text-align: center;">
-                                This link will expire in 24 hours.<br>
-                                If you didn't create an account, you can safely ignore this email.
+                            This link will expire in 24 hours.<br>
+                            If you didn't create an account, you can safely ignore this email.
                             </p>
+
+                            <!-- OTP Section -->
+                            <div style="margin: 24px 0; text-align: center;">
+                                <p style="font-size: 14px; color: #4b5563; margin-bottom: 8px;">Or enter this code:</p>
+                                <div
+                                    style="background-color: #f3f4f6; padding: 12px 24px; border-radius: 8px; font-family: monospace; font-size: 24px; font-weight: bold; letter-spacing: 4px; color: #111827; display: inline-block;">
+                                    {{ .Token }}
+                                </div>
+                            </div>
 
                             <!-- Divider -->
                             <hr style="margin: 32px 0; border: none; border-top: 1px solid #e5e7eb;">

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { supabase } from '../supabaseClient'
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism'
-import { Heart, MessageCircle, Trash2, Code2, Share2, Edit2, TrendingUp, Clock, Users, AlertTriangle } from 'lucide-react'
+import { Heart, MessageCircle, Trash2, Code2, Share2, Edit2, TrendingUp, Clock, Users, AlertTriangle, Sparkles } from 'lucide-react'
 import toast from 'react-hot-toast'
 import CommentSection from '../components/CommentSection'
 import Avatar from '../components/Avatar'
@@ -137,12 +137,28 @@ export default function Feed({ session }) {
     }
   }
 
+  const [isAdmin, setIsAdmin] = useState(false)
+
+  const fetchAdminStatus = async () => {
+    if (!session?.user) return
+    const { data } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', session.user.id)
+      .single()
+
+    if (data?.role === 'admin') {
+      setIsAdmin(true)
+    }
+  }
+
   useEffect(() => {
     fetchPosts()
     if (session) {
       fetchUserLikes()
+      fetchAdminStatus()
     }
-  }, [session])
+  }, [session, activeTab])
 
   const fetchPosts = async () => {
     try {
@@ -519,8 +535,43 @@ export default function Feed({ session }) {
                 {post.type.toUpperCase()}
               </span>
 
-              {/* Edit/Delete Buttons */}
-              {session && session.user.id === post.user_id && (
+              {/* Admin Controls */}
+              {isAdmin && (
+                <div className="flex items-center gap-1 ml-2 border-l border-gray-200 pl-2">
+                  <button
+                    onClick={async () => {
+                      const label = window.prompt('Set Admin Label (e.g., Trending, Featured, Staff Pick)', post.admin_label || '')
+                      if (label === null) return // Cancelled
+
+                      const { error } = await supabase
+                        .from('posts')
+                        .update({ admin_label: label || null })
+                        .eq('id', post.id)
+
+                      if (error) {
+                        toast.error('Failed to update label')
+                      } else {
+                        toast.success('Label updated')
+                        setPosts(posts.map(p => p.id === post.id ? { ...p, admin_label: label || null } : p))
+                      }
+                    }}
+                    className="text-gray-400 hover:text-purple-600 transition-colors p-2 rounded-full hover:bg-purple-50"
+                    title="Set Admin Label"
+                  >
+                    <Sparkles size={16} />
+                  </button>
+                  <button
+                    onClick={() => handleDelete(post.id)}
+                    className="text-gray-400 hover:text-red-500 transition-colors p-2 rounded-full hover:bg-red-50"
+                    title="Admin Delete"
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                </div>
+              )}
+
+              {/* Edit/Delete Buttons (Owner) */}
+              {session && session.user.id === post.user_id && !isAdmin && (
                 <div className="flex items-center gap-1">
                   <button
                     onClick={() => setEditingPost(post)}
@@ -541,6 +592,13 @@ export default function Feed({ session }) {
 
           {/* Post Title & Tags */}
           <div className="px-4 pb-2">
+            {/* Admin Label Display */}
+            {post.admin_label && (
+              <div className="mb-2 inline-flex items-center gap-1 px-2 py-0.5 bg-gradient-to-r from-purple-500 to-pink-500 text-white text-xs font-bold rounded shadow-sm">
+                <Sparkles size={10} />
+                {post.admin_label.toUpperCase()}
+              </div>
+            )}
             {post.tags && post.tags.length > 0 && (
               <div className="flex flex-wrap gap-2 mb-2">
                 {post.tags.map(tag => (

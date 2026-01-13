@@ -51,6 +51,15 @@ export default function UserProfile() {
   const [prompts, setPrompts] = useState([])
   const [currentPromptIndex, setCurrentPromptIndex] = useState(0)
 
+  // Auto-scroll prompts every 5 seconds
+  useEffect(() => {
+    if (prompts.length <= 1) return
+    const interval = setInterval(() => {
+      setCurrentPromptIndex(prev => (prev + 1) % prompts.length)
+    }, 5000)
+    return () => clearInterval(interval)
+  }, [prompts.length])
+
   useEffect(() => {
     getProfile()
   }, [])
@@ -433,24 +442,6 @@ export default function UserProfile() {
                         }`}>
                         {/* Glass Shine Effect */}
                         <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-br from-white/10 to-transparent pointer-events-none"></div>
-
-                        {/* Navigation Arrows */}
-                        {prompts.length > 1 && (
-                          <>
-                            <button
-                              onClick={() => setCurrentPromptIndex(prev => prev > 0 ? prev - 1 : prompts.length - 1)}
-                              className="absolute left-2 top-1/2 -translate-y-1/2 z-20 bg-white/20 hover:bg-white/30 rounded-full p-1.5 text-white transition-all"
-                            >
-                              <ChevronLeft size={18} />
-                            </button>
-                            <button
-                              onClick={() => setCurrentPromptIndex(prev => prev < prompts.length - 1 ? prev + 1 : 0)}
-                              className="absolute right-10 top-1/2 -translate-y-1/2 z-20 bg-white/20 hover:bg-white/30 rounded-full p-1.5 text-white transition-all"
-                            >
-                              <ChevronRight size={18} />
-                            </button>
-                          </>
-                        )}
 
                         <div className="flex-1 z-10 pl-6">
                           <div className="flex items-center gap-2 mb-1">

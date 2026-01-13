@@ -9,7 +9,8 @@ export default function CustomDatePicker({
     showTimeSelect = false,
     placeholderText = "Select date",
     minDate,
-    className = ""
+    className = "",
+    ...props
 }) {
     return (
         <div className="relative w-full">
@@ -25,6 +26,8 @@ export default function CustomDatePicker({
                 className={`w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all bg-white text-gray-700 font-medium ${className}`}
                 calendarClassName="shadow-2xl border border-gray-100 rounded-2xl overflow-hidden font-sans"
                 dayClassName={() => "rounded-lg hover:bg-blue-50 transition-colors"}
+                autoComplete="off"
+                {...props}
                 renderCustomHeader={({
                     date,
                     decreaseMonth,

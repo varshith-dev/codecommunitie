@@ -16,11 +16,16 @@ import {
     ArrowLeft,
     BadgeCheck,
     Clock,
-    AlertTriangle
+    AlertTriangle,
+    Gift,
+    Sparkles,
+    KeyRound
 } from 'lucide-react'
 import { formatDate } from '../utils/timeAgo'
 import Avatar from '../components/Avatar'
 import toast from 'react-hot-toast'
+import { useFeature } from '../context/FeatureContext'
+import BetaLabel from '../components/BetaLabel'
 
 export default function Settings({ session }) {
     const navigate = useNavigate()
@@ -42,6 +47,7 @@ export default function Settings({ session }) {
     const [usernameError, setUsernameError] = useState('')
     const [checkingUsername, setCheckingUsername] = useState(false)
     const [verificationRequest, setVerificationRequest] = useState(null)
+    const { hasFeature } = useFeature()
 
 
     useEffect(() => {
@@ -176,8 +182,9 @@ export default function Settings({ session }) {
         { id: 'profile', label: 'Edit Profile', icon: User },
         { id: 'appearance', label: 'Appearance', icon: Palette },
         { id: 'account', label: 'Account', icon: Shield },
+        { id: 'referrals', label: 'Referrals', icon: Gift, beta: true, feature: 'referrals' },
         { id: 'danger', label: 'Danger Zone', icon: AlertTriangle },
-    ]
+    ].filter(tab => !tab.feature || hasFeature(tab.feature))
 
     const themes = [
         { id: 'vscDarkPlus', name: 'VS Code Dark' },
@@ -221,13 +228,20 @@ export default function Settings({ session }) {
                             <button
                                 key={tab.id}
                                 onClick={() => setSearchParams({ tab: tab.id })}
-                                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition-all ${activeTab === tab.id
-                                    ? 'bg-blue-50 text-blue-600 shadow-sm'
-                                    : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+                                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition-all border ${activeTab === tab.id
+                                        ? (tab.beta ? 'bg-purple-50 text-purple-700 border-purple-200 shadow-sm' : 'bg-blue-50 text-blue-600 border-transparent shadow-sm')
+                                        : (tab.beta
+                                            ? 'bg-purple-50/30 text-gray-700 border-purple-200/50 hover:bg-purple-50 hover:border-purple-200 backdrop-blur-sm'
+                                            : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900 border-transparent')
                                     }`}
                             >
-                                <tab.icon size={18} />
+                                <tab.icon size={18} className={tab.beta ? (activeTab === tab.id ? "text-purple-600" : "text-purple-400") : ""} />
                                 {tab.label}
+                                {tab.beta && (
+                                    <div className="ml-auto">
+                                        <BetaLabel size="xs" color="purple" />
+                                    </div>
+                                )}
                             </button>
                         ))}
                     </div>
@@ -435,10 +449,64 @@ export default function Settings({ session }) {
                                 </div>
                             </div>
 
+                            {/* Change Password Section */}
+                            <div className="bg-gray-50 rounded-xl p-4 border border-gray-200">
+                                <div className="flex items-start justify-between">
+                                    <div>
+                                        <h3 className="font-medium text-gray-900 mb-1 flex items-center gap-2">
+                                            <KeyRound size={16} />
+                                            Change Password
+                                        </h3>
+                                        <p className="text-gray-600 text-sm">Update your password to keep your account secure.</p>
+                                    </div>
+                                    <button
+                                        onClick={async () => {
+                                            try {
+                                                const { error } = await supabase.auth.resetPasswordForEmail(session.user.email, {
+                                                    redirectTo: `${window.location.origin}/reset-password`
+                                                })
+                                                if (error) throw error
+                                                toast.success('Password reset email sent! Check your inbox.')
+                                            } catch (error) {
+                                                toast.error(error.message || 'Failed to send reset email')
+                                            }
+                                        }}
+                                        className="px-4 py-2 bg-white border border-gray-200 text-gray-700 text-sm font-semibold rounded-lg hover:bg-gray-50 transition-colors"
+                                    >
+                                        Send Reset Link
+                                    </button>
+                                </div>
+                            </div>
+
                             <div className="pt-6 border-t border-gray-100">
                                 <p className="text-sm text-gray-500">
-                                    Looking to delete your account? Go to the <button onClick={() => setActiveTab('danger')} className="text-red-600 font-medium hover:underline">Danger Zone</button>.
+                                    Looking to delete your account? Go to the <button onClick={() => setSearchParams({ tab: 'danger' })} className="text-red-600 font-medium hover:underline">Danger Zone</button>.
                                 </p>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Referrals Tab */}
+                    {activeTab === 'referrals' && (
+                        <div className="space-y-6 animate-fade-in">
+                            <div>
+                                <div className="flex items-center gap-2 mb-1">
+                                    <h2 className="text-xl font-bold text-gray-900">Referral Program</h2>
+                                    <BetaLabel />
+                                </div>
+                                <p className="text-sm text-gray-500">Invite friends and earn rewards</p>
+                            </div>
+
+                            <div className="bg-blue-50 border border-blue-200 rounded-xl p-6 text-center">
+                                <Gift size={40} className="text-blue-600 mx-auto mb-4" />
+                                <h3 className="font-semibold text-gray-900 mb-2">You have access!</h3>
+                                <p className="text-sm text-gray-600 mb-4">Share your referral link with friends</p>
+                                <button
+                                    onClick={() => navigate('/referrals')}
+                                    className="px-6 py-3 bg-blue-600 text-white font-semibold rounded-xl hover:bg-blue-700 transition-colors"
+                                >
+                                    Open Referrals Page
+                                </button>
                             </div>
                         </div>
                     )}
