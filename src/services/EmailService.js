@@ -69,6 +69,27 @@ export const EmailService = {
     },
 
     /**
+     * Generates a Supabase Verification Link via the Backend.
+     */
+    generateVerificationLink: async (email) => {
+        try {
+            const response = await fetch(GENERATE_LINK_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email })
+            })
+
+            const data = await response.json()
+            if (!response.ok) throw new Error(data.message || 'Failed to generate link')
+
+            return data.link
+        } catch (error) {
+            console.error('Failed to generate verification link:', error)
+            return null // Fallback to generic if fails
+        }
+    },
+
+    /**
      * Get stats for the dashboard.
      */
     getStats: async () => {

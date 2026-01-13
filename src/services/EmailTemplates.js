@@ -13,17 +13,12 @@ export const EmailTemplates = {
     },
     SIGNUP_CONFIRMATION: {
         subject: () => `Please Verify Your Email - Action Required ✉️`,
-        body: (name) => `
+        body: (name, verificationLink = 'https://codecommunitie.vercel.app/verify-email') => `
             <p>Hi ${name},</p>
             <p>Thanks for creating an account with <strong>CodCommunitie</strong>.</p>
             <p>To complete your registration and unlock full access, please verify your email address by clicking the button below.</p>
             <div class="button-wrapper">
-                <!-- IMPORTANT: Since we are using a custom mailer, we cannot generate a new magic link token on the client. -->
-                <!-- Ideally, this button should point to the Supabase verification link if we could intercept it. -->
-                <!-- For now, we point to the login page where they can request a new one if needed, or we rely on the generic instruction. -->
-                <!-- However, the user request specifically asked for 'Signup Confirmation' mail. -->
-                <!-- Since we can't get the token, we will point to the Site with a query param that might trigger a pulse or just generic. -->
-                <a href="https://codecommunitie.vercel.app/verify-email" class="button">Verify My Account</a>
+                <a href="${verificationLink}" class="button">Verify My Account</a>
             </div>
             <p style="margin-top: 20px; font-size: 14px; color: #666;">If you didn't create an account, you can safely ignore this email.</p>
         `,

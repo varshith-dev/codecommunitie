@@ -40,16 +40,24 @@ export default function VerifyEmail() {
                 const { EmailService } = await import('../services/EmailService')
                 const { EmailTemplates, wrapInTemplate } = await import('../services/EmailTemplates')
 
-                const template = EmailTemplates.WELCOME
-                const memberName = emailToUse.split('@')[0]
-                const html = wrapInTemplate(template.body(memberName), template.title)
+                // 1. Generate Secure Link
+                const verificationLink = await EmailService.generateVerificationLink(emailToUse)
 
+                // 2. Prepare Template
+                const template = EmailTemplates.SIGNUP_CONFIRMATION
+                const memberName = emailToUse.split('@')[0]
+                const html = wrapInTemplate(
+                    template.body(memberName, verificationLink || undefined),
+                    template.title
+                )
+
+                // 3. Send Email
                 await EmailService.send({
                     recipientEmail: emailToUse,
                     memberName: memberName,
                     subject: template.subject(memberName),
                     htmlContent: html,
-                    templateType: 'WELCOME',
+                    templateType: 'SIGNUP_CONFIRMATION',
                     triggeredBy: 'resend_verification'
                 })
             } catch (emailErr) {
