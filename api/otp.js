@@ -117,18 +117,59 @@ export default async function handler(req, res) {
             // Actually `supabase.rpc`?
             // Let's try:
 
-            // Method A: Admin Update User (Email Confirm)
-            // We need the User ID.
-            // We can get it from the `profiles` table! (Assuming profile exists on signup)
-            const { data: profile } = await supabase.from('profiles').select('id').eq('email', email).single();
+            // 2. Confirm User in Supabase Auth & Get Profile ID
+            let userId;
 
-            if (!profile) {
-                // Fallback: This might restart the flow.
-                return res.status(404).json({ error: 'User not found' });
+            // Try explicit lowercased email lookup in profiles first
+            const { data: profile } = await supabase
+                .from('profiles')
+                .select('id')
+                .eq('email', email.toLowerCase()) // Try lowercase first
+                .maybeSingle(); // Use maybeSingle to avoid error on null
+
+            if (profile) {
+                userId = profile.id;
+            } else {
+                // FALLBACK: Profile missing? Try to find user in Auth Admin & Auto-Heal
+                console.log(`Profile missing for ${email}, attempting auto-heal...`);
+
+                const { data: { users }, error: listError } = await supabase.auth.admin.listUsers({ perPage: 1000 });
+
+                if (listError || !users) {
+                    console.error("ListUsers failed", listError);
+                    return res.status(500).json({ error: 'Failed to retrieve user directory' });
+                }
+
+                const user = users.find(u => u.email?.toLowerCase() === email.toLowerCase());
+
+                if (!user) {
+                    return res.status(404).json({ error: 'User account not found. Please Sign Up.' });
+                }
+
+                userId = user.id;
+
+                // Auto-Create Profile
+                const { error: createProfileError } = await supabase
+                    .from('profiles')
+                    .insert({
+                        id: userId,
+                        username: email.split('@')[0],
+                        display_name: email.split('@')[0],
+                        email: email // Store email in profile for easier lookup later
+                    });
+
+                if (createProfileError) {
+                    // Ignore duplicate key error if race condition
+                    if (!createProfileError.message.includes('duplicate')) {
+                        console.error("Auto-heal profile failed", createProfileError);
+                    }
+                } else {
+                    console.log(`Auto-healed profile for ${userId}`);
+                }
             }
 
             const { error: updateError } = await supabase.auth.admin.updateUserById(
-                profile.id,
+                userId,
                 { email_confirm: true }
             );
 
