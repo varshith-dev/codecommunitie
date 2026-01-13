@@ -36,11 +36,11 @@ import Referrals from './pages/Referrals'
 import AdminLayout from './admin/AdminLayout'
 import Dashboard from './admin/Dashboard'
 import TableViewer from './admin/TableViewer'
-
+import UserList from './admin/UserList'
+import StorageCleanup from './admin/StorageCleanup'
 import TagManager from './admin/TagManager'
 import VerificationRequests from './admin/VerificationRequests'
 import MediaReview from './admin/MediaReview'
-
 import UserManager from './admin/UserManager'
 import AdminSettings from './admin/AdminSettings'
 import UserMonitor from './admin/UserMonitor'
@@ -151,6 +151,8 @@ export default function App() {
           {/* === ADMIN ROUTES === */}
           <Route path="/admin" element={<AdminLayout />}>
             <Route index element={<Dashboard />} />
+            <Route path="users" element={<UserList />} />
+            <Route path="storage" element={<StorageCleanup />} />
             <Route path="tags" element={<TagManager />} />
             <Route path="verification-requests" element={<VerificationRequests />} />
             <Route path="media-review" element={<MediaReview />} />

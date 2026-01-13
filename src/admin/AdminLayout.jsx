@@ -103,10 +103,22 @@ export default function AdminLayout() {
                         isActive={location.pathname === '/admin/email'}
                     />
                     <SidebarItem
-                        to="/admin/table/profiles"
+                        to="/admin/users"
                         icon={Users}
-                        label="User Management"
-                        isActive={location.pathname.includes('/users') || location.pathname.includes('/table/profiles')}
+                        label="All Users"
+                        isActive={location.pathname === '/admin/users'}
+                    />
+                    <SidebarItem
+                        to="/admin/storage"
+                        icon={Database}
+                        label="Storage Cleanup"
+                        isActive={location.pathname === '/admin/storage'}
+                    />
+                    <SidebarItem
+                        to="/admin/table/profiles"
+                        icon={TableIcon}
+                        label="Raw Profiles Table"
+                        isActive={location.pathname.includes('/table/profiles')}
                     />
 
                     <div className="my-2 px-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider">

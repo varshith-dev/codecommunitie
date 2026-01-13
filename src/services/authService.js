@@ -26,24 +26,8 @@ export async function signUpWithEmail(email, password, metadata = {}) {
         if (error) throw error
 
         if (data.user) {
-            // Handle Referral
-            if (metadata.referral_code) {
-                try {
-                    // Use RPC to register referral (bypasses RLS for new/anon users)
-                    const { data: result, error: rpcError } = await supabase.rpc('register_referral', {
-                        referral_code_input: metadata.referral_code,
-                        new_user_id: data.user.id
-                    })
-
-                    if (rpcError) {
-                        console.error('Referral RPC error:', rpcError)
-                    } else if (!result?.success) {
-                        console.warn('Referral failed:', result?.error)
-                    }
-                } catch (err) {
-                    console.error('Referral processing error:', err)
-                }
-            }
+            // Referral logic moved to OTP Verification (api/otp.js) 
+            // to ensure profile exists before linking.
         }
 
         return { user: data.user, session: data.session, error: null }

@@ -62,16 +62,31 @@ export const EmailTemplates = {
         title: "Verification Complete"
     },
     BETA_ACCESS: {
-        subject: () => `You're In! Beta Access Granted 🧪`,
+        subject: (name) => `You're in! Welcome to CodeKrafts Beta 🚀`,
         body: (name) => `
             <p>Hi ${name},</p>
-            <p>You've been selected for <strong>Beta Access</strong> to our upcoming features.</p>
-            <p>We're rolling out experimental tools that only a handful of users get to see.</p>
-            <div class="button-wrapper">
-                <a href="https://codecommunitie.vercel.app/" class="button">Explore Beta</a>
+            <p>Great news! You've been selected for exclusive Early Access.</p>
+            <p>Click below to start exploring:</p>
+            <div style="text-align: center; margin: 30px 0;">
+                <a href="${window.location.origin}/login" style="background: #2563eb; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold;">Access Beta</a>
             </div>
         `,
         title: "Beta Access Unlocked"
+    },
+    ACCOUNT_DELETED: {
+        subject: () => `Important: Account Policy Update ⚠️`,
+        body: (name, reason) => `
+            <div style="text-align: center; margin-bottom: 20px;">
+                <img src="https://cdn-icons-png.flaticon.com/512/6897/6897039.png" width="64" alt="Account Deleted" />
+            </div>
+            <p>Hi ${name},</p>
+            <p>Your CodeKrafts account has been permanently removed by our administrative team.</p>
+            <div style="background: #fef2f2; border: 1px solid #fee2e2; padding: 15px; border-radius: 8px; margin: 20px 0; color: #991b1b;">
+                <strong>Reason:</strong> ${reason || 'Violation of Terms of Service'}
+            </div>
+            <p>If you believe this was a mistake, you may contact support, but please note that all data associated with this account has been erased.</p>
+        `,
+        title: "Account Deleted"
     },
     PRODUCT_UPDATE: {
         subject: () => `New Updates: Read what's new 🚀`,
@@ -158,21 +173,6 @@ export const wrapInTemplate = (contentBody, title = "New Message") => `
         .button:hover {
             opacity: 0.9;
         }
-
-        /* Special Elements */
-        .code-box {
-            font-size: 32px;
-            font-weight: bold;
-            letter-spacing: 5px;
-            color: #1a1a1a;
-            background: #f0f9ff;
-            padding: 20px;
-            margin: 20px 0;
-            border-radius: 8px;
-            border: 2px dashed #3ea6ff;
-            text-align: center;
-        }
-
         /* Footer */
         .footer {
             padding: 20px;

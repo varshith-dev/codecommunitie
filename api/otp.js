@@ -125,6 +125,32 @@ export default async function handler(req, res) {
                 }
             }
 
+            // 2.5 Handle Referral (Moved from Frontend)
+            // Now that profile definitely exists, we can safely register the referral.
+            try {
+                // Get fresh user data including metadata
+                const { data: { user: freshUser }, error: userError } = await supabase.auth.admin.getUserById(userId);
+
+                if (freshUser && freshUser.user_metadata?.referral_code) {
+                    const refCode = freshUser.user_metadata.referral_code;
+                    console.log(`Processing referral: ${refCode} for user ${userId}`);
+
+                    // Use RPC to register referral (Admin Privileges via Service Role)
+                    const { data: result, error: rpcError } = await supabase.rpc('register_referral', {
+                        referral_code_input: refCode,
+                        new_user_id: userId
+                    });
+
+                    if (rpcError) {
+                        console.error('Referral RPC error:', rpcError);
+                    } else {
+                        console.log('Referral result:', result);
+                    }
+                }
+            } catch (refError) {
+                console.error('Referral processing error in OTP:', refError);
+            }
+
             // 3. Confirm Email
             await supabase.auth.admin.updateUserById(userId, { email_confirm: true });
 
