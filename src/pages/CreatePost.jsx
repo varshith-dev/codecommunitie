@@ -5,8 +5,7 @@ import { Image as ImageIcon, Code, Send, Loader2, Save, Globe, Users, Lock, Cale
 import TagInput from '../components/TagInput'
 import toast from 'react-hot-toast'
 import { uploadPostMedia } from '../services/uploadService'
-import DatePicker from 'react-datepicker'
-import "react-datepicker/dist/react-datepicker.css"
+import CustomDatePicker from '../components/CustomDatePicker'
 
 export default function CreatePost() {
   const [type, setType] = useState('code') // 'code' or 'meme'
@@ -66,16 +65,20 @@ export default function CreatePost() {
         throw new Error("Only verified users and moderators can post blogs.")
       }
 
-      // 2. Validation: Links (Only for Verified Users)
-      // Checks for http://, https://, www., or generic domain patterns
-      const urlRegex = /(https?:\/\/[^\s]+)|(www\.[^\s]+)|(\b[a-zA-Z0-9-]+\.[a-zA-Z]{2,}\b)/i
-      const textToCheck = `${title} ${description || ''} ${codeSnippet || ''}`
+      // 2. Validation: Links
+      // Rules:
+      // - Code posts: Everyone can include links
+      // - Blog/Meme posts: Only verified users can include links
+      if (type !== 'code') {
+        const urlRegex = /(https?:\/\/[^\s]+)|(www\.[^\s]+)|(\b[a-zA-Z0-9-]+\.[a-zA-Z]{2,}\b)/i
+        const textToCheck = `${title} ${description || ''}`
 
-      // Allow links for: verified users, advertisers, moderators, admins
-      const isPrivileged = profile?.is_verified || ['admin', 'moderator', 'advertiser'].includes(profile?.role)
+        // Allow links for: verified users, advertisers, moderators, admins
+        const isPrivileged = profile?.is_verified || ['admin', 'moderator', 'advertiser'].includes(profile?.role)
 
-      if (!isPrivileged && urlRegex.test(textToCheck)) {
-        throw new Error("Only verified users and advertisers can include links or URLs in their posts.")
+        if (!isPrivileged && urlRegex.test(textToCheck)) {
+          throw new Error("Only verified users can include links in blog posts.")
+        }
       }
 
       let finalUrl = contentUrl

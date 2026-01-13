@@ -1,7 +1,7 @@
 import { Link, useLocation } from 'react-router-dom'
 import { useState, useEffect } from 'react'
 import { supabase } from '../supabaseClient'
-import { Home, PlusSquare, User, LogOut, Code2, Search as SearchIcon, Settings, Bookmark } from 'lucide-react'
+import { Home, PlusSquare, User, LogOut, Code2, Search as SearchIcon, Settings, Bookmark, Shield } from 'lucide-react'
 import Avatar from './Avatar'
 import UserBadges from './UserBadges'
 
@@ -143,6 +143,16 @@ export default function Navbar({ session, isMobile = false }) {
                   <Bookmark size={18} />
                   <span>Saved</span>
                 </Link>
+
+                {profile?.role === 'admin' && (
+                  <Link
+                    to="/admin"
+                    className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${isActive('/admin') ? 'text-blue-600 bg-blue-50' : 'text-gray-600 hover:bg-gray-50'}`}
+                  >
+                    <Shield size={18} />
+                    <span>Admin</span>
+                  </Link>
+                )}
 
                 {/* Divider */}
                 <div className="w-px h-6 bg-gray-200 mx-2"></div>

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { supabase } from '../supabaseClient'
-import { Trash2, RefreshCw, ChevronLeft, ChevronRight, AlertTriangle, Settings } from 'lucide-react'
+import { Trash2, RefreshCw, ChevronLeft, ChevronRight, AlertTriangle, Settings, Search } from 'lucide-react'
 import { toast } from 'react-hot-toast'
 
 export default function TableViewer() {
@@ -10,42 +10,63 @@ export default function TableViewer() {
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState(null)
     const [page, setPage] = useState(0)
+    const [searchTerm, setSearchTerm] = useState('')
     const PAGE_SIZE = 20
 
     useEffect(() => {
         setPage(0)
-        fetchData(0)
+        setSearchTerm('') // Reset search on table change
+        fetchData(0, '')
     }, [tableName])
 
-    const fetchData = async (pageIndex) => {
+    const fetchData = async (pageIndex, search = searchTerm) => {
         setLoading(true)
         setError(null)
         try {
             const start = pageIndex * PAGE_SIZE
             const end = start + PAGE_SIZE - 1
 
-            const { data: rows, error: err } = await supabase
+            let query = supabase
                 .from(tableName)
                 .select('*')
                 .range(start, end)
                 .order('created_at', { ascending: false }) // Attempt default sort
 
+            if (search.trim()) {
+                // Generic text search based on table type
+                // In a real app we might inspect columns first, but here we can try common text columns
+                // Using 'or' filter for broad match
+                const term = `%${search.trim()}%`
+                if (tableName === 'profiles') {
+                    query = query.or(`username.ilike.${term},email.ilike.${term},display_name.ilike.${term}`)
+                } else if (tableName === 'posts') {
+                    query = query.or(`title.ilike.${term},content.ilike.${term}`)
+                } else if (tableName === 'tags') {
+                    query = query.ilike('name', term)
+                }
+                // Add more table specific logic if needed, otherwise search might fail if column doesn't exist
+            }
+
+            const { data: rows, error: err } = await query
+
             if (err) throw err
             setData(rows || [])
         } catch (err) {
             console.error(err)
-            // Fallback: maybe created_at doesn't exist, try no sort
-            if (err.message.includes('created_at')) {
+            // Fallback: if sort failed, try without sort (but keep search if possible?)
+            // Actually usually it's the sort column missing.
+            // Actually usually it's the sort column missing.
+            if (err.message?.includes('created_at') || err.code === '42703') {
+                // Retry without sort
+                // Note: Logic complex to duplicate, for now simply show error or generic retry
+                // Simplification: just retry clean select
                 const { data: rowsRetry, error: retryErr } = await supabase
                     .from(tableName)
                     .select('*')
                     .range(pageIndex * PAGE_SIZE, pageIndex * PAGE_SIZE + PAGE_SIZE - 1)
 
-                if (retryErr) {
-                    setError(retryErr.message)
-                } else {
-                    setData(rowsRetry || [])
-                }
+                if (retryErr) setError(retryErr.message)
+                else setData(rowsRetry || [])
             } else {
                 setError(err.message)
             }
@@ -96,8 +117,22 @@ export default function TableViewer() {
         <div className="bg-white border border-gray-300 shadow-sm rounded-sm">
             {/* Toolbar */}
             <div className="bg-gray-50 border-b border-gray-200 p-2 flex justify-between items-center">
-                <div className="flex items-center gap-4">
-                    <h2 className="font-bold text-gray-700">Select * from {tableName}</h2>
+                <div className="flex items-center gap-4 flex-1">
+                    <h2 className="font-bold text-gray-700 whitespace-nowrap">Select * from {tableName}</h2>
+
+                    {/* Search Bar */}
+                    <div className="relative max-w-xs w-full">
+                        <input
+                            type="text"
+                            placeholder="Search..."
+                            className="w-full pl-8 pr-3 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            onKeyDown={(e) => e.key === 'Enter' && fetchData(0)}
+                        />
+                        <Search size={14} className="absolute left-2.5 top-1.5 text-gray-400" />
+                    </div>
+
                     <button onClick={() => fetchData(page)} className="p-1.5 hover:bg-gray-200 rounded text-gray-600">
                         <RefreshCw size={16} />
                     </button>

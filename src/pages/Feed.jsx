@@ -17,7 +17,90 @@ import VideoPlayer from '../components/VideoPlayer'
 import EditPostModal from '../components/EditPostModal'
 import ShareModal from '../components/ShareModal'
 
+// Helper to inject a visual console into the iframe
+const injectConsole = (html) => {
+  const consoleScript = `
+    <div id="custom-console" style="position:fixed;bottom:0;left:0;right:0;height:150px;background:rgba(30,30,30,0.95);color:#fff;font-family:monospace;font-size:11px;overflow-y:auto;border-top:1px solid #444;display:none;flex-direction:column;padding:4px;z-index:9999;">
+        <div style="position:sticky;top:0;background:#1e1e1e;border-bottom:1px solid #333;padding:2px 4px;font-weight:bold;display:flex;justify-content:space-between;align-items:center;">
+             <span>CONSOLE</span>
+             <button onclick="document.getElementById('custom-console').style.display='none'" style="background:none;border:none;color:#888;cursor:pointer;">&times;</button>
+        </div>
+        <div id="console-output"></div>
+    </div>
+    <script>
+      (function() {
+        // 1. Shim LocalStorage to prevent sandbox crashes
+        try {
+            var x = window.localStorage;
+        } catch(e) {
+            console.warn("LocalStorage access denied in sandbox. Using memory polyfill.");
+            var storage = {};
+            Object.defineProperty(window, 'localStorage', {
+                value: {
+                    getItem: function(k) { return storage[k] || null; },
+                    setItem: function(k, v) { storage[k] = String(v); },
+                    removeItem: function(k) { delete storage[k]; },
+                    clear: function() { storage = {}; },
+                    key: function(i) { return Object.keys(storage)[i]; },
+                    get length() { return Object.keys(storage).length; }
+                },
+                writable: false
+            });
+        }
+
+        // 2. Setup Console UI
+        var consoleEl = document.getElementById('custom-console');
+        var output = document.getElementById('console-output');
+        
+        function showConsole() { consoleEl.style.display = 'flex'; }
+        
+        function log(type, args) {
+           showConsole();
+           var div = document.createElement('div');
+           div.style.padding = '2px 4px';
+           div.style.borderBottom = '1px solid #333';
+           
+           if(type === 'error') { div.style.color = '#ff6b6b'; div.style.background = 'rgba(255,0,0,0.1)'; }
+           if(type === 'warn') { div.style.color = '#feca57'; }
+           
+           var text = args.map(function(arg) {
+               try {
+                   return typeof arg === 'object' ? JSON.stringify(arg) : String(arg);
+               } catch(e) { return '[Circular/Object]'; }
+           }).join(' ');
+           
+           div.textContent = '> ' + text;
+           output.appendChild(div);
+           consoleEl.scrollTop = consoleEl.scrollHeight;
+        }
+
+        var oldLog = console.log;
+        var oldWarn = console.warn;
+        var oldError = console.error;
+
+        console.log = function() { oldLog.apply(console, arguments); log('log', Array.from(arguments)); };
+        console.warn = function() { oldWarn.apply(console, arguments); log('warn', Array.from(arguments)); };
+        console.error = function() { oldError.apply(console, arguments); log('error', Array.from(arguments)); };
+        
+        window.onerror = function(msg, url, line) {
+            log('error', ["Line " + line + ": " + msg]);
+        };
+      })();
+    </script>
+  `;
+
+  // Inject into head if possible, otherwise prepend
+  if (html.includes('<head>')) {
+    return html.replace('<head>', '<head>' + consoleScript);
+  } else if (html.includes('<body>')) {
+    return html.replace('<body>', '<body>' + consoleScript);
+  } else {
+    return consoleScript + html;
+  }
+}
+
 export default function Feed({ session }) {
+
   const [posts, setPosts] = useState([])
   const [loading, setLoading] = useState(true)
   const [activeCommentId, setActiveCommentId] = useState(null)
@@ -28,6 +111,31 @@ export default function Feed({ session }) {
   const [activeTab, setActiveTab] = useState('latest') // 'latest', 'trending', 'following'
   const [editingPost, setEditingPost] = useState(null)
   const [sharingPost, setSharingPost] = useState(null)
+  const [previewStates, setPreviewStates] = useState({}) // Map of postId -> boolean
+  const [expandedCode, setExpandedCode] = useState({}) // Map of postId -> boolean in state
+
+  const togglePreview = (postId) => {
+    setPreviewStates(prev => ({
+      ...prev,
+      [postId]: !prev[postId]
+    }))
+  }
+
+  const toggleExpanded = (postId) => {
+    setExpandedCode(prev => ({
+      ...prev,
+      [postId]: !prev[postId]
+    }))
+  }
+
+  const handleCopyCode = async (code) => {
+    try {
+      await navigator.clipboard.writeText(code)
+      toast.success('Code copied!')
+    } catch (err) {
+      toast.error('Failed to copy')
+    }
+  }
 
   useEffect(() => {
     fetchPosts()
@@ -484,17 +592,69 @@ export default function Feed({ session }) {
                     <Code2 size={12} />
                     {post.code_language || 'PLAINTEXT'}
                   </span>
-                  <span className="text-[10px] text-gray-500">Read-only</span>
+
+                  <div className="flex items-center gap-3">
+                    {(post.code_language?.toLowerCase() === 'html' || post.code_language?.toLowerCase() === 'xml') && (
+                      <button
+                        onClick={() => togglePreview(post.id)}
+                        className={`text-[10px] px-2 py-0.5 rounded border transition-colors ${previewStates[post.id]
+                          ? 'bg-blue-600 text-white border-blue-600'
+                          : 'text-gray-400 border-gray-600 hover:text-white hover:border-gray-400'
+                          }`}
+                      >
+                        {previewStates[post.id] ? 'Hide Preview' : 'Show Preview'}
+                      </button>
+                    )}
+
+                    <button
+                      onClick={() => handleCopyCode(post.code_snippet)}
+                      className="text-gray-400 hover:text-white transition-colors"
+                      title="Copy Code"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-copy"><rect width="14" height="14" x="8" y="8" rx="2" ry="2" /><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2" /></svg>
+                    </button>
+                  </div>
                 </div>
-                <SyntaxHighlighter
-                  language={(post.code_language || 'javascript').toLowerCase()}
-                  style={vscDarkPlus}
-                  customStyle={{ margin: 0, padding: '1.5rem', fontSize: '0.9rem' }}
-                  showLineNumbers={true}
-                  wrapLongLines={true}
-                >
-                  {post.code_snippet}
-                </SyntaxHighlighter>
+
+                {previewStates[post.id] ? (
+                  <div className="bg-white border-b border-gray-200">
+                    <iframe
+                      title={`Preview ${post.id}`}
+                      srcDoc={injectConsole(post.code_snippet)}
+                      className="w-full h-96 border-0 block"
+                      sandbox="allow-scripts allow-modals"
+                    />
+                  </div>
+                ) : (
+                  <div className="relative group">
+                    <div className={`transition-all duration-300 ${expandedCode[post.id] ? 'max-h-none' : 'max-h-60 overflow-hidden'}`}>
+                      <SyntaxHighlighter
+                        language={(post.code_language || 'javascript').toLowerCase()}
+                        style={vscDarkPlus}
+                        customStyle={{ margin: 0, padding: '1.5rem', fontSize: '0.9rem' }}
+                        showLineNumbers={true}
+                        wrapLongLines={true}
+                      >
+                        {post.code_snippet}
+                      </SyntaxHighlighter>
+                    </div>
+
+                    {post.code_snippet.length > 300 && (
+                      <div className={`absolute bottom-0 left-0 right-0 p-2 flex justify-center ${!expandedCode[post.id] ? 'bg-gradient-to-t from-[#1e1e1e] to-transparent pt-12' : 'bg-[#1e1e1e]/50'}`}>
+                        <button
+                          onClick={() => toggleExpanded(post.id)}
+                          className="bg-blue-600/90 hover:bg-blue-600 text-white text-xs px-3 py-1 rounded-full shadow-lg backdrop-blur-sm transition-all flex items-center gap-1"
+                        >
+                          {expandedCode[post.id] ? (
+                            <>Show Less <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m18 15-6-6-6 6" /></svg></>
+                          ) : (
+                            <>Show Full Code <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6" /></svg></>
+                          )}
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             )}
 

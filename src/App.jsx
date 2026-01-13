@@ -9,6 +9,8 @@ import LeftSidebar from './components/LeftSidebar'
 import BottomNav from './components/BottomNav'
 import Sidebar from './components/Sidebar' // This is the Right Sidebar
 import LoadingSpinner from './components/LoadingSpinner'
+import UserPrompts from './components/UserPrompts'
+import AuthModal from './components/AuthModal'
 
 // Standard Pages
 import Login from './pages/Login'
@@ -25,6 +27,9 @@ import Search from './pages/Search'
 import PostDetails from './pages/PostDetails'
 import Settings from './pages/Settings'
 import Bookmarks from './pages/Bookmarks'
+import GetVerified from './pages/GetVerified'
+import TermsOfService from './pages/TermsOfService'
+import PrivacyPolicy from './pages/PrivacyPolicy'
 
 // Admin Components
 import AdminLayout from './admin/AdminLayout'
@@ -36,6 +41,8 @@ import VerificationRequests from './admin/VerificationRequests'
 import MediaReview from './admin/MediaReview'
 
 import UserManager from './admin/UserManager'
+import AdminSettings from './admin/AdminSettings'
+import UserMonitor from './admin/UserMonitor'
 
 // Wrapper for the Standard App UI (Navbar + Footer/etc)
 const StandardLayout = ({ session }) => {
@@ -43,8 +50,14 @@ const StandardLayout = ({ session }) => {
   // Only show Right Sidebar on Home and Search pages to reduce clutter
   const showRightSidebar = ['/', '/search'].includes(location.pathname)
 
+  // Pages that should not show the auth modal
+  const authPages = ['/login', '/signup', '/forgot-password', '/reset-password', '/login-otp', '/verify-email', '/terms', '/privacy']
+  const showAuthModal = !session && !authPages.includes(location.pathname)
+
   return (
     <div className="min-h-screen bg-[#fafafa] text-gray-900 font-sans">
+      {/* Auth Modal for non-logged users */}
+      {showAuthModal && <AuthModal />}
       {/* Desktop Navbar */}
       <div className="hidden md:block">
         <Navbar session={session} />
@@ -135,6 +148,8 @@ export default function App() {
           <Route path="verification-requests" element={<VerificationRequests />} />
           <Route path="media-review" element={<MediaReview />} />
           <Route path="users/:userId" element={<UserManager />} />
+          <Route path="monitor" element={<UserMonitor />} />
+          <Route path="settings" element={<AdminSettings />} />
           <Route path="table/:tableName" element={<TableViewer />} />
         </Route>
 
@@ -148,6 +163,8 @@ export default function App() {
           <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/login-otp" element={!session ? <LoginWithOTP /> : <Navigate to="/" />} />
           <Route path="/verify-email" element={<VerifyEmail />} />
+          <Route path="/terms" element={<TermsOfService />} />
+          <Route path="/privacy" element={<PrivacyPolicy />} />
 
           {/* Public/Private Routes */}
           <Route path="/user/:userId" element={<PublicProfile session={session} />} />
@@ -166,6 +183,10 @@ export default function App() {
           <Route
             path="/settings"
             element={session ? <Settings session={session} /> : <Navigate to="/login" />}
+          />
+          <Route
+            path="/get-verified"
+            element={session ? <GetVerified session={session} /> : <Navigate to="/login" />}
           />
           <Route
             path="/bookmarks"

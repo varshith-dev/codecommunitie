@@ -26,9 +26,9 @@ export default function Sidebar({ session }) {
             // Fetch all tags with pinned and featured status
             const { data: allTags } = await supabase
                 .from('tags')
-                .select('id, name, slug, is_pinned, is_featured, pin_order, feature_label')
+                .select('id, name, slug, is_pinned, is_featured, order_index, feature_label')
                 .order('is_pinned', { ascending: false })
-                .order('pin_order', { ascending: true })
+                .order('order_index', { ascending: true })
                 .limit(20)
 
             if (allTags) {
@@ -92,7 +92,7 @@ export default function Sidebar({ session }) {
 
     return (
         <aside className="hidden lg:block col-span-1">
-            <div className="sticky top-24 space-y-6">
+            <div className="sticky top-24 space-y-6 max-h-[calc(100vh-6rem)] overflow-y-auto pr-2 custom-scrollbar">
                 {/* Pinned Tags */}
                 {pinnedTags.length > 0 && (
                     <div className="bg-gradient-to-br from-purple-50 to-white rounded-2xl shadow-sm border border-purple-100 overflow-hidden">
@@ -129,7 +129,7 @@ export default function Sidebar({ session }) {
                 {/* Trending Tags */}
                 <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
                     <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
-                        <h2 className="font-exrabold text-lg text-gray-900">Trending Now</h2>
+                        <h2 className="font-extrabold text-lg text-gray-900">Trending Now</h2>
                         {/* Removed duplicate icon for cleaner look */}
                     </div>
 
@@ -154,9 +154,9 @@ export default function Sidebar({ session }) {
                                                 #{tag.name}
                                             </span>
                                         </div>
-                                    </div>
-                                    <div className="pl-7 text-xs text-gray-500 font-medium">
-                                        {tag.post_count} posts
+                                        <span className="text-xs font-medium text-gray-400 bg-gray-100 px-2 py-1 rounded-full">
+                                            {tag.count}
+                                        </span>
                                     </div>
                                 </Link>
                             ))

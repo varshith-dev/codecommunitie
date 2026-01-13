@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../supabaseClient'
-import { User, MapPin, Link as LinkIcon, Calendar, Edit3, Save, Loader2, Camera, Users } from 'lucide-react'
+import { User, MapPin, Link as LinkIcon, Calendar, Edit3, Save, Loader2, Camera, Users, X, ChevronLeft, ChevronRight, Bell, Gift, AlertTriangle, Star, Megaphone } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { formatDate } from '../utils/timeAgo'
 import { uploadProfilePicture, uploadBannerImage } from '../services/uploadService'
@@ -10,6 +10,7 @@ import RoleBadge from '../components/RoleBadge'
 import { ProfileSkeleton } from '../components/SkeletonLoader'
 import UserListModal from '../components/UserListModal'
 import ImageCropperModal from '../components/ImageCropperModal'
+import VerificationUpsell from '../components/VerificationUpsell'
 import { Link } from 'react-router-dom'
 
 export default function UserProfile() {
@@ -22,6 +23,7 @@ export default function UserProfile() {
   const [showFollowersModal, setShowFollowersModal] = useState(false)
   const [showFollowingModal, setShowFollowingModal] = useState(false)
   const [activeTab, setActiveTab] = useState('published') // 'published', 'draft', 'scheduled'
+  const [showVerificationUpsell, setShowVerificationUpsell] = useState(true)
 
   const filteredPosts = posts.filter(post => {
     if (activeTab === 'published') return (post.status === 'published' || !post.status) && (!post.scheduled_at || new Date(post.scheduled_at) <= new Date())
@@ -44,6 +46,10 @@ export default function UserProfile() {
   const [cropperOpen, setCropperOpen] = useState(false)
   const [imageToCrop, setImageToCrop] = useState(null)
   const [cropFor, setCropFor] = useState(null) // 'profile' or 'banner'
+
+  // Prompt State
+  const [prompts, setPrompts] = useState([])
+  const [currentPromptIndex, setCurrentPromptIndex] = useState(0)
 
   useEffect(() => {
     getProfile()
@@ -84,6 +90,33 @@ export default function UserProfile() {
       setProfilePicturePreview(profileData.profile_picture_url)
       setBannerImagePreview(profileData.banner_image_url)
 
+      // Fetch User's Prompts (New)
+      const { data: promptsData } = await supabase
+        .from('user_prompts')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('is_dismissed', false)
+        .order('created_at', { ascending: false })
+
+      setPrompts(promptsData || [])
+
+      // Check Verification Status
+      const { data: verifData } = await supabase
+        .from('verification_requests')
+        .select('status')
+        .eq('user_id', user.id)
+        .eq('status', 'pending')
+        .single()
+
+      const isPending = !!verifData
+      const isDismissed = localStorage.getItem('verification_upsell_dismissed') === 'true'
+
+      if (profileData.is_verified || isPending || isDismissed) {
+        setShowVerificationUpsell(false)
+      } else {
+        setShowVerificationUpsell(true)
+      }
+
       // Fetch User's Posts
       const { data: postData } = await supabase
         .from('posts')
@@ -97,6 +130,15 @@ export default function UserProfile() {
     } finally {
       setLoading(false)
     }
+  }
+
+  const dismissPrompt = async (id) => {
+    // Optimistic update
+    setPrompts(prev => prev.filter(p => p.id !== id))
+    await supabase
+      .from('user_prompts')
+      .update({ is_dismissed: true })
+      .eq('id', id)
   }
 
   const handleProfilePictureChange = (e) => {
@@ -368,6 +410,105 @@ export default function UserProfile() {
                   <Calendar size={16} /> <span>Joined {formatDate(user?.created_at)}</span>
                 </div>
               </div>
+
+              {!profile?.is_verified && showVerificationUpsell && (
+                <VerificationUpsell onClose={() => {
+                  localStorage.setItem('verification_upsell_dismissed', 'true')
+                  setShowVerificationUpsell(false)
+                }} />
+              )}
+
+              {/* Admin Prompts - Flashcard Carousel */}
+              {prompts.length > 0 && (
+                <div className="mt-4 relative">
+                  {/* Current Prompt */}
+                  {(() => {
+                    const prompt = prompts[currentPromptIndex]
+                    if (!prompt) return null
+                    return (
+                      <div className={`rounded-xl p-6 flex items-start justify-between relative overflow-hidden animate-fade-in backdrop-blur-md border border-white/20 shadow-lg ${prompt.type === 'error' ? 'bg-red-600/85 text-white' :
+                        prompt.type === 'warning' ? 'bg-amber-500/85 text-white' :
+                          prompt.type === 'success' ? 'bg-green-600/85 text-white' :
+                            'bg-blue-600/85 text-white'
+                        }`}>
+                        {/* Glass Shine Effect */}
+                        <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-br from-white/10 to-transparent pointer-events-none"></div>
+
+                        {/* Navigation Arrows */}
+                        {prompts.length > 1 && (
+                          <>
+                            <button
+                              onClick={() => setCurrentPromptIndex(prev => prev > 0 ? prev - 1 : prompts.length - 1)}
+                              className="absolute left-2 top-1/2 -translate-y-1/2 z-20 bg-white/20 hover:bg-white/30 rounded-full p-1.5 text-white transition-all"
+                            >
+                              <ChevronLeft size={18} />
+                            </button>
+                            <button
+                              onClick={() => setCurrentPromptIndex(prev => prev < prompts.length - 1 ? prev + 1 : 0)}
+                              className="absolute right-10 top-1/2 -translate-y-1/2 z-20 bg-white/20 hover:bg-white/30 rounded-full p-1.5 text-white transition-all"
+                            >
+                              <ChevronRight size={18} />
+                            </button>
+                          </>
+                        )}
+
+                        <div className="flex-1 z-10 pl-6">
+                          <div className="flex items-center gap-2 mb-1">
+                            {/* Prompt Icon */}
+                            {(() => {
+                              const ICON_MAP = { bell: Bell, gift: Gift, alert: AlertTriangle, star: Star, megaphone: Megaphone }
+                              const IconComponent = ICON_MAP[prompt.icon] || Bell
+                              return <IconComponent size={22} className="text-white drop-shadow-sm" />
+                            })()}
+                            <h3 className="font-bold text-lg drop-shadow-sm">
+                              {prompt.title}
+                            </h3>
+                            {prompts.length > 1 && (
+                              <span className="text-xs bg-white/20 px-2 py-0.5 rounded-full font-medium">
+                                {currentPromptIndex + 1} / {prompts.length}
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-white/95 text-sm mb-3 max-w-lg font-medium drop-shadow-sm">{prompt.message}</p>
+                          {prompt.action_url && (
+                            <a
+                              href={prompt.action_url}
+                              className="inline-block bg-white text-gray-900 px-5 py-2 rounded-full text-xs font-bold hover:bg-white/90 transition-all shadow-md hover:shadow-lg hover:scale-105 active:scale-95"
+                            >
+                              {prompt.action_label || 'Check it'}
+                            </a>
+                          )}
+                        </div>
+                        <button
+                          onClick={() => {
+                            dismissPrompt(prompt.id)
+                            // Adjust index if we dismissed the last one
+                            if (currentPromptIndex >= prompts.length - 1 && currentPromptIndex > 0) {
+                              setCurrentPromptIndex(currentPromptIndex - 1)
+                            }
+                          }}
+                          className="text-white/70 hover:text-white hover:bg-white/10 rounded-full p-2 transition-all z-20"
+                        >
+                          <X size={20} />
+                        </button>
+                      </div>
+                    )
+                  })()}
+
+                  {/* Dot Indicators */}
+                  {prompts.length > 1 && (
+                    <div className="flex justify-center gap-1.5 mt-3">
+                      {prompts.map((_, idx) => (
+                        <button
+                          key={idx}
+                          onClick={() => setCurrentPromptIndex(idx)}
+                          className={`w-2 h-2 rounded-full transition-all ${idx === currentPromptIndex ? 'bg-blue-500 w-4' : 'bg-gray-300 hover:bg-gray-400'}`}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           )}
         </div>

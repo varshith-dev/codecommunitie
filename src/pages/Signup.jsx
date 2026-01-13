@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { signUpWithEmail } from '../services/authService'
 import toast from 'react-hot-toast'
-import { Mail, Lock, User, CheckCircle, XCircle } from 'lucide-react'
+import { Mail, Lock, User, CheckCircle, XCircle, Code2, UserPlus } from 'lucide-react'
 
 export default function Signup() {
     const navigate = useNavigate()
@@ -44,7 +44,6 @@ export default function Signup() {
     const handleSignup = async (e) => {
         e.preventDefault()
 
-        // Validation
         if (!formData.email || !formData.username || !formData.password || !formData.confirmPassword) {
             toast.error('Please fill in all fields')
             return
@@ -101,21 +100,21 @@ export default function Signup() {
     }
 
     return (
-        <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-white to-purple-50 px-4 py-12">
-            <div className="w-full max-w-md animate-fade-in">
-                {/* Header */}
+        <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
+            <div className="w-full max-w-md py-8">
+                {/* Logo */}
                 <div className="text-center mb-8">
-                    <div className="inline-flex items-center gap-2 mb-4">
-                        <div className="w-12 h-12 bg-gradient-to-br from-blue-600 to-purple-600 rounded-xl flex items-center justify-center">
-                            <span className="text-2xl">💻</span>
+                    <div className="inline-flex items-center gap-3 mb-4">
+                        <div className="w-12 h-12 bg-blue-600 rounded-xl flex items-center justify-center">
+                            <Code2 size={28} className="text-white" />
                         </div>
-                        <h1 className="text-3xl font-bold gradient-text">CodeKrafts</h1>
+                        <h1 className="text-2xl font-bold text-gray-900">CodeKrafts</h1>
                     </div>
-                    <p className="text-gray-600">Create your account and start sharing</p>
+                    <p className="text-gray-500">Create your account</p>
                 </div>
 
                 {/* Signup Form */}
-                <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-8 animate-scale-in">
+                <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 sm:p-8">
                     <form onSubmit={handleSignup} className="space-y-5">
                         {/* Email */}
                         <div>
@@ -123,14 +122,14 @@ export default function Signup() {
                                 Email Address
                             </label>
                             <div className="relative">
-                                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
+                                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
                                 <input
                                     type="email"
                                     name="email"
                                     value={formData.email}
                                     onChange={handleChange}
                                     placeholder="you@example.com"
-                                    className="w-full pl-11 pr-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                                    className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all text-gray-900"
                                     disabled={loading}
                                     required
                                 />
@@ -143,14 +142,14 @@ export default function Signup() {
                                 Username
                             </label>
                             <div className="relative">
-                                <User className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
+                                <User className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
                                 <input
                                     type="text"
                                     name="username"
                                     value={formData.username}
                                     onChange={handleChange}
                                     placeholder="johndoe"
-                                    className="w-full pl-11 pr-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                                    className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all text-gray-900"
                                     disabled={loading}
                                     required
                                 />
@@ -163,14 +162,14 @@ export default function Signup() {
                                 Password
                             </label>
                             <div className="relative">
-                                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
+                                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
                                 <input
                                     type="password"
                                     name="password"
                                     value={formData.password}
                                     onChange={handleChange}
                                     placeholder="••••••••"
-                                    className="w-full pl-11 pr-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                                    className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all text-gray-900"
                                     disabled={loading}
                                     required
                                 />
@@ -198,19 +197,19 @@ export default function Signup() {
                                 Confirm Password
                             </label>
                             <div className="relative">
-                                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
+                                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
                                 <input
                                     type="password"
                                     name="confirmPassword"
                                     value={formData.confirmPassword}
                                     onChange={handleChange}
                                     placeholder="••••••••"
-                                    className="w-full pl-11 pr-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                                    className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all text-gray-900"
                                     disabled={loading}
                                     required
                                 />
                                 {formData.confirmPassword && (
-                                    <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                                    <div className="absolute right-4 top-1/2 -translate-y-1/2">
                                         {passwordsMatch ? (
                                             <CheckCircle className="text-green-500" size={20} />
                                         ) : (
@@ -222,18 +221,18 @@ export default function Signup() {
                         </div>
 
                         {/* Terms Agreement */}
-                        <label className="flex items-start gap-3">
+                        <label className="flex items-start gap-3 cursor-pointer">
                             <input
                                 type="checkbox"
                                 checked={agreedToTerms}
                                 onChange={(e) => setAgreedToTerms(e.target.checked)}
-                                className="mt-1 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                className="mt-1 w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                             />
                             <span className="text-sm text-gray-600">
                                 I agree to the{' '}
-                                <a href="#" className="text-blue-600 hover:underline">Terms of Service</a>
+                                <Link to="/terms" className="text-blue-600 hover:underline">Terms of Service</Link>
                                 {' '}and{' '}
-                                <a href="#" className="text-blue-600 hover:underline">Privacy Policy</a>
+                                <Link to="/privacy" className="text-blue-600 hover:underline">Privacy Policy</Link>
                             </span>
                         </label>
 
@@ -241,7 +240,7 @@ export default function Signup() {
                         <button
                             type="submit"
                             disabled={loading || !agreedToTerms}
-                            className="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white font-semibold py-3 px-4 rounded-xl hover:shadow-lg hover:scale-[1.02] transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 flex items-center justify-center gap-2"
+                            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-4 rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                         >
                             {loading ? (
                                 <>
@@ -249,7 +248,10 @@ export default function Signup() {
                                     Creating account...
                                 </>
                             ) : (
-                                'Create Account'
+                                <>
+                                    <UserPlus size={20} />
+                                    Create Account
+                                </>
                             )}
                         </button>
                     </form>

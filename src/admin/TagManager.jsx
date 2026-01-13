@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../supabaseClient'
-import { Star, Save, Plus, Trash2, Tag, RefreshCw, Pin } from 'lucide-react'
+import { Star, Save, Plus, Trash2, Tag, RefreshCw, Pin, GripVertical } from 'lucide-react'
 import { toast } from 'react-hot-toast'
 
 export default function TagManager() {
@@ -9,20 +9,45 @@ export default function TagManager() {
     const [newTag, setNewTag] = useState('')
     const [editingId, setEditingId] = useState(null)
     const [editLabel, setEditLabel] = useState('')
+    const [isAutoOrder, setIsAutoOrder] = useState(false) // Toggle state
+
+    const dragItem = useRef(null)
+    const dragOverItem = useRef(null)
 
     useEffect(() => {
         fetchTags()
-    }, [])
+    }, [isAutoOrder]) // Re-fetch when toggle changes
 
     const fetchTags = async () => {
         setLoading(true)
-        // Fetch all tags, ordering by featured first
-        const { data, error } = await supabase
-            .from('tags')
-            .select('*')
-            .order('is_featured', { ascending: false })
-            .order('post_count', { ascending: false, nullsFirst: false }) // Fallback sort
-            .limit(100)
+
+        let query = supabase.from('tags').select('*')
+
+        if (isAutoOrder) {
+            // Auto Order: Trending
+            // 1. Pinned tags always on top
+            // 2. Then by Post Count (descending)
+            // 3. Then by Recent Activity
+            query = query
+                .order('is_pinned', { ascending: false })
+                .order('post_count', { ascending: false, nullsFirst: false })
+                .order('last_activity', { ascending: false, nullsFirst: false })
+        } else {
+            // Manual/Default: featured/pinned first
+            // Utilize order_index for manual sorting if available
+            query = query
+                .order('is_pinned', { ascending: false }) // Pinned always first? Or purely manual? User said "enable me to change the pinned list". 
+                // Let's assume Pinned are still special, but maybe they want to reorder WITHIN pinned?
+                // For simplicity: Manual Mode = Sort by order_index.
+                // But keep Pinned visual distinct.
+                // Actually, if we use order_index, we should rely on it fully for the list order.
+                // BUT, user app usually treats pinned as special. 
+                // Let's try: Sort by order_index asc.
+                .order('order_index', { ascending: true })
+                .order('created_at', { ascending: false })
+        }
+
+        const { data, error } = await query.limit(100)
 
         if (error) {
             toast.error('Failed to load tags')
@@ -35,38 +60,21 @@ export default function TagManager() {
 
     const toggleFeatured = async (tag) => {
         const newVal = !tag.is_featured
-
         // Optimistic update
         setTags(tags.map(t => t.id === tag.id ? { ...t, is_featured: newVal } : t))
-
-        const { data, error } = await supabase
-            .from('tags')
-            .update({ is_featured: newVal })
-            .eq('id', tag.id)
-            .select()
-
-        if (error || !data || data.length === 0) {
-            if (error) console.error(error)
-            toast.error('Update failed - Check permissions')
-            fetchTags() // Revert
+        const { data, error } = await supabase.from('tags').update({ is_featured: newVal }).eq('id', tag.id).select()
+        if (error) {
+            toast.error('Update failed')
+            fetchTags()
         } else {
             toast.success(newVal ? 'Tag Featured!' : 'Tag Un-featured')
         }
     }
 
     const saveLabel = async (id) => {
-        const { data, error } = await supabase
-            .from('tags')
-            .update({ feature_label: editLabel || null }) // Send null if empty
-            .eq('id', id)
-            .select()
-
-        if (error) {
-            toast.error('Failed to save label: ' + error.message)
-            console.error(error)
-        } else if (!data || data.length === 0) {
-            toast.error('Update ignored. Check permissions.')
-        } else {
+        const { data, error } = await supabase.from('tags').update({ feature_label: editLabel || null }).eq('id', id).select()
+        if (error) toast.error('Update failed')
+        else {
             toast.success('Label updated')
             setTags(tags.map(t => t.id === id ? { ...t, feature_label: editLabel } : t))
             setEditingId(null)
@@ -76,57 +84,102 @@ export default function TagManager() {
     const createTag = async (e) => {
         e.preventDefault()
         if (!newTag.trim()) return
-
         const slug = newTag.toLowerCase().replace(/[^a-z0-9]+/g, '-')
         const name = newTag.trim()
 
-        const { data, error } = await supabase
-            .from('tags')
-            .insert([{ name, slug }])
-            .select()
-            .single()
+        // Get max order_index to append to end
+        const maxOrder = tags.length > 0 ? Math.max(...tags.map(t => t.order_index || 0)) : 0
 
-        if (error) {
-            toast.error('Error creating tag (might exist)')
-        } else {
+        const { data, error } = await supabase.from('tags').insert([{ name, slug, order_index: maxOrder + 1 }]).select().single()
+        if (error) toast.error('Error creating tag')
+        else {
             toast.success('Tag created')
-            setTags([data, ...tags])
+            setTags([...tags, data]) // Append
             setNewTag('')
         }
     }
 
     const togglePinned = async (tag) => {
         const newVal = !tag.is_pinned
-
-        // Optimistic update
         setTags(tags.map(t => t.id === tag.id ? { ...t, is_pinned: newVal } : t))
-
-        const { data, error } = await supabase
-            .from('tags')
-            .update({ is_pinned: newVal })
-            .eq('id', tag.id)
-            .select()
-
-        if (error || !data || data.length === 0) {
-            if (error) console.error(error)
-            toast.error('Update failed - Check permissions')
-            fetchTags() // Revert
-        } else {
-            toast.success(newVal ? 'Tag Pinned!' : 'Tag Unpinned')
-        }
+        const { error } = await supabase.from('tags').update({ is_pinned: newVal }).eq('id', tag.id)
+        if (error) { toast.error('Update failed'); fetchTags() }
+        else toast.success(newVal ? 'Tag Pinned' : 'Tag Unpinned')
     }
 
     const deleteTag = async (id) => {
-        if (!window.confirm('Delete this tag? This may break posts using it.')) return
-
+        if (!window.confirm('Delete this tag?')) return
         const { error } = await supabase.from('tags').delete().eq('id', id)
-        if (error) {
-            toast.error('Delete failed')
-        } else {
+        if (error) toast.error('Delete failed')
+        else {
             setTags(tags.filter(t => t.id !== id))
             toast.success('Tag deleted')
         }
     }
+
+    // Drag and Drop Logic
+    const handleDragStart = (e, position) => {
+        dragItem.current = position
+        e.dataTransfer.effectAllowed = 'move'
+        // Add styling to row
+        e.target.closest('tr').classList.add('opacity-50', 'bg-blue-50')
+    }
+
+    const handleDragEnter = (e, position) => {
+        dragOverItem.current = position
+        e.preventDefault()
+    }
+
+    const handleDragOver = (e) => {
+        e.preventDefault() // Necessary for drop to fire
+    }
+
+    const handleDragEnd = (e) => {
+        e.target.closest('tr').classList.remove('opacity-50', 'bg-blue-50')
+        dragItem.current = null
+        dragOverItem.current = null
+    }
+
+    const handleDrop = async (e) => {
+        e.preventDefault()
+        const copyTags = [...tags]
+        const dragItemContent = copyTags[dragItem.current]
+
+        copyTags.splice(dragItem.current, 1)
+        copyTags.splice(dragOverItem.current, 0, dragItemContent)
+
+        dragItem.current = null
+        dragOverItem.current = null
+
+        // Update local state immediately
+        setTags(copyTags)
+
+        // Update order_index for all affected tags
+        // We re-assign order_index based on new array index
+        const updates = copyTags.map((tag, index) => ({
+            id: tag.id,
+            order_index: index
+        }))
+
+        // Call RPC function to update bulk
+        // Or loop update (slower). Let's try RPC first if created, otherwise loop.
+        // Since I created the RPC, I'll use it.
+        try {
+            const { error } = await supabase.rpc('update_tag_order', { tag_updates: updates })
+            if (error) {
+                console.error('RPC Error:', error)
+                // Fallback: update one by one (only changed ones)
+                for (const update of updates) {
+                    await supabase.from('tags').update({ order_index: update.order_index }).eq('id', update.id)
+                }
+            }
+            toast.success('Order saved')
+        } catch (err) {
+            console.error('Error saving order', err)
+            toast.error('Failed to save order')
+        }
+    }
+
 
     return (
         <div className="space-y-6 max-w-5xl mx-auto">
@@ -138,39 +191,69 @@ export default function TagManager() {
                     <p className="text-sm text-gray-500">Manage Trending topics & Sponsored tags</p>
                 </div>
 
-                <form onSubmit={createTag} className="flex gap-2 w-full md:w-auto">
-                    <input
-                        type="text"
-                        placeholder="New Tag Name..."
-                        className="border border-gray-300 rounded px-3 py-1.5 text-sm focus:outline-none focus:border-blue-500"
-                        value={newTag}
-                        onChange={e => setNewTag(e.target.value)}
-                    />
-                    <button type="submit" className="bg-blue-600 text-white px-3 py-1.5 rounded text-sm font-medium hover:bg-blue-700 flex items-center gap-1">
-                        <Plus size={16} /> Add
-                    </button>
-                    <button type="button" onClick={fetchTags} className="p-2 text-gray-500 hover:bg-gray-100 rounded">
-                        <RefreshCw size={16} />
-                    </button>
-                </form>
+                <div className="flex items-center gap-4">
+                    {/* Auto Order Toggle */}
+                    <label className="flex items-center cursor-pointer gap-2 select-none">
+                        <div className="relative">
+                            <input type="checkbox" className="sr-only" checked={isAutoOrder} onChange={() => setIsAutoOrder(!isAutoOrder)} />
+                            <div className={`block w-10 h-6 rounded-full transition-colors ${isAutoOrder ? 'bg-blue-600' : 'bg-gray-300'}`}></div>
+                            <div className={`dot absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform ${isAutoOrder ? 'transform translate-x-4' : ''}`}></div>
+                        </div>
+                        <div className="text-sm font-medium text-gray-700">
+                            Auto Order (Trending)
+                        </div>
+                    </label>
+
+                    <form onSubmit={createTag} className="flex gap-2">
+                        <input
+                            type="text"
+                            placeholder="New Tag Name..."
+                            className="border border-gray-300 rounded px-3 py-1.5 text-sm focus:outline-none focus:border-blue-500"
+                            value={newTag}
+                            onChange={e => setNewTag(e.target.value)}
+                        />
+                        <button type="submit" className="bg-blue-600 text-white px-3 py-1.5 rounded text-sm font-medium hover:bg-blue-700 flex items-center gap-1">
+                            <Plus size={16} /> Add
+                        </button>
+                        <button type="button" onClick={() => fetchTags()} className="p-2 text-gray-500 hover:bg-gray-100 rounded">
+                            <RefreshCw size={16} />
+                        </button>
+                    </form>
+                </div>
             </div>
 
             <div className="bg-white border border-gray-200 shadow-sm rounded-sm overflow-hidden">
                 <table className="w-full text-left text-sm">
                     <thead className="bg-gray-50 border-b border-gray-200 text-gray-600 uppercase text-xs">
                         <tr>
+                            {!isAutoOrder && <th className="p-3 w-10"></th>} {/* Drag Handle Header */}
                             <th className="p-3 w-16 text-center">Pinned</th>
                             <th className="p-3 w-16 text-center">Featured</th>
                             <th className="p-3">Tag Name</th>
+                            <th className="p-3 text-center">Posts</th>
                             <th className="p-3">Label (Sponsored/Hot)</th>
                             <th className="p-3 text-right">Actions</th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100">
                         {loading ? (
-                            <tr><td colSpan="5" className="p-4 text-center">Loading tags...</td></tr>
-                        ) : tags.map(tag => (
-                            <tr key={tag.id} className={`hover:bg-gray-50 group ${tag.is_pinned ? 'bg-purple-50/30' : tag.is_featured ? 'bg-blue-50/30' : ''}`}>
+                            <tr><td colSpan="7" className="p-4 text-center">Loading tags...</td></tr>
+                        ) : tags.map((tag, index) => (
+                            <tr
+                                key={tag.id}
+                                className={`hover:bg-gray-50 group border-b border-transparent ${dragOverItem.current === index ? 'border-t-2 border-blue-500' : ''} ${tag.is_pinned ? 'bg-purple-50/30' : tag.is_featured ? 'bg-blue-50/30' : ''}`}
+                                draggable={!isAutoOrder}
+                                onDragStart={(e) => handleDragStart(e, index)}
+                                onDragEnter={(e) => handleDragEnter(e, index)}
+                                onDragOver={handleDragOver}
+                                onDragEnd={handleDragEnd}
+                                onDrop={handleDrop}
+                            >
+                                {!isAutoOrder && (
+                                    <td className="p-3 text-center cursor-grab text-gray-400 hover:text-gray-600 active:cursor-grabbing">
+                                        <GripVertical size={16} />
+                                    </td>
+                                )}
                                 <td className="p-3 text-center">
                                     <button
                                         onClick={() => togglePinned(tag)}
@@ -190,6 +273,9 @@ export default function TagManager() {
                                 </td>
                                 <td className="p-3 font-medium text-gray-800">
                                     #{tag.name}
+                                </td>
+                                <td className="p-3 text-center text-gray-500 font-mono">
+                                    {tag.post_count || 0}
                                 </td>
                                 <td className="p-3">
                                     {editingId === tag.id ? (

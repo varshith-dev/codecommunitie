@@ -1,5 +1,5 @@
 import { Outlet, Link, useLocation } from 'react-router-dom'
-import { Database, Table as TableIcon, Home, Settings, LogOut, ChevronRight, Users } from 'lucide-react'
+import { Database, Table as TableIcon, Home, Settings, LogOut, ChevronRight, Users, Activity } from 'lucide-react'
 
 export default function AdminLayout() {
     const location = useLocation()
@@ -28,7 +28,7 @@ export default function AdminLayout() {
     )
 
     return (
-        <div className="min-h-screen bg-gray-50 flex font-sans text-gray-900">
+        <div className="h-screen bg-gray-50 flex font-sans text-gray-900 overflow-hidden">
             {/* Sidebar */}
             <aside className="w-64 bg-white border-r border-gray-200 flex flex-col shadow-sm z-10">
                 {/* Header */}
@@ -49,10 +49,22 @@ export default function AdminLayout() {
                         isActive={location.pathname === '/admin'}
                     />
                     <SidebarItem
+                        to="/admin/monitor"
+                        icon={Activity}
+                        label="Live Monitor"
+                        isActive={location.pathname === '/admin/monitor'}
+                    />
+                    <SidebarItem
                         to="/admin/tags"
                         icon={Settings}
                         label="Tag Manager"
                         isActive={location.pathname === '/admin/tags'}
+                    />
+                    <SidebarItem
+                        to="/admin/settings"
+                        icon={Settings}
+                        label="Admin Settings"
+                        isActive={location.pathname === '/admin/settings'}
                     />
                     <SidebarItem
                         to="/admin/verification-requests"

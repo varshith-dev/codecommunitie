@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { signInWithEmail } from '../services/authService'
 import toast from 'react-hot-toast'
-import { Mail, Lock, LogIn } from 'lucide-react'
+import { Mail, Lock, LogIn, Code2 } from 'lucide-react'
 
 export default function Login() {
     const navigate = useNavigate()
@@ -47,35 +47,35 @@ export default function Login() {
     }
 
     return (
-        <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-white to-purple-50 px-4">
-            <div className="w-full max-w-md animate-fade-in">
-                {/* Header */}
+        <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
+            <div className="w-full max-w-md">
+                {/* Logo */}
                 <div className="text-center mb-8">
-                    <div className="inline-flex items-center gap-2 mb-4">
-                        <div className="w-12 h-12 bg-gradient-to-br from-blue-600 to-purple-600 rounded-xl flex items-center justify-center">
-                            <span className="text-2xl">💻</span>
+                    <div className="inline-flex items-center gap-3 mb-4">
+                        <div className="w-12 h-12 bg-blue-600 rounded-xl flex items-center justify-center">
+                            <Code2 size={28} className="text-white" />
                         </div>
-                        <h1 className="text-3xl font-bold gradient-text">CodeKrafts</h1>
+                        <h1 className="text-2xl font-bold text-gray-900">CodeKrafts</h1>
                     </div>
-                    <p className="text-gray-600">Welcome back! Sign in to your account</p>
+                    <p className="text-gray-500">Sign in to your account</p>
                 </div>
 
                 {/* Login Form */}
-                <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-8 animate-scale-in">
-                    <form onSubmit={handleLogin} className="space-y-6">
+                <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 sm:p-8">
+                    <form onSubmit={handleLogin} className="space-y-5">
                         {/* Email */}
                         <div>
                             <label className="block text-sm font-semibold text-gray-700 mb-2">
                                 Email Address
                             </label>
                             <div className="relative">
-                                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
+                                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
                                 <input
                                     type="email"
                                     value={email}
                                     onChange={(e) => setEmail(e.target.value)}
                                     placeholder="you@example.com"
-                                    className="w-full pl-11 pr-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                                    className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all text-gray-900"
                                     disabled={loading}
                                     required
                                 />
@@ -88,26 +88,26 @@ export default function Login() {
                                 Password
                             </label>
                             <div className="relative">
-                                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
+                                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
                                 <input
                                     type="password"
                                     value={password}
                                     onChange={(e) => setPassword(e.target.value)}
                                     placeholder="••••••••"
-                                    className="w-full pl-11 pr-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                                    className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all text-gray-900"
                                     disabled={loading}
                                     required
                                 />
                             </div>
                         </div>
 
-                        {/* Forgot Password */}
-                        <div className="flex items-center justify-between">
-                            <label className="flex items-center gap-2">
-                                <input type="checkbox" className="rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
-                                <span className="text-sm text-gray-600">Remember me</span>
+                        {/* Remember & Forgot */}
+                        <div className="flex items-center justify-between text-sm">
+                            <label className="flex items-center gap-2 cursor-pointer">
+                                <input type="checkbox" className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
+                                <span className="text-gray-600">Remember me</span>
                             </label>
-                            <Link to="/forgot-password" className="text-sm font-semibold text-blue-600 hover:text-blue-700">
+                            <Link to="/forgot-password" className="font-semibold text-blue-600 hover:text-blue-700">
                                 Forgot password?
                             </Link>
                         </div>
@@ -116,7 +116,7 @@ export default function Login() {
                         <button
                             type="submit"
                             disabled={loading}
-                            className="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white font-semibold py-3 px-4 rounded-xl hover:shadow-lg hover:scale-[1.02] transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 flex items-center justify-center gap-2"
+                            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-4 rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                         >
                             {loading ? (
                                 <>
@@ -145,7 +145,7 @@ export default function Login() {
                     {/* OTP Login Option */}
                     <Link
                         to="/login-otp"
-                        className="block w-full text-center py-3 px-4 border-2 border-gray-200 rounded-xl font-semibold text-gray-700 hover:bg-gray-50 hover:border-gray-300 transition-all"
+                        className="block w-full text-center py-3 px-4 border-2 border-gray-200 rounded-xl font-semibold text-gray-700 hover:bg-gray-50 hover:border-gray-300 transition-colors"
                     >
                         Sign in with OTP
                     </Link>
@@ -160,11 +160,11 @@ export default function Login() {
                 </div>
 
                 {/* Footer */}
-                <p className="mt-6 text-center text-xs text-gray-500">
+                <p className="mt-8 text-center text-xs text-gray-500">
                     By signing in, you agree to our{' '}
-                    <a href="#" className="text-blue-600 hover:underline">Terms of Service</a>
+                    <Link to="/terms" className="text-blue-600 hover:underline">Terms of Service</Link>
                     {' '}and{' '}
-                    <a href="#" className="text-blue-600 hover:underline">Privacy Policy</a>
+                    <Link to="/privacy" className="text-blue-600 hover:underline">Privacy Policy</Link>
                 </p>
             </div>
         </div>
