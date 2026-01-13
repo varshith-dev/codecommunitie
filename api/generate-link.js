@@ -58,6 +58,8 @@ export default async function handler(req, res) {
 
     } catch (error) {
         console.error("Error generating link:", error);
+        console.error("Supabase URL present?", !!process.env.VITE_SUPABASE_URL)
+        console.error("Service Key present?", !!process.env.SUPABASE_SERVICE_ROLE_KEY)
         res.status(500).json({ success: false, error: error.message });
     }
 }

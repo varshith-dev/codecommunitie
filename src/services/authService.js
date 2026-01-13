@@ -26,36 +26,22 @@ export async function signUpWithEmail(email, password, metadata = {}) {
         if (error) throw error
 
         if (data.user) {
-            const { error: profileError } = await supabase
-                .from('profiles')
-                .insert([{
-                    id: data.user.id,
-                    username: metadata.username || email.split('@')[0],
-                    display_name: metadata.display_name || ''
-                }])
-                .select()
-                .single()
+            // Handle Referral
+            if (metadata.referral_code) {
+                try {
+                    // Use RPC to register referral (bypasses RLS for new/anon users)
+                    const { data: result, error: rpcError } = await supabase.rpc('register_referral', {
+                        referral_code_input: metadata.referral_code,
+                        new_user_id: data.user.id
+                    })
 
-            if (profileError) {
-                console.error('Profile creation error:', profileError)
-            } else {
-                // Handle Referral
-                if (metadata.referral_code) {
-                    try {
-                        // Use RPC to register referral (bypasses RLS for new/anon users)
-                        const { data: result, error: rpcError } = await supabase.rpc('register_referral', {
-                            referral_code_input: metadata.referral_code,
-                            new_user_id: data.user.id
-                        })
-
-                        if (rpcError) {
-                            console.error('Referral RPC error:', rpcError)
-                        } else if (!result?.success) {
-                            console.warn('Referral failed:', result?.error)
-                        }
-                    } catch (err) {
-                        console.error('Referral processing error:', err)
+                    if (rpcError) {
+                        console.error('Referral RPC error:', rpcError)
+                    } else if (!result?.success) {
+                        console.warn('Referral failed:', result?.error)
                     }
+                } catch (err) {
+                    console.error('Referral processing error:', err)
                 }
             }
         }

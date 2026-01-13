@@ -3,8 +3,36 @@ import { supabase } from '../supabaseClient'
 const API_BASE_URL = import.meta.env.PROD ? '/api' : 'http://localhost:8000'
 const SEND_EMAIL_URL = `${API_BASE_URL}/send-email`
 const GENERATE_LINK_URL = `${API_BASE_URL}/generate-link`
+const OTP_URL = `${API_BASE_URL}/otp`
 
 export const EmailService = {
+    /**
+     * Send OTP Code
+     */
+    sendOTP: async (email) => {
+        const response = await fetch(OTP_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'send', email })
+        })
+        const data = await response.json()
+        if (!response.ok) throw new Error(data.error || 'Failed to send OTP')
+        return data
+    },
+
+    /**
+     * Verify OTP Code
+     */
+    verifyOTP: async (email, code) => {
+        const response = await fetch(OTP_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'verify', email, code })
+        })
+        const data = await response.json()
+        if (!response.ok) throw new Error(data.error || 'Failed to verified OTP')
+        return data
+    },
     /**
      * Sends an email via the local Python backend and logs it to Supabase.
      * @param {Object} params - { recipientEmail, memberName, subject, htmlContent, templateType, triggeredBy }
