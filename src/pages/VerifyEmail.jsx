@@ -6,23 +6,29 @@ import { Mail, CheckCircle } from 'lucide-react'
 
 export default function VerifyEmail() {
     const location = useLocation()
-    const email = location.state?.email || ''
+    const [emailInput, setEmailInput] = useState('')
     const [loading, setLoading] = useState(false)
     const [countdown, setCountdown] = useState(0)
 
+    const emailToUse = location.state?.email || emailInput
+
     useEffect(() => {
-        if (!email) {
-            toast.error('No email provided')
-        }
-    }, [email])
+        // Only show error if no email is available in either place
+        // and user tries to interact? No, let's just be silent if they land here without email.
+    }, [])
 
     const handleResend = async () => {
         if (countdown > 0 || loading) return
 
+        if (!emailToUse) {
+            toast.error('Please enter your email address')
+            return
+        }
+
         setLoading(true)
 
         try {
-            const { success, error } = await resendVerificationEmail(email)
+            const { success, error } = await resendVerificationEmail(emailToUse)
 
             if (error) {
                 toast.error(error.message || 'Failed to resend verification email')
@@ -34,13 +40,14 @@ export default function VerifyEmail() {
                 const { EmailService } = await import('../services/EmailService')
                 const { EmailTemplates, wrapInTemplate } = await import('../services/EmailTemplates')
 
-                const template = EmailTemplates.WELCOME // Using Welcome as fallback until verified
-                const html = wrapInTemplate(template.body(email.split('@')[0]), template.title)
+                const template = EmailTemplates.WELCOME
+                const memberName = emailToUse.split('@')[0]
+                const html = wrapInTemplate(template.body(memberName), template.title)
 
                 await EmailService.send({
-                    recipientEmail: email,
-                    memberName: email.split('@')[0],
-                    subject: template.subject(email.split('@')[0]),
+                    recipientEmail: emailToUse,
+                    memberName: memberName,
+                    subject: template.subject(memberName),
                     htmlContent: html,
                     templateType: 'WELCOME',
                     triggeredBy: 'resend_verification'
@@ -94,11 +101,23 @@ export default function VerifyEmail() {
                     <p className="text-gray-600 mb-2">
                         We've sent a verification link to
                     </p>
-                    {email && (
-                        <p className="text-lg font-semibold text-gray-900 mb-6">
-                            {email}
-                        </p>
-                    )}
+                    <div className="mb-6">
+                        {location.state?.email ? (
+                            <p className="text-lg font-semibold text-gray-900">
+                                {location.state.email}
+                            </p>
+                        ) : (
+                            <div className="max-w-xs mx-auto">
+                                <input
+                                    type="email"
+                                    placeholder="Enter your email"
+                                    value={emailInput}
+                                    onChange={(e) => setEmailInput(e.target.value)}
+                                    className="w-full px-4 py-2 text-center border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none"
+                                />
+                            </div>
+                        )}
+                    </div>
 
                     <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-6">
                         <div className="flex items-start gap-3 text-left">
@@ -122,7 +141,7 @@ export default function VerifyEmail() {
 
                         <button
                             onClick={handleResend}
-                            disabled={countdown > 0 || loading}
+                            disabled={countdown > 0 || loading || (!location.state?.email && !emailInput)}
                             className="text-blue-600 hover:text-blue-700 font-semibold text-sm disabled:text-gray-400 disabled:cursor-not-allowed"
                         >
                             {loading ? (
@@ -142,7 +161,7 @@ export default function VerifyEmail() {
                         </p>
                         <Link
                             to="/login"
-                            classname="inline-flex items-center justify-center px-6 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-semibold rounded-xl hover:shadow-lg hover:scale-[1.02] transition-all"
+                            className="inline-flex items-center justify-center px-6 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-semibold rounded-xl hover:shadow-lg hover:scale-[1.02] transition-all"
                         >
                             Sign In
                         </Link>
