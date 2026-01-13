@@ -134,6 +134,35 @@ export default function VerificationRequests() {
 
             toast.success('User Verified Successfully')
             setRequests(prev => prev.filter(r => r.id !== request.id))
+
+            // 3. AUTO-SEND EMAIL
+            try {
+                const userEmail = request.email // Verification requests usually have the email stored
+                const userName = request.profiles?.display_name || 'Developer'
+
+                // If email is missing in request (older data), fallback might be needed but for now assuming it's there
+                if (userEmail) {
+                    const { EmailService } = await import('../services/EmailService')
+                    const { EmailTemplates, wrapInTemplate } = await import('../services/EmailTemplates')
+
+                    const template = EmailTemplates.VERIFIED_BADGE
+                    const html = wrapInTemplate(template.body(userName))
+
+                    await EmailService.send({
+                        recipientEmail: userEmail,
+                        memberName: userName,
+                        subject: template.subject(userName),
+                        htmlContent: html,
+                        templateType: 'VERIFIED_BADGE',
+                        triggeredBy: 'automation_verification'
+                    })
+                    toast.success('Verification email sent!')
+                }
+            } catch (emailErr) {
+                console.error('Failed to send verification email', emailErr)
+                toast.error('User verified, but email failed to send.')
+            }
+
         } catch (err) {
             console.error(err)
             toast.error('Approval failed')

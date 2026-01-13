@@ -278,6 +278,54 @@ export default function UserManager() {
                                     <option value="admin">Admin (Gold Tick)</option>
                                 </select>
                             </div>
+
+                            <div className="pt-4 mt-4 border-t border-gray-200">
+                                <h4 className="text-xs font-bold text-gray-500 mb-2 uppercase tracking-wider">Email Actions</h4>
+                                <div className="grid grid-cols-2 gap-2">
+                                    <button
+                                        onClick={async () => {
+                                            if (!window.confirm('Send Beta Access email?')) return;
+                                            setProcessing(true);
+                                            try {
+                                                const { EmailService } = await import('../services/EmailService');
+                                                const { EmailTemplates, wrapInTemplate } = await import('../services/EmailTemplates');
+                                                const t = EmailTemplates.BETA_ACCESS;
+                                                // Assuming we have email. In UserManager fetchUserData, we fetched profile requests. 
+                                                // Profile table usually doesn't have email in some Supabase setups (in Auth). 
+                                                // But if we have it in profile.email (as seen in Line 425):
+                                                const email = profile.email;
+                                                if (!email) throw new Error("User email not found in profile.");
+
+                                                await EmailService.send({
+                                                    recipientEmail: email,
+                                                    memberName: profile.display_name,
+                                                    subject: t.subject(profile.display_name),
+                                                    htmlContent: wrapInTemplate(t.body(profile.display_name)),
+                                                    templateType: 'BETA_ACCESS',
+                                                    triggeredBy: 'admin_manual'
+                                                });
+                                                toast.success('Beta Access Email Sent');
+                                            } catch (e) {
+                                                console.error(e);
+                                                toast.error(e.message);
+                                            } finally {
+                                                setProcessing(false);
+                                            }
+                                        }}
+                                        disabled={processing}
+                                        className="bg-purple-50 text-purple-700 px-3 py-2 rounded text-xs font-bold hover:bg-purple-100 flex items-center justify-center gap-1"
+                                    >
+                                        <Gift size={12} /> Send Beta Invite
+                                    </button>
+
+                                    <Link
+                                        to="/admin/email"
+                                        className="bg-blue-50 text-blue-700 px-3 py-2 rounded text-xs font-bold hover:bg-blue-100 flex items-center justify-center gap-1"
+                                    >
+                                        <Mail size={12} /> Compose Custom
+                                    </Link>
+                                </div>
+                            </div>
                         </div>
 
                         {/* Send Prompt / Notification */}

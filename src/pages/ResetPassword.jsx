@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { updatePassword } from '../services/authService'
 import toast from 'react-hot-toast'
-import { Lock, CheckCircle, XCircle, Code2, KeyRound } from 'lucide-react'
+import { Lock, CheckCircle, XCircle, Code2, KeyRound, Eye, EyeOff } from 'lucide-react'
 
 export default function ResetPassword() {
     const navigate = useNavigate()
@@ -12,6 +12,8 @@ export default function ResetPassword() {
     })
     const [loading, setLoading] = useState(false)
     const [hasAccess, setHasAccess] = useState(false)
+    const [showPassword, setShowPassword] = useState(false)
+    const [showConfirmPassword, setShowConfirmPassword] = useState(false)
 
     useEffect(() => {
         // Check if user has valid reset token via hash or Auth Event
@@ -131,14 +133,21 @@ export default function ResetPassword() {
                             <div className="relative">
                                 <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
                                 <input
-                                    type="password"
+                                    type={showPassword ? "text" : "password"}
                                     value={formData.password}
                                     onChange={(e) => setFormData(prev => ({ ...prev, password: e.target.value }))}
                                     placeholder="••••••••"
-                                    className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all text-gray-900"
+                                    className="w-full pl-12 pr-12 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all text-gray-900"
                                     disabled={loading}
                                     required
                                 />
+                                <button
+                                    type="button"
+                                    onClick={() => setShowPassword(!showPassword)}
+                                    className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 outline-none"
+                                >
+                                    {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                                </button>
                             </div>
                             {/* Password Strength Indicator */}
                             {formData.password && (
@@ -165,23 +174,32 @@ export default function ResetPassword() {
                             <div className="relative">
                                 <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
                                 <input
-                                    type="password"
+                                    type={showConfirmPassword ? "text" : "password"}
                                     value={formData.confirmPassword}
                                     onChange={(e) => setFormData(prev => ({ ...prev, confirmPassword: e.target.value }))}
                                     placeholder="••••••••"
-                                    className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all text-gray-900"
+                                    className="w-full pl-12 pr-20 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all text-gray-900"
                                     disabled={loading}
                                     required
                                 />
-                                {formData.confirmPassword && (
-                                    <div className="absolute right-4 top-1/2 -translate-y-1/2">
-                                        {passwordsMatch ? (
-                                            <CheckCircle className="text-green-500" size={20} />
-                                        ) : (
-                                            <XCircle className="text-red-500" size={20} />
-                                        )}
-                                    </div>
-                                )}
+                                <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-2">
+                                    {formData.confirmPassword && (
+                                        <>
+                                            {passwordsMatch ? (
+                                                <CheckCircle className="text-green-500" size={20} />
+                                            ) : (
+                                                <XCircle className="text-red-500" size={20} />
+                                            )}
+                                        </>
+                                    )}
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                                        className="text-gray-400 hover:text-gray-600 outline-none"
+                                    >
+                                        {showConfirmPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                                    </button>
+                                </div>
                             </div>
                         </div>
 

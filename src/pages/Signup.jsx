@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useNavigate, Link, useSearchParams } from 'react-router-dom'
 import { signUpWithEmail } from '../services/authService'
 import toast from 'react-hot-toast'
-import { Mail, Lock, User, CheckCircle, XCircle, Code2, UserPlus } from 'lucide-react'
+import { Mail, Lock, User, CheckCircle, XCircle, Code2, UserPlus, Eye, EyeOff } from 'lucide-react'
 
 export default function Signup() {
     const navigate = useNavigate()
@@ -14,6 +14,8 @@ export default function Signup() {
     })
     const [loading, setLoading] = useState(false)
     const [agreedToTerms, setAgreedToTerms] = useState(false)
+    const [showPassword, setShowPassword] = useState(false)
+    const [showConfirmPassword, setShowConfirmPassword] = useState(false)
 
     const handleChange = (e) => {
         setFormData(prev => ({
@@ -92,7 +94,28 @@ export default function Signup() {
             }
 
             if (user) {
-                toast.success('Account created! Please check your email to verify.')
+                // Send Welcome/Verification Email via Custom Service
+                try {
+                    const { EmailService } = await import('../services/EmailService')
+                    const { EmailTemplates, wrapInTemplate } = await import('../services/EmailTemplates')
+
+                    const template = EmailTemplates.SIGNUP_CONFIRMATION
+                    const html = wrapInTemplate(template.body(formData.username), template.title)
+
+                    await EmailService.send({
+                        recipientEmail: formData.email,
+                        memberName: formData.username,
+                        subject: template.subject(formData.username),
+                        htmlContent: html,
+                        templateType: 'SIGNUP_CONFIRMATION',
+                        triggeredBy: 'signup_flow'
+                    })
+                } catch (emailErr) {
+                    console.error('Failed to send welcome email:', emailErr)
+                    // Don't block signup success
+                }
+
+                toast.success('Account created! Please check your email.')
                 navigate('/verify-email', { state: { email: formData.email } })
             }
         } catch (error) {
@@ -168,15 +191,22 @@ export default function Signup() {
                             <div className="relative">
                                 <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
                                 <input
-                                    type="password"
+                                    type={showPassword ? "text" : "password"}
                                     name="password"
                                     value={formData.password}
                                     onChange={handleChange}
                                     placeholder="••••••••"
-                                    className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all text-gray-900"
+                                    className="w-full pl-12 pr-12 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all text-gray-900"
                                     disabled={loading}
                                     required
                                 />
+                                <button
+                                    type="button"
+                                    onClick={() => setShowPassword(!showPassword)}
+                                    className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 outline-none"
+                                >
+                                    {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                                </button>
                             </div>
                             {/* Password Strength Indicator */}
                             {formData.password && (
@@ -203,24 +233,33 @@ export default function Signup() {
                             <div className="relative">
                                 <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
                                 <input
-                                    type="password"
+                                    type={showConfirmPassword ? "text" : "password"}
                                     name="confirmPassword"
                                     value={formData.confirmPassword}
                                     onChange={handleChange}
                                     placeholder="••••••••"
-                                    className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all text-gray-900"
+                                    className="w-full pl-12 pr-20 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all text-gray-900"
                                     disabled={loading}
                                     required
                                 />
-                                {formData.confirmPassword && (
-                                    <div className="absolute right-4 top-1/2 -translate-y-1/2">
-                                        {passwordsMatch ? (
-                                            <CheckCircle className="text-green-500" size={20} />
-                                        ) : (
-                                            <XCircle className="text-red-500" size={20} />
-                                        )}
-                                    </div>
-                                )}
+                                <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-2">
+                                    {formData.confirmPassword && (
+                                        <>
+                                            {passwordsMatch ? (
+                                                <CheckCircle className="text-green-500" size={20} />
+                                            ) : (
+                                                <XCircle className="text-red-500" size={20} />
+                                            )}
+                                        </>
+                                    )}
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                                        className="text-gray-400 hover:text-gray-600 outline-none"
+                                    >
+                                        {showConfirmPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                                    </button>
+                                </div>
                             </div>
                         </div>
 

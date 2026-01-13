@@ -189,14 +189,19 @@ export async function signOut() {
  * Resend email verification
  * @returns {Promise<{success, error}>}
  */
-export async function resendVerificationEmail() {
+export async function resendVerificationEmail(email = null) {
     try {
-        const { data: { user } } = await supabase.auth.getUser()
-        if (!user) throw new Error('No user logged in')
+        let userEmail = email
+
+        if (!userEmail) {
+            const { data: { user } } = await supabase.auth.getUser()
+            if (!user) throw new Error('No email provided and no user logged in')
+            userEmail = user.email
+        }
 
         const { error } = await supabase.auth.resend({
             type: 'signup',
-            email: user.email
+            email: userEmail
         })
 
         if (error) throw error

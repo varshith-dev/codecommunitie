@@ -47,6 +47,7 @@ import UserMonitor from './admin/UserMonitor'
 import FeatureManager from './admin/FeatureManager'
 import BetaManager from './admin/BetaManager'
 import ReleaseManager from './admin/ReleaseManager'
+import EmailComposer from './admin/email/EmailDashboard'
 import { FeatureProvider } from './context/FeatureContext'
 
 // Wrapper for the Standard App UI (Navbar + Footer/etc)
@@ -157,6 +158,7 @@ export default function App() {
             <Route path="monitor" element={<UserMonitor />} />
             <Route path="settings" element={<AdminSettings />} />
             <Route path="features" element={<FeatureManager />} />
+            <Route path="email" element={<EmailComposer />} />
             <Route path="beta" element={<BetaManager />} />
             <Route path="releases" element={<ReleaseManager />} />
             <Route path="table/:tableName" element={<TableViewer />} />

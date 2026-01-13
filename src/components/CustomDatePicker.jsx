@@ -1,12 +1,18 @@
 import { format } from 'date-fns'
 
-export default function CustomDatePicker({ selected, onChange, minDate, className, ...props }) {
-    // Convert Date object to YYYY-MM-DDTHH:mm string for input
+export default function CustomDatePicker({ selected, onChange, minDate, className, showTimeSelect = true, ...props }) {
+    // Convert Date object to string based on type
     const formatDateForInput = (date) => {
         if (!date) return ''
         const d = new Date(date)
+        // Adjust for timezone offset to keep date consistent
         d.setMinutes(d.getMinutes() - d.getTimezoneOffset())
-        return d.toISOString().slice(0, 16)
+
+        if (showTimeSelect) {
+            return d.toISOString().slice(0, 16) // YYYY-MM-DDTHH:mm
+        } else {
+            return d.toISOString().split('T')[0] // YYYY-MM-DD
+        }
     }
 
     const handleChange = (e) => {
@@ -16,10 +22,10 @@ export default function CustomDatePicker({ selected, onChange, minDate, classNam
 
     return (
         <input
-            type="datetime-local"
+            type={showTimeSelect ? "datetime-local" : "date"}
             value={formatDateForInput(selected)}
             onChange={handleChange}
-            min={formatDateForInput(minDate || new Date())}
+            min={minDate ? formatDateForInput(minDate) : undefined}
             className={`w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all bg-white text-gray-700 font-medium ${className}`}
             {...props}
         />

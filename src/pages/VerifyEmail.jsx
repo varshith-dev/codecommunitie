@@ -22,28 +22,46 @@ export default function VerifyEmail() {
         setLoading(true)
 
         try {
-            const { success, error } = await resendVerificationEmail()
+            const { success, error } = await resendVerificationEmail(email)
 
             if (error) {
                 toast.error(error.message || 'Failed to resend verification email')
                 return
             }
 
-            if (success) {
-                setCountdown(60)
-                toast.success('Verification email sent!')
+            // Send Verification Reminder via Custom Service
+            try {
+                const { EmailService } = await import('../services/EmailService')
+                const { EmailTemplates, wrapInTemplate } = await import('../services/EmailTemplates')
 
-                // Start countdown
-                const timer = setInterval(() => {
-                    setCountdown((prev) => {
-                        if (prev <= 1) {
-                            clearInterval(timer)
-                            return 0
-                        }
-                        return prev - 1
-                    })
-                }, 1000)
+                const template = EmailTemplates.WELCOME // Using Welcome as fallback until verified
+                const html = wrapInTemplate(template.body(email.split('@')[0]), template.title)
+
+                await EmailService.send({
+                    recipientEmail: email,
+                    memberName: email.split('@')[0],
+                    subject: template.subject(email.split('@')[0]),
+                    htmlContent: html,
+                    templateType: 'WELCOME',
+                    triggeredBy: 'resend_verification'
+                })
+            } catch (emailErr) {
+                console.error('Failed to send resend email:', emailErr)
             }
+
+            setCountdown(60)
+            toast.success('Verification email sent!')
+
+            // Start countdown
+            const timer = setInterval(() => {
+                setCountdown((prev) => {
+                    if (prev <= 1) {
+                        clearInterval(timer)
+                        return 0
+                    }
+                    return prev - 1
+                })
+            }, 1000)
         } catch (error) {
             console.error('Resend error:', error)
             toast.error('Something went wrong. Please try again.')
