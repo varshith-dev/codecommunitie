@@ -1,6 +1,8 @@
 import { supabase } from '../supabaseClient'
 
-const PYTHON_BACKEND_URL = 'http://localhost:8000/send-email'
+const API_BASE_URL = import.meta.env.PROD ? '/api' : 'http://localhost:8000'
+const SEND_EMAIL_URL = `${API_BASE_URL}/send-email`
+const GENERATE_LINK_URL = `${API_BASE_URL}/generate-link`
 
 export const EmailService = {
     /**
@@ -12,8 +14,8 @@ export const EmailService = {
         let errorMessage = null
 
         try {
-            // 1. Send via Python Backend
-            const response = await fetch(PYTHON_BACKEND_URL, {
+            // 1. Send via Backend (Python local or Vercel Prod)
+            const response = await fetch(SEND_EMAIL_URL, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({

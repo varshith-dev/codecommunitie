@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate, Link, useSearchParams } from 'react-router-dom'
 import { signUpWithEmail } from '../services/authService'
 import toast from 'react-hot-toast'
@@ -16,6 +16,21 @@ export default function Signup() {
     const [agreedToTerms, setAgreedToTerms] = useState(false)
     const [showPassword, setShowPassword] = useState(false)
     const [showConfirmPassword, setShowConfirmPassword] = useState(false)
+    const [referralCode, setReferralCode] = useState(null)
+    const [searchParams] = useSearchParams()
+
+    useEffect(() => {
+        const ref = searchParams.get('ref')
+        if (ref) {
+            setReferralCode(ref)
+            // Optional: Store in localStorage in case they navigate away and come back
+            localStorage.setItem('referral_code', ref)
+        } else {
+            // Check storage
+            const storedRef = localStorage.getItem('referral_code')
+            if (storedRef) setReferralCode(storedRef)
+        }
+    }, [searchParams])
 
     const handleChange = (e) => {
         setFormData(prev => ({
@@ -42,9 +57,6 @@ export default function Signup() {
 
     const passwordStrength = getPasswordStrength(formData.password)
     const passwordsMatch = formData.password && formData.password === formData.confirmPassword
-
-    const [searchParams] = useSearchParams()
-    const referralCode = searchParams.get('ref')
 
     const handleSignup = async (e) => {
         e.preventDefault()
