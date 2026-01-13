@@ -20,7 +20,7 @@ export default async function handler(req, res) {
         return;
     }
 
-    const { email, password, data: userData } = req.body;
+    const { email, password, data: userData, redirectTo } = req.body;
 
     if (!email) {
         res.status(400).json({ message: 'Email is required' });
@@ -44,7 +44,8 @@ export default async function handler(req, res) {
             email: email,
             password: password,
             options: {
-                data: userData
+                data: userData,
+                redirectTo: redirectTo || undefined
             }
         });
 

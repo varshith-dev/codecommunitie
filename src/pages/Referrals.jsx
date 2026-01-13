@@ -78,7 +78,7 @@ export default function Referrals({ session }) {
                 .insert({
                     referrer_id: session.user.id,
                     referral_code: code,
-                    max_uses: 10
+                    max_uses: 999999
                 })
 
             if (error) throw error
@@ -171,7 +171,7 @@ export default function Referrals({ session }) {
                         </div>
                         <div>
                             <p className="text-blue-100 text-sm">Friends Invited</p>
-                            <p className="text-3xl font-bold">{referralStats.uses} / {referralStats.maxUses}</p>
+                            <p className="text-3xl font-bold">{referralStats.uses} <span className="text-lg font-normal opacity-75">(Unlimited)</span></p>
                         </div>
                     </div>
                 </div>
@@ -246,7 +246,11 @@ export default function Referrals({ session }) {
                         </h3>
                         <div className="space-y-3">
                             {referredUsers.map((use, index) => (
-                                <div key={index} className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl">
+                                <Link
+                                    to={`/user/${use.referred_user_id || use.referred_user?.username}`}
+                                    key={index}
+                                    className="flex items-center gap-3 p-3 bg-gray-50 hover:bg-gray-100 transition-colors rounded-xl block"
+                                >
                                     <div className="w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center text-gray-500 text-sm font-medium">
                                         {use.referred_user?.display_name?.charAt(0) || '?'}
                                     </div>
@@ -257,7 +261,7 @@ export default function Referrals({ session }) {
                                     <p className="text-xs text-gray-400">
                                         {new Date(use.used_at).toLocaleDateString()}
                                     </p>
-                                </div>
+                                </Link>
                             ))}
                         </div>
                     </div>

@@ -183,92 +183,97 @@ export default function EmailComposer({ preSelectedUsers = [], onClearSelection 
 
             <div className="grid grid-cols-12 gap-6 min-h-0 flex-1">
                 {/* SETTINGS PANEL */}
-                <div className="col-span-12 lg:col-span-3 space-y-4 overflow-y-auto pr-2 custom-scrollbar">
+                <div className="col-span-12 lg:col-span-3 flex flex-col h-full min-h-0">
 
-                    {/* User Select (Only show if not bulk mode) */}
-                    {preSelectedUsers.length === 0 && (
-                        <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
-                            <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">Quick Select</h3>
-                            <div className="relative mb-2">
-                                <Search size={16} className="absolute left-3 top-2.5 text-gray-400" />
-                                <input
-                                    type="text"
-                                    placeholder="Find user..."
-                                    className="w-full pl-9 pr-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500"
-                                    value={userSearch}
-                                    onChange={e => setUserSearch(e.target.value)}
-                                />
-                            </div>
-                            <div className="max-h-32 overflow-y-auto space-y-1 custom-scrollbar">
-                                {users.filter(u => u.username?.includes(userSearch)).map(user => (
-                                    <button
-                                        key={user.id}
-                                        onClick={() => {
-                                            setSelectedUser(user)
-                                            applyTemplate(currentTemplateType, user)
-                                        }}
-                                        className={`w-full text-left px-3 py-1.5 text-xs rounded flex items-center justify-between ${selectedUser?.id === user.id ? 'bg-blue-50 text-blue-700 font-medium' : 'text-gray-600 hover:bg-gray-50'}`}
-                                    >
-                                        <span className="truncate">@{user.username}</span>
-                                        {selectedUser?.id === user.id && <div className="w-1.5 h-1.5 rounded-full bg-blue-500"></div>}
-                                    </button>
-                                ))}
-                            </div>
-                        </div>
-                    )}
-
-                    {/* TEMPLATES */}
-                    <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
-                        <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">Templates</h3>
-                        <div className="space-y-1">
-                            <TemplateBtn type="WELCOME" icon={Sparkles} label="Welcome Email" desc="Onboarding sequence" color="indigo" />
-                            <TemplateBtn type="OTP" icon={KeyRound} label="Send OTP" desc="Verification code" color="emerald" />
-                            <TemplateBtn type="RESET_PASSWORD" icon={Wand2} label="Reset Password" desc="Recovery link" color="amber" />
-                            <TemplateBtn type="VERIFIED_BADGE" icon={User} label="Verified Badge" desc="Blue checkmark" color="blue" />
-                            <TemplateBtn type="BETA_ACCESS" icon={Code} label="Beta Access" desc="Feature invite" color="purple" />
-                            <TemplateBtn type="PRODUCT_UPDATE" icon={Megaphone} label="Product Update" desc="Announcement" color="pink" />
-                        </div>
-                    </div>
-
-                    {/* SEND FORM */}
-                    <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4 space-y-3">
-                        <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Configuration</h3>
-
+                    {/* Scrollable Area: Users & Templates */}
+                    <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar space-y-4">
+                        {/* User Select (Only show if not bulk mode) */}
                         {preSelectedUsers.length === 0 && (
-                            <div>
-                                <label className="block text-xs text-gray-500 mb-1">Recipient</label>
-                                <input
-                                    value={config.recipientEmail}
-                                    onChange={e => setConfig({ ...config, recipientEmail: e.target.value })}
-                                    className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-md text-sm outline-none focus:border-blue-500 transition-colors"
-                                    placeholder="user@example.com"
-                                />
+                            <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
+                                <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">Quick Select</h3>
+                                <div className="relative mb-2">
+                                    <Search size={16} className="absolute left-3 top-2.5 text-gray-400" />
+                                    <input
+                                        type="text"
+                                        placeholder="Find user..."
+                                        className="w-full pl-9 pr-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500"
+                                        value={userSearch}
+                                        onChange={e => setUserSearch(e.target.value)}
+                                    />
+                                </div>
+                                <div className="max-h-32 overflow-y-auto space-y-1 custom-scrollbar">
+                                    {users.filter(u => u.username?.includes(userSearch)).map(user => (
+                                        <button
+                                            key={user.id}
+                                            onClick={() => {
+                                                setSelectedUser(user)
+                                                applyTemplate(currentTemplateType, user)
+                                            }}
+                                            className={`w-full text-left px-3 py-1.5 text-xs rounded flex items-center justify-between ${selectedUser?.id === user.id ? 'bg-blue-50 text-blue-700 font-medium' : 'text-gray-600 hover:bg-gray-50'}`}
+                                        >
+                                            <span className="truncate">@{user.username}</span>
+                                            {selectedUser?.id === user.id && <div className="w-1.5 h-1.5 rounded-full bg-blue-500"></div>}
+                                        </button>
+                                    ))}
+                                </div>
                             </div>
                         )}
 
-                        <div>
-                            <label className="block text-xs text-gray-500 mb-1">Subject Line</label>
-                            <input
-                                value={config.subject}
-                                onChange={e => setConfig({ ...config, subject: e.target.value })}
-                                className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-md text-sm outline-none focus:border-blue-500 transition-colors"
-                            />
+                        {/* TEMPLATES */}
+                        <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
+                            <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">Templates</h3>
+                            <div className="space-y-1">
+                                <TemplateBtn type="WELCOME" icon={Sparkles} label="Welcome Email" desc="Onboarding sequence" color="indigo" />
+                                <TemplateBtn type="OTP" icon={KeyRound} label="Send OTP" desc="Verification code" color="emerald" />
+                                <TemplateBtn type="RESET_PASSWORD" icon={Wand2} label="Reset Password" desc="Recovery link" color="amber" />
+                                <TemplateBtn type="VERIFIED_BADGE" icon={User} label="Verified Badge" desc="Blue checkmark" color="blue" />
+                                <TemplateBtn type="BETA_ACCESS" icon={Code} label="Beta Access" desc="Feature invite" color="purple" />
+                                <TemplateBtn type="PRODUCT_UPDATE" icon={Megaphone} label="Product Update" desc="Announcement" color="pink" />
+                            </div>
                         </div>
+                    </div>
 
-                        <button
-                            onClick={handleSend}
-                            disabled={isSending || (preSelectedUsers.length === 0 && !config.recipientEmail)}
-                            className="w-full mt-2 bg-gray-900 hover:bg-black text-white py-3 rounded-xl font-bold shadow-lg shadow-gray-200 transition-all active:scale-95 disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                        >
-                            {isSending ? (
-                                <span className="flex items-center gap-2 text-sm">
-                                    <span className="w-2 h-2 bg-white rounded-full animate-pulse"></span>
-                                    Sending {sendingProgress.current}/{sendingProgress.total}...
-                                </span>
-                            ) : (
-                                <><Send size={18} /> Send Campaign</>
+                    {/* SEND FORM (Fixed at bottom) */}
+                    <div className="pt-4 shrink-0">
+                        <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4 space-y-3">
+                            <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Configuration</h3>
+
+                            {preSelectedUsers.length === 0 && (
+                                <div>
+                                    <label className="block text-xs text-gray-500 mb-1">Recipient</label>
+                                    <input
+                                        value={config.recipientEmail}
+                                        onChange={e => setConfig({ ...config, recipientEmail: e.target.value })}
+                                        className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-md text-sm outline-none focus:border-blue-500 transition-colors"
+                                        placeholder="user@example.com"
+                                    />
+                                </div>
                             )}
-                        </button>
+
+                            <div>
+                                <label className="block text-xs text-gray-500 mb-1">Subject Line</label>
+                                <input
+                                    value={config.subject}
+                                    onChange={e => setConfig({ ...config, subject: e.target.value })}
+                                    className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-md text-sm outline-none focus:border-blue-500 transition-colors"
+                                />
+                            </div>
+
+                            <button
+                                onClick={handleSend}
+                                disabled={isSending || (preSelectedUsers.length === 0 && !config.recipientEmail)}
+                                className="w-full mt-2 bg-gray-900 hover:bg-black text-white py-3 rounded-xl font-bold shadow-lg shadow-gray-200 transition-all active:scale-95 disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                            >
+                                {isSending ? (
+                                    <span className="flex items-center gap-2 text-sm">
+                                        <span className="w-2 h-2 bg-white rounded-full animate-pulse"></span>
+                                        Sending {sendingProgress.current}/{sendingProgress.total}...
+                                    </span>
+                                ) : (
+                                    <><Send size={18} /> Send Campaign</>
+                                )}
+                            </button>
+                        </div>
                     </div>
                 </div>
 

@@ -40,8 +40,8 @@ export default function VerifyEmail() {
                 const { EmailService } = await import('../services/EmailService')
                 const { EmailTemplates, wrapInTemplate } = await import('../services/EmailTemplates')
 
-                // 1. Generate Secure Link
-                const verificationLink = await EmailService.generateVerificationLink(emailToUse)
+                // 1. Generate Secure Link (Redirect to Home/Dashboard)
+                const verificationLink = await EmailService.generateVerificationLink(emailToUse, window.location.origin)
 
                 // 2. Prepare Template
                 const template = EmailTemplates.SIGNUP_CONFIRMATION

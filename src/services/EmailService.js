@@ -71,12 +71,12 @@ export const EmailService = {
     /**
      * Generates a Supabase Verification Link via the Backend.
      */
-    generateVerificationLink: async (email) => {
+    generateVerificationLink: async (email, redirectTo) => {
         try {
             const response = await fetch(GENERATE_LINK_URL, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email })
+                body: JSON.stringify({ email, redirectTo })
             })
 
             const data = await response.json()
