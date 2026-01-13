@@ -150,19 +150,36 @@ export default async function handler(req, res) {
             if (error || !data) return res.status(400).json({ success: false, error: 'Invalid or expired code' });
             if (new Date(data.expires_at) < new Date()) return res.status(400).json({ success: false, error: 'Code expired' });
 
-            // 2. Find User ID
-            const { data: profile } = await supabase.from('profiles').select('id').eq('email', email.toLowerCase()).maybeSingle();
-            let userId = profile?.id;
+            // 2. Find User ID (Source of Truth: Auth Users, not Profiles)
+            // profiles table might be desynced or contain bad IDs.
+            let userId;
+            const { data: { users }, error: listError } = await supabase.auth.admin.listUsers({ perPage: 1000 });
 
-            if (!userId) {
-                const { data: { users } } = await supabase.auth.admin.listUsers({ perPage: 1000 });
-                const user = users?.find(u => u.email?.toLowerCase() === email.toLowerCase());
-                if (!user) return res.status(404).json({ error: 'User not found' });
-                userId = user.id;
+            if (listError || !users) {
+                console.error("ListUsers failed", listError);
+                return res.status(500).json({ error: 'System error resolving user.' });
             }
 
-            // 3. Update Password
-            await supabase.auth.admin.updateUserById(userId, { password: newPassword });
+            const user = users.find(u => u.email?.toLowerCase() === email.toLowerCase());
+
+            if (!user) {
+                // If user doesn't exist in Auth, we can't reset password.
+                return res.status(404).json({ error: 'User account not found' });
+            }
+            userId = user.id;
+
+            // 3. Update Password & Confirm Email
+            // We force email_confirm: true just in case that's blocking login.
+            const { error: updateError } = await supabase.auth.admin.updateUserById(userId, {
+                password: newPassword,
+                email_confirm: true,
+                user_metadata: { password_reset_at: new Date().toISOString() } // Audit trail
+            });
+
+            if (updateError) {
+                console.error("UpdateUser failed", updateError);
+                throw updateError;
+            }
 
             // 4. Cleanup
             await supabase.from('verification_codes').delete().eq('email', email);
