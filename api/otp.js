@@ -26,8 +26,11 @@ export default async function handler(req, res) {
         const supabaseUrl = process.env.VITE_SUPABASE_URL;
         const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-        if (!supabaseUrl || !serviceRoleKey) {
-            throw new Error('Server Config Error: Missing Supabase Credentials');
+        if (!supabaseUrl) {
+            throw new Error('Server Config Error: Missing VITE_SUPABASE_URL');
+        }
+        if (!serviceRoleKey) {
+            throw new Error('Server Config Error: Missing SUPABASE_SERVICE_ROLE_KEY');
         }
 
         const supabase = createClient(supabaseUrl, serviceRoleKey);
