@@ -42,34 +42,19 @@ export async function signUpWithEmail(email, password, metadata = {}) {
                 // Handle Referral
                 if (metadata.referral_code) {
                     try {
-                        // Find referral
-                        const { data: referral } = await supabase
-                            .from('referrals')
-                            .select('id, referrer_id')
-                            .eq('referral_code', metadata.referral_code) // Works with username now
-                            .single()
+                        // Use RPC to register referral (bypasses RLS for new/anon users)
+                        const { data: result, error: rpcError } = await supabase.rpc('register_referral', {
+                            referral_code_input: metadata.referral_code,
+                            new_user_id: data.user.id
+                        })
 
-                        if (referral) {
-                            // Record usage
-                            await supabase
-                                .from('referral_uses')
-                                .insert({
-                                    referral_id: referral.id,
-                                    referred_user_id: data.user.id
-                                })
-
-                            // Update profile with referrer
-                            await supabase
-                                .from('profiles')
-                                .update({ referred_by: referral.referrer_id })
-                                .eq('id', data.user.id)
-
-                            // Update uses count
-                            await supabase.rpc('increment_referral_uses', { referral_id: referral.id })
+                        if (rpcError) {
+                            console.error('Referral RPC error:', rpcError)
+                        } else if (!result?.success) {
+                            console.warn('Referral failed:', result?.error)
                         }
                     } catch (err) {
                         console.error('Referral processing error:', err)
-                        // Don't fail signup if referral fails
                     }
                 }
             }
