@@ -1,5 +1,5 @@
 import { Outlet, Link, useLocation } from 'react-router-dom'
-import { Database, Table as TableIcon, Home, Settings, LogOut, ChevronRight, Users, Activity, ToggleRight, Sparkles, Megaphone, Mail } from 'lucide-react'
+import { Database, Table as TableIcon, Home, Settings, LogOut, ChevronRight, Users, Activity, ToggleRight, Sparkles, Megaphone, Mail, Gift } from 'lucide-react'
 
 export default function AdminLayout() {
     const location = useLocation()
@@ -101,6 +101,12 @@ export default function AdminLayout() {
                         icon={Mail}
                         label="Email Manager"
                         isActive={location.pathname === '/admin/email'}
+                    />
+                    <SidebarItem
+                        to="/admin/referrals"
+                        icon={Gift}
+                        label="Referrals"
+                        isActive={location.pathname === '/admin/referrals'}
                     />
                     <SidebarItem
                         to="/admin/users"

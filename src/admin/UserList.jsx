@@ -167,19 +167,10 @@ export default function UserList() {
                 const data = await response.json()
                 if (!response.ok) throw new Error(data.message || 'Back-end delete failed')
             } else {
-                // Production: Use Vercel Serverless Function (api/delete-users.js)
-                const response = await fetch('/api/delete-users', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        // Optional: Pass session token if you implement auth check later
-                        // 'Authorization': `Bearer ${session?.access_token}` 
-                    },
-                    body: JSON.stringify({ userIds: ids })
-                })
-
-                const data = await response.json()
-                if (!response.ok) throw new Error(data.message || 'Delete failed')
+                // Production: Use Supabase Edge Function or (Fallback) Client Profile Delete
+                // Warning: Client Profile Delete might leave Auth User if no cascading trigger exists
+                const { error } = await supabase.from('profiles').delete().in('id', ids)
+                if (error) throw error
             }
 
             toast.success(`Successfully deleted ${ids.length} users`, { id: toastId })

@@ -9,6 +9,7 @@ import toast from 'react-hot-toast'
 import EditPostModal from '../components/EditPostModal'
 import UserListModal from '../components/UserListModal'
 import UserBadges from '../components/UserBadges'
+import OfflineIndicator from '../components/OfflineIndicator'
 
 export default function PublicProfile({ session }) {
     const { userId } = useParams()
@@ -216,6 +217,9 @@ export default function PublicProfile({ session }) {
 
     return (
         <>
+            {/* Offline Indicator */}
+            <OfflineIndicator />
+
             <div className="max-w-4xl mx-auto">
                 {/* Profile Header Card */}
                 <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden mb-8 animate-slide-up">

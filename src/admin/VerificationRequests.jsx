@@ -32,7 +32,6 @@ export default function VerificationRequests() {
                     query = query.or(`username.ilike.%${searchQuery}%,display_name.ilike.%${searchQuery}%`)
                 }
 
-                // Try fetching with sort
                 const { data, error } = await query
                     .order('created_at', { ascending: false })
                     .limit(50)
@@ -40,74 +39,61 @@ export default function VerificationRequests() {
                 if (error) throw error
                 setVerifiedUsers(data || [])
             } catch (err) {
-                console.warn('Initial fetch failed, retrying without sort:', err)
-                // Fallback: fetch without sort if created_at is missing
-                let retryQuery = supabase
-                    .from('profiles')
-                    .select('*')
-                    .eq('is_verified', true)
-
-                if (searchQuery) {
-                    retryQuery = retryQuery.or(`username.ilike.%${searchQuery}%,display_name.ilike.%${searchQuery}%`)
-                }
-
-                const { data, error: retryError } = await retryQuery.limit(50)
-
-                if (retryError) {
-                    toast.error('Failed to load verified users')
-                    console.error(retryError)
-                } else {
-                    setVerifiedUsers(data || [])
-                }
+                console.error('Error fetching verified users:', err)
+                toast.error('Failed to load verified users')
             }
         } else {
             // Fetch Pending Requests
             try {
-                // Note: Searching on joined tables (profiles) is harder with simple query builder
-                // We'll fetch pending requests and filter in correct order
-                // If search query exists, we probably need to search profiles first or just client-side filter for now as requests are few
-
+                // Fetch requests first
                 let query = supabase
                     .from('verification_requests')
-                    .select('*, profiles:user_id (id, username, display_name, profile_picture_url)')
+                    .select(`
+                        *,
+                        profiles:user_id (
+                            id,
+                            username,
+                            display_name,
+                            profile_picture_url
+                        )
+                    `)
                     .eq('status', 'pending')
-                    .order('created_at', { ascending: false })
+                    .order('requested_at', { ascending: false })
 
                 const { data, error } = await query
 
                 if (error) throw error
 
                 let filteredData = data || []
+
+                // Client-side filter for search since we can't easily search on joined relation
                 if (searchQuery) {
                     const lowerQuery = searchQuery.toLowerCase()
-                    filteredData = filteredData.filter(req =>
-                        req.profiles?.username?.toLowerCase().includes(lowerQuery) ||
-                        req.profiles?.display_name?.toLowerCase().includes(lowerQuery)
-                    )
+                    filteredData = filteredData.filter(req => {
+                        const profile = req.profiles
+                        // Handle case where profile might be null due to DB inconsistency
+                        if (!profile) return false
+
+                        return (
+                            (profile.username && profile.username.toLowerCase().includes(lowerQuery)) ||
+                            (profile.display_name && profile.display_name.toLowerCase().includes(lowerQuery))
+                        )
+                    })
                 }
 
                 setRequests(filteredData)
             } catch (err) {
-                console.warn('Sort by created_at failed, retrying without sort:', err)
-                // Fallback: Fetch without sort
-                const { data: retryData, error: retryError } = await supabase
-                    .from('verification_requests')
-                    .select('*, profiles:user_id (id, username, display_name, profile_picture_url)')
-                    .eq('status', 'pending')
-
-                if (retryError) {
-                    console.error('Retry failed:', retryError)
-                    toast.error('Failed to load validation requests')
+                console.error('Error fetching requests:', err)
+                // Fallback: Try fetching without relation if relation fails (rare but possible during dev)
+                if (err.message && err.message.includes('relation')) {
+                    const { data: rawRequests } = await supabase
+                        .from('verification_requests')
+                        .select('*')
+                        .eq('status', 'pending')
+                    setRequests(rawRequests || [])
+                    if (rawRequests?.length > 0) toast.error('Loaded requests but user details missing (DB Schema Error)')
                 } else {
-                    let filteredData = retryData || []
-                    if (searchQuery) {
-                        const lowerQuery = searchQuery.toLowerCase()
-                        filteredData = filteredData.filter(req =>
-                            req.profiles?.username?.toLowerCase().includes(lowerQuery) ||
-                            req.profiles?.display_name?.toLowerCase().includes(lowerQuery)
-                        )
-                    }
-                    setRequests(filteredData)
+                    toast.error('Failed to load validation requests')
                 }
             }
         }

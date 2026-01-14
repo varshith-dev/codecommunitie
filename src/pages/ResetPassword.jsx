@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useLocation, Link } from 'react-router-dom'
-import { EmailService } from '../services/EmailService'
 import toast from 'react-hot-toast'
 import { Lock, Code2, KeyRound, Eye, EyeOff, XCircle } from 'lucide-react'
 
@@ -28,9 +27,15 @@ export default function ResetPassword() {
                 return
             }
 
-            // Verify token via EmailService
+            // Verify token via custom API
             try {
-                const data = await EmailService.verifyResetToken(token)
+                const response = await fetch('/api/verify-reset-token', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ token })
+                })
+
+                const data = await response.json()
 
                 if (data.success) {
                     setHasValidToken(true)
@@ -69,14 +74,24 @@ export default function ResetPassword() {
         setLoading(true)
 
         try {
-            const data = await EmailService.resetPassword(resetToken, password)
+            // Reset password via custom API
+            const response = await fetch('/api/reset-password-with-token', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    token: resetToken,
+                    newPassword: password
+                })
+            })
 
-            if (data.success) {
-                toast.success('Password updated successfully! Redirecting to login...')
-                setTimeout(() => navigate('/login'), 2000)
-            } else {
-                throw new Error(data.message || 'Failed to reset password')
+            const data = await response.json()
+
+            if (!data.success) {
+                throw new Error(data.message || data.error || 'Failed to reset password')
             }
+
+            toast.success('Password updated successfully! Redirecting to login...')
+            setTimeout(() => navigate('/login'), 2000)
         } catch (error) {
             console.error('Reset password error:', error)
             toast.error(error.message || 'Something went wrong. Please try again.')

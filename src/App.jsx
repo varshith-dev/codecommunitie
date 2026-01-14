@@ -32,6 +32,8 @@ import GetVerified from './pages/GetVerified'
 import TermsOfService from './pages/TermsOfService'
 import PrivacyPolicy from './pages/PrivacyPolicy'
 import Referrals from './pages/Referrals'
+import AdvertiserDashboard from './advertiser/Dashboard'
+import CreateCampaign from './advertiser/CreateCampaign'
 
 // Admin Components
 import AdminLayout from './admin/AdminLayout'
@@ -49,6 +51,7 @@ import FeatureManager from './admin/FeatureManager'
 import BetaManager from './admin/BetaManager'
 import ReleaseManager from './admin/ReleaseManager'
 import EmailComposer from './admin/email/EmailDashboard'
+import AdminReferrals from './admin/AdminReferrals'
 import PromptSettings from './admin/components/PromptSettings'
 import { FeatureProvider } from './context/FeatureContext'
 
@@ -163,17 +166,18 @@ export default function App() {
             <Route path="settings" element={<AdminSettings />} />
             <Route path="features" element={<FeatureManager />} />
             <Route path="email" element={<EmailComposer />} />
+            <Route path="referrals" element={<AdminReferrals />} />
             <Route path="beta" element={<BetaManager />} />
             <Route path="releases" element={<ReleaseManager />} />
             <Route path="prompt-settings" element={<PromptSettings />} />
             <Route path="table/:tableName" element={<TableViewer />} />
           </Route>
 
-          {/* Advertiser Routes - TODO: Create these components */}
-          {/* <Route path="/advertiser">
+          {/* Advertiser Routes */}
+          <Route path="/advertiser">
             <Route path="dashboard" element={session ? <AdvertiserDashboard session={session} /> : <Navigate to="/login" />} />
             <Route path="create-campaign" element={session ? <CreateCampaign session={session} /> : <Navigate to="/login" />} />
-          </Route> */}
+          </Route>
 
           {/* === STANDARD APP ROUTES === */}
           <Route element={<StandardLayout session={session} />}>
