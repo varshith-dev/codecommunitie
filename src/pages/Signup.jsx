@@ -106,35 +106,9 @@ export default function Signup() {
             }
 
             if (user) {
-                // Try to send welcome email, but don't block signup if it fails
-                let emailSent = false
-                try {
-                    const { EmailService } = await import('../services/EmailService')
-                    const { EmailTemplates, wrapInTemplate } = await import('../services/EmailTemplates')
-
-                    const template = EmailTemplates.SIGNUP_CONFIRMATION
-                    const html = wrapInTemplate(template.body(formData.username), template.title)
-
-                    await EmailService.send({
-                        recipientEmail: formData.email,
-                        memberName: formData.username,
-                        subject: template.subject(formData.username),
-                        htmlContent: html,
-                        templateType: 'SIGNUP_CONFIRMATION',
-                        triggeredBy: 'signup_flow'
-                    })
-                    emailSent = true
-                } catch (emailErr) {
-                    console.warn('Custom email service unavailable, using Supabase email:', emailErr)
-                    // Supabase automatically sends confirmation email
-                }
-
-                // Show appropriate message based on email status
-                if (emailSent) {
-                    toast.success('Account created! Please check your email for verification.')
-                } else {
-                    toast.success('Account created! Check your email for the confirmation link from Supabase.')
-                }
+                // Supabase automatically sends confirmation email if SMTP is configured
+                // No need for custom email service!
+                toast.success('Account created! Check your email for the confirmation link.')
                 navigate('/verify-email', { state: { email: formData.email } })
             }
         } catch (error) {
