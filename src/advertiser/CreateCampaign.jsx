@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { supabase } from '../supabaseClient'
 import { useNavigate } from 'react-router-dom'
 import { ArrowLeft, DollarSign, Calendar, Target, Loader } from 'lucide-react'
@@ -14,6 +14,18 @@ export default function CreateCampaign({ session }) {
         start_date: '',
         end_date: ''
     })
+
+    useEffect(() => {
+        checkAccess()
+    }, [])
+
+    const checkAccess = async () => {
+        const { data } = await supabase.from('profiles').select('role').eq('id', session.user.id).single()
+        if (data?.role !== 'advertiser') {
+            toast.error('Access denied')
+            navigate('/')
+        }
+    }
 
     const handleSubmit = async (e) => {
         e.preventDefault()

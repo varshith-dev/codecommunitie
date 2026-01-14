@@ -27,11 +27,11 @@ export default function AdvertiserDashboard({ session }) {
     const checkAdvertiserAccess = async () => {
         const { data: profile } = await supabase
             .from('profiles')
-            .select('is_advertiser')
+            .select('role') // Changed from is_advertiser to role
             .eq('id', session.user.id)
             .single()
 
-        if (!profile?.is_advertiser) {
+        if (profile?.role !== 'advertiser') {
             toast.error('Advertiser access required')
             navigate('/')
         }
@@ -202,8 +202,8 @@ export default function AdvertiserDashboard({ session }) {
                                         <div className="flex items-center gap-3 mb-2">
                                             <h3 className="text-lg font-semibold text-gray-900">{campaign.name}</h3>
                                             <span className={`px-2 py-1 text-xs font-semibold rounded-full ${campaign.status === 'active' ? 'bg-green-100 text-green-700' :
-                                                    campaign.status === 'paused' ? 'bg-yellow-100 text-yellow-700' :
-                                                        'bg-gray-100 text-gray-700'
+                                                campaign.status === 'paused' ? 'bg-yellow-100 text-yellow-700' :
+                                                    'bg-gray-100 text-gray-700'
                                                 }`}>
                                                 {campaign.status}
                                             </span>

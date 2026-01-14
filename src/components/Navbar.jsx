@@ -103,13 +103,24 @@ export default function Navbar({ session, isMobile = false }) {
 
             {session && (
               <>
-                <Link
-                  to="/create"
-                  className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${isActive('/create') ? 'text-blue-600 bg-blue-50' : 'text-gray-600 hover:bg-gray-50'}`}
-                >
-                  <PlusSquare size={18} />
-                  <span>Create</span>
-                </Link>
+                {/* Dynamic Create/Ad Button */}
+                {profile?.role === 'advertiser' ? (
+                  <Link
+                    to="/advertiser/dashboard"
+                    className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${isActive('/advertiser') ? 'text-green-600 bg-green-50' : 'text-gray-600 hover:bg-gray-50'}`}
+                  >
+                    <PlusSquare size={18} />
+                    <span>Ads</span>
+                  </Link>
+                ) : (
+                  <Link
+                    to="/create"
+                    className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${isActive('/create') ? 'text-blue-600 bg-blue-50' : 'text-gray-600 hover:bg-gray-50'}`}
+                  >
+                    <PlusSquare size={18} />
+                    <span>Create</span>
+                  </Link>
+                )}
 
                 <Link
                   to="/profile"
