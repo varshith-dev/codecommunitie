@@ -243,7 +243,7 @@ export default function VerifyEmail() {
                         </button>
                     </div>
                 </div>
-                )}
+                ) : null}
 
                 <div className="mt-8 text-center">
                     <Link to="/login" className="text-sm font-medium text-blue-600 hover:underline">
