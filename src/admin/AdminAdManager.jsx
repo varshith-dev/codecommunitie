@@ -116,9 +116,15 @@ export default function AdminAdManager() {
 
             if (error) throw error
 
+            // Remove from pending list immediately
+            setPendingAds(prev => prev.filter(ad => ad.id !== adId))
+
             toast.success('Ad approved!')
-            fetchAdData()
+
+            // Refresh all data in background
+            await fetchAdData()
         } catch (error) {
+            console.error('Approval error:', error)
             toast.error('Failed to approve ad')
         }
     }
@@ -136,9 +142,15 @@ export default function AdminAdManager() {
 
             if (error) throw error
 
+            // Remove from pending list immediately
+            setPendingAds(prev => prev.filter(ad => ad.id !== adId))
+
             toast.success('Ad rejected')
-            fetchAdData()
+
+            // Refresh all data in background
+            await fetchAdData()
         } catch (error) {
+            console.error('Rejection error:', error)
             toast.error('Failed to reject ad')
         }
     }
