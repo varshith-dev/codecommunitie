@@ -27,8 +27,25 @@ export async function signUpWithEmail(email, password, metadata = {}) {
         if (error) throw error
 
         if (data.user) {
-            // Referral logic moved to OTP Verification (api/otp.js) 
-            // to ensure profile exists before linking.
+            // MANUAL PROFILE CREATION (Reliable Fallback)
+            const { error: profileError } = await supabase
+                .from('profiles')
+                .insert([{
+                    id: data.user.id,
+                    email: email,
+                    username: metadata.username || email.split('@')[0],
+                    display_name: metadata.display_name || metadata.username,
+                    full_name: metadata.full_name || '',
+                    avatar_url: metadata.avatar_url || '',
+                    created_at: new Date().toISOString(),
+                    updated_at: new Date().toISOString()
+                }])
+                .select()
+
+            // Ignore error if profile already exists (trigger might have worked)
+            if (profileError && profileError.code !== '23505') {
+                console.warn('Manual profile creation failed', profileError)
+            }
         }
 
         return { user: data.user, session: data.session, error: null }

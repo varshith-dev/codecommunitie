@@ -39,9 +39,11 @@ def load_env_file(filepath):
                 
                 os.environ[key] = value
 
-# Load .env and .env.local
-load_env_file('.env')
-load_env_file('.env.local')
+# Load .env and .env.local from project root
+# backend.py is in src/admin/email/, so go up 3 levels
+project_root = os.path.join(os.path.dirname(__file__), '..', '..', '..')
+load_env_file(os.path.join(project_root, '.env'))
+load_env_file(os.path.join(project_root, '.env.local'))
 
 PORT = 8000
 
