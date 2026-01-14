@@ -247,7 +247,7 @@ export default function Referrals({ session }) {
                         <div className="space-y-3">
                             {referredUsers.map((use, index) => (
                                 <Link
-                                    to={`/user/${use.referred_user_id || use.referred_user?.username}`}
+                                    to={`/user/@${use.referred_user?.username}`}
                                     key={index}
                                     className="flex items-center gap-3 p-3 bg-gray-50 hover:bg-gray-100 transition-colors rounded-xl block"
                                 >
