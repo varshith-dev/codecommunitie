@@ -34,23 +34,11 @@ export default function PublicProfile({ session }) {
 
             let profileData = null
 
-            // Check if userId starts with @ (username) or is a UUID
-            if (userId.startsWith('@')) {
-                // Username-based lookup
-                const username = userId.substring(1) // Remove @ prefix
-                const { data, error: profileError } = await supabase
-                    .from('profiles')
-                    .select('*')
-                    .eq('username', username)
-                    .single()
+            // Check if userId is a UUID (format: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx)
+            const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+            const isUUID = uuidRegex.test(userId)
 
-                if (profileError) {
-                    console.error('Error fetching profile by username:', profileError)
-                    setLoading(false)
-                    return
-                }
-                profileData = data
-            } else {
+            if (isUUID) {
                 // UUID-based lookup
                 const { data, error: profileError } = await supabase
                     .from('profiles')
@@ -60,6 +48,21 @@ export default function PublicProfile({ session }) {
 
                 if (profileError) {
                     console.error('Error fetching profile by ID:', profileError)
+                    setLoading(false)
+                    return
+                }
+                profileData = data
+            } else {
+                // Username-based lookup (with or without @ prefix)
+                const username = userId.startsWith('@') ? userId.substring(1) : userId
+                const { data, error: profileError } = await supabase
+                    .from('profiles')
+                    .select('*')
+                    .eq('username', username)
+                    .single()
+
+                if (profileError) {
+                    console.error('Error fetching profile by username:', profileError)
                     setLoading(false)
                     return
                 }
