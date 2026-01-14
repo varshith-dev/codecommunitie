@@ -161,5 +161,47 @@ export const EmailService = {
         const { count: failed } = await supabase.from('email_logs').select('*', { count: 'exact', head: true }).eq('status', 'failed')
 
         return { total: total || 0, sent: sent || 0, failed: failed || 0 }
+    },
+
+    /**
+     * Send Password Reset Link (NEW - Link-based instead of OTP)
+     */
+    sendPasswordResetLink: async (email) => {
+        const response = await fetch(`${API_BASE_URL}/send-password-reset`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email })
+        })
+        const data = await response.json()
+        if (!response.ok) throw new Error(data.message || 'Failed to send reset link')
+        return data
+    },
+
+    /**
+     * Verify Password Reset Token
+     */
+    verifyResetToken: async (token) => {
+        const response = await fetch(`${API_BASE_URL}/verify-reset-token`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ token })
+        })
+        const data = await response.json()
+        if (!response.ok) throw new Error(data.message || 'Failed to verify token')
+        return data
+    },
+
+    /**
+     * Reset Password with Token
+     */
+    resetPassword: async (token, newPassword) => {
+        const response = await fetch(`${API_BASE_URL}/reset-password`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ token, newPassword })
+        })
+        const data = await response.json()
+        if (!response.ok) throw new Error(data.message || 'Failed to reset password')
+        return data
     }
 }

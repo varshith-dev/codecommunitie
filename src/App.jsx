@@ -49,6 +49,7 @@ import FeatureManager from './admin/FeatureManager'
 import BetaManager from './admin/BetaManager'
 import ReleaseManager from './admin/ReleaseManager'
 import EmailComposer from './admin/email/EmailDashboard'
+import PromptSettings from './admin/components/PromptSettings'
 import { FeatureProvider } from './context/FeatureContext'
 
 // Wrapper for the Standard App UI (Navbar + Footer/etc)
@@ -168,11 +169,11 @@ export default function App() {
             <Route path="table/:tableName" element={<TableViewer />} />
           </Route>
 
-          {/* Advertiser Routes */}
-          <Route path="/advertiser">
+          {/* Advertiser Routes - TODO: Create these components */}
+          {/* <Route path="/advertiser">
             <Route path="dashboard" element={session ? <AdvertiserDashboard session={session} /> : <Navigate to="/login" />} />
             <Route path="create-campaign" element={session ? <CreateCampaign session={session} /> : <Navigate to="/login" />} />
-          </Route>
+          </Route> */}
 
           {/* === STANDARD APP ROUTES === */}
           <Route element={<StandardLayout session={session} />}>

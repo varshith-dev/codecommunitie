@@ -20,20 +20,17 @@ export default function ForgotPassword() {
         setLoading(true)
 
         try {
-            const { success, error } = await EmailService.sendResetOTP(email)
-
-            if (error) {
-                toast.error(error || 'Failed to send reset email')
-                return
-            }
+            const { success, message } = await EmailService.sendPasswordResetLink(email)
 
             if (success) {
-                toast.success('Reset code sent to your email!')
-                navigate('/reset-password', { state: { email } })
+                toast.success('Reset link sent! Check your email.')
+                // Don't navigate - just show success message
+            } else {
+                toast.error(message || 'Failed to send reset link')
             }
         } catch (error) {
             console.error('Reset error:', error)
-            toast.error('Something went wrong. Please try again.')
+            toast.error(error.message || 'Something went wrong. Please try again.')
         } finally {
             setLoading(false)
         }

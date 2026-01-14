@@ -83,6 +83,12 @@ class EmailHandler(http.server.SimpleHTTPRequestHandler):
                 self.handle_generate_link()
             elif self.path == '/otp':
                 self.handle_otp()
+            elif self.path == '/send-password-reset':
+                self.handle_send_password_reset()
+            elif self.path == '/verify-reset-token':
+                self.handle_verify_reset_token()
+            elif self.path == '/reset-password':
+                self.handle_reset_password()
             elif self.path == '/delete-users':
                 self.handle_delete_users()
             else:
@@ -347,6 +353,234 @@ class EmailHandler(http.server.SimpleHTTPRequestHandler):
                  self.send_json({'success': True, 'deleted': deleted_count, 'errors': errors})
 
         except Exception as e:
+            self.send_error_response(str(e))
+
+    def handle_send_password_reset(self):
+        content_length = int(self.headers['Content-Length'])
+        post_data = self.rfile.read(content_length)
+        
+        try:
+            data = json.loads(post_data.decode('utf-8'))
+            email = data.get('email')
+            
+            if not email:
+                raise ValueError("Email is required")
+            
+            # Helper function for Supabase REST calls
+            def supabase_rest(method, endpoint, body=None, params=None):
+                url = f"{SUPABASE_URL}/rest/v1/{endpoint}"
+                if params:
+                    url += "?" + urllib.parse.urlencode(params)
+                
+                headers = {
+                    "apikey": SUPABASE_SERVICE_ROLE_KEY,
+                    "Authorization": f"Bearer {SUPABASE_SERVICE_ROLE_KEY}",
+                    "Content-Type": "application/json",
+                    "Prefer": "return=representation"
+                }
+                
+                data_bytes = json.dumps(body).encode('utf-8') if body else None
+                req = urllib.request.Request(url, data=data_bytes, headers=headers, method=method)
+                
+                try:
+                    with urllib.request.urlopen(req) as response:
+                        if response.status == 204: return None
+                        return json.loads(response.read().decode('utf-8'))
+                except urllib.error.HTTPError as e:
+                    print(f"Supabase REST Error ({endpoint}): {e.read().decode('utf-8')}")
+                    raise e
+            
+            def supabase_rpc(function_name, body=None):
+                url = f"{SUPABASE_URL}/rest/v1/rpc/{function_name}"
+                headers = {
+                    "apikey": SUPABASE_SERVICE_ROLE_KEY,
+                    "Authorization": f"Bearer {SUPABASE_SERVICE_ROLE_KEY}",
+                    "Content-Type": "application/json"
+                }
+                
+                req = urllib.request.Request(url, data=json.dumps(body).encode('utf-8'), headers=headers, method='POST')
+                with urllib.request.urlopen(req) as response:
+                    return json.loads(response.read().decode('utf-8'))
+            
+            # 1. Find user by email
+            auth_url = f"{SUPABASE_URL}/auth/v1/admin/users"
+            req = urllib.request.Request(auth_url, headers={
+                "apikey": SUPABASE_SERVICE_ROLE_KEY,
+                "Authorization": f"Bearer {SUPABASE_SERVICE_ROLE_KEY}"
+            })
+            
+            with urllib.request.urlopen(req) as response:
+                users_data = json.loads(response.read().decode('utf-8'))
+                user_list = users_data.get('users', []) if isinstance(users_data, dict) else users_data
+            
+            user = next((u for u in user_list if u.get('email', '').lower() == email.lower()), None)
+            
+            if not user:
+                # For security, don't reveal if email exists or not
+                self.send_json({'success': True, 'message': 'If the email exists, a reset link has been sent'})
+                return
+            
+            user_id = user['id']
+            
+            # 2. Generate password reset token
+            token = supabase_rpc('generate_password_reset_token', {
+                'p_user_id': user_id,
+                'p_email': email,
+                'p_expires_hours': 1
+            })
+            
+            # 3. Create reset link
+            reset_link = f"http://localhost:5173/reset-password?token={token}"
+            
+            # 4. Send email with reset link
+            html_content = f"""
+            <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif; max-width: 600px; margin: 0 auto; padding: 40px 20px;">
+                <div style="text-align: center; margin-bottom: 40px;">
+                    <div style="display: inline-block; background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%); padding: 16px; border-radius: 16px; margin-bottom: 20px;">
+                        <span style="font-size: 32px;">💻</span>
+                    </div>
+                    <h1 style="color: #111827; margin: 0; font-size: 28px; font-weight: 700;">Reset Your Password</h1>
+                </div>
+                
+                <div style="background: white; border: 1px solid #e5e7eb; border-radius: 16px; padding: 32px; margin-bottom: 24px;">
+                    <p style="color: #374151; font-size: 16px; line-height: 1.6; margin: 0 0 24px 0;">
+                        You requested to reset your password for your <strong>CodeKrafts</strong> account.
+                    </p>
+                    
+                    <p style="color: #374151; font-size: 16px; line-height: 1.6; margin: 0 0 32px 0;">
+                        Click the button below to create a new password:
+                    </p>
+                    
+                    <div style="text-align: center; margin: 32px 0;">
+                        <a href="{reset_link}" 
+                           style="display: inline-block; background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%); color: white; text-decoration: none; padding: 14px 32px; border-radius: 12px; font-weight: 600; font-size: 16px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
+                            Reset Password
+                        </a>
+                    </div>
+                    
+                    <div style="background: #fef3c7; border-left: 4px solid #f59e0b; padding: 16px; border-radius: 8px; margin: 32px 0;">
+                        <p style="color: #92400e; font-size: 14px; margin: 0; font-weight: 500;">
+                            ⚠️ This link will expire in 1 hour for security reasons.
+                        </p>
+                    </div>
+                    
+                    <p style="color: #6b7280; font-size: 14px; line-height: 1.6; margin: 24px 0 0 0;">
+                        Or copy and paste this URL into your browser:
+                    </p>
+                    <p style="color: #3b82f6; font-size: 13px; word-break: break-all; margin: 8px 0 0 0;">
+                        {reset_link}
+                    </p>
+                </div>
+                
+                <div style="background: #f9fafb; border-radius: 12px; padding: 20px; margin-bottom: 24px;">
+                    <p style="color: #6b7280; font-size: 14px; margin: 0; line-height: 1.6;">
+                        <strong style="color: #111827;">Didn't request this?</strong><br>
+                        If you didn't request a password reset, you can safely ignore this email. Your password will remain unchanged.
+                    </p>
+                </div>
+                
+                <div style="text-align: center; padding-top: 24px; border-top: 1px solid #e5e7eb;">
+                    <p style="color: #9ca3af; font-size: 13px; margin: 0;">
+                        © 2024 CodeKrafts. All rights reserved.
+                    </p>
+                </div>
+            </div>
+            """
+            
+            self.send_smtp_email(email, "Reset Your Password - CodeKrafts", html_content)
+            self.send_json({'success': True, 'message': 'Reset link sent to your email'})
+            
+        except Exception as e:
+            print(f"Password reset error: {e}")
+            import traceback
+            traceback.print_exc()
+            self.send_error_response(str(e))
+
+    def handle_verify_reset_token(self):
+        content_length = int(self.headers['Content-Length'])
+        post_data = self.rfile.read(content_length)
+        
+        try:
+            data = json.loads(post_data.decode('utf-8'))
+            token = data.get('token')
+            
+            if not token:
+                raise ValueError("Token is required")
+            
+            # Call Supabase RPC to verify token
+            def supabase_rpc(function_name, body=None):
+                url = f"{SUPABASE_URL}/rest/v1/rpc/{function_name}"
+                headers = {
+                    "apikey": SUPABASE_SERVICE_ROLE_KEY,
+                    "Authorization": f"Bearer {SUPABASE_SERVICE_ROLE_KEY}",
+                    "Content-Type": "application/json"
+                }
+                
+                req = urllib.request.Request(url, data=json.dumps(body).encode('utf-8'), headers=headers, method='POST')
+                with urllib.request.urlopen(req) as response:
+                    return json.loads(response.read().decode('utf-8'))
+            
+            result = supabase_rpc('verify_password_reset_token', {'p_token': token})
+            self.send_json(result)
+            
+        except Exception as e:
+            print(f"Token verification error: {e}")
+            self.send_error_response(str(e))
+
+    def handle_reset_password(self):
+        content_length = int(self.headers['Content-Length'])
+        post_data = self.rfile.read(content_length)
+        
+        try:
+            data = json.loads(post_data.decode('utf-8'))
+            token = data.get('token')
+            new_password = data.get('newPassword')
+            
+            if not token or not new_password:
+                raise ValueError("Token and new password are required")
+            
+            def supabase_rpc(function_name, body=None):
+                url = f"{SUPABASE_URL}/rest/v1/rpc/{function_name}"
+                headers = {
+                    "apikey": SUPABASE_SERVICE_ROLE_KEY,
+                    "Authorization": f"Bearer {SUPABASE_SERVICE_ROLE_KEY}",
+                    "Content-Type": "application/json"
+                }
+                
+                req = urllib.request.Request(url, data=json.dumps(body).encode('utf-8'), headers=headers, method='POST')
+                with urllib.request.urlopen(req) as response:
+                    return json.loads(response.read().decode('utf-8'))
+            
+            # 1. Verify token and get user ID
+            verify_result = supabase_rpc('verify_password_reset_token', {'p_token': token})
+            
+            if not verify_result.get('success'):
+                raise ValueError(verify_result.get('message', 'Invalid token'))
+            
+            user_id = verify_result['user_id']
+            
+            # 2. Update user password via Auth Admin API
+            update_url = f"{SUPABASE_URL}/auth/v1/admin/users/{user_id}"
+            update_body = {"password": new_password}
+            
+            req_update = urllib.request.Request(update_url, data=json.dumps(update_body).encode('utf-8'), headers={
+                "apikey": SUPABASE_SERVICE_ROLE_KEY,
+                "Authorization": f"Bearer {SUPABASE_SERVICE_ROLE_KEY}",
+                "Content-Type": "application/json"
+            }, method='PUT')
+            
+            with urllib.request.urlopen(req_update) as resp:
+                print("Password updated successfully")
+            
+            # 3. Mark token as used
+            supabase_rpc('mark_reset_token_used', {'p_token': token})
+            
+            self.send_json({'success': True, 'message': 'Password reset successfully'})
+            
+        except Exception as e:
+            print(f"Password reset error: {e}")
+            import traceback
+            traceback.print_exc()
             self.send_error_response(str(e))
 
     def send_smtp_email(self, recipient_email, subject, html_content):
