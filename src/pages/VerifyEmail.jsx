@@ -1,17 +1,68 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useLocation, Link, useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import { Mail, CheckCircle, ArrowRight, Loader2, KeyRound } from 'lucide-react'
 import { EmailService } from '../services/EmailService'
+import { supabase } from '../supabaseClient'
 
 export default function VerifyEmail() {
     const location = useLocation()
     const navigate = useNavigate()
 
-    const [email, setEmail] = useState(location.state?.email || '')
+    const [email, setEmail] = useState('')
     const [otp, setOtp] = useState(['', '', '', '', '', ''])
     const [step, setStep] = useState('input') // 'input' | 'verify'
     const [loading, setLoading] = useState(false)
+    const [userDetected, setUserDetected] = useState(false)
+
+    // Auto-detect logged-in user's email
+    useEffect(() => {
+        const loadUserEmail = async () => {
+            // First try to get email from navigation state (just signed up)
+            if (location.state?.email) {
+                setEmail(location.state.email)
+                setUserDetected(true)
+                return
+            }
+
+            // Otherwise, check if user is logged in and get their email
+            const { data: { session } } = await supabase.auth.getSession()
+            if (session?.user?.email) {
+                setEmail(session.user.email)
+                setUserDetected(true)
+
+                // Check if email is already confirmed
+                if (session.user.email_confirmed_at) {
+                    toast.success('Your email is already verified!')
+                    setTimeout(() => navigate('/'), 2000)
+                }
+            }
+        }
+        loadUserEmail()
+    }, [location.state, navigate])
+
+
+    // Resend confirmation email via Supabase
+    const handleResendConfirmation = async () => {
+        if (!email) {
+            toast.error('Please enter your email')
+            return
+        }
+        setLoading(true)
+        try {
+            const { error } = await supabase.auth.resend({
+                type: 'signup',
+                email: email
+            })
+
+            if (error) throw error
+            toast.success(`Confirmation email resent to ${email}! Check your inbox.`)
+        } catch (error) {
+            toast.error(error.message || 'Failed to resend confirmation email')
+        } finally {
+            setLoading(false)
+        }
+    }
 
     const handleSendOTP = async () => {
         if (!email) {
@@ -79,6 +130,11 @@ export default function VerifyEmail() {
 
                 {step === 'input' ? (
                     <div className="space-y-4">
+                        {userDetected && (
+                            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm text-blue-700">
+                                ✓ Email detected from your account
+                            </div>
+                        )}
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">Email Address</label>
                             <input
@@ -87,14 +143,39 @@ export default function VerifyEmail() {
                                 onChange={(e) => setEmail(e.target.value)}
                                 className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all"
                                 placeholder="name@example.com"
+                                readOnly={userDetected}
                             />
                         </div>
+
+                        <div className="space-y-2">
+                            <button
+                                onClick={handleResendConfirmation}
+                                disabled={loading || !email}
+                                className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl transition-all flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed"
+                            >
+                                {loading ? <Loader2 className="animate-spin" /> : <>Resend Confirmation Email <Mail size={18} /></>}
+                            </button>
+
+                            <p className="text-xs text-center text-gray-500">
+                                Click the link in the email to verify your account
+                            </p>
+                        </div>
+
+                        <div className="relative">
+                            <div className="absolute inset-0 flex items-center">
+                                <div className="w-full border-t border-gray-300"></div>
+                            </div>
+                            <div className="relative flex justify-center text-sm">
+                                <span className="px-2 bg-white text-gray-500">Or use OTP code</span>
+                            </div>
+                        </div>
+
                         <button
                             onClick={handleSendOTP}
                             disabled={loading || !email}
-                            className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl transition-all flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed"
+                            className="w-full py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium rounded-xl transition-all flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed"
                         >
-                            {loading ? <Loader2 className="animate-spin" /> : <>Send Code <ArrowRight size={18} /></>}
+                            {loading ? <Loader2 className="animate-spin" /> : <>Send OTP Code <ArrowRight size={18} /></>}
                         </button>
                     </div>
                 ) : (
