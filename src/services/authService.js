@@ -44,6 +44,7 @@ export async function signUpWithEmail(email, password, metadata = {}) {
 
             // Ignore error if profile already exists (trigger might have worked)
             if (profileError && profileError.code !== '23505') {
+                // eslint-disable-next-line no-console
                 console.warn('Manual profile creation failed', profileError)
             }
         }
