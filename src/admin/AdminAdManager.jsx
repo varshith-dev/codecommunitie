@@ -39,16 +39,19 @@ export default function AdminAdManager() {
 
             if (error) throw error
 
-            // 2. Fetch pending ads separately for approval tab
-            const { data: pendingData } = await supabase
+            // 2. Fetch pending ads separately for approval tab with advertiser info
+            const { data: pendingData, error: pendingError } = await supabase
                 .from('advertisements')
                 .select(`
                     *,
-                    campaign:ad_campaigns(name, advertiser_id),
-                    advertiser:ad_campaigns!inner(advertiser:profiles(username, display_name))
+                    campaign:ad_campaigns(name, advertiser_id, profiles(username, display_name))
                 `)
                 .eq('approval_status', 'pending')
                 .order('created_at', { ascending: true })
+
+            if (pendingError) {
+                console.error('Error fetching pending ads:', pendingError)
+            }
 
             setPendingAds(pendingData || [])
 
@@ -205,8 +208,8 @@ export default function AdminAdManager() {
                 <button
                     onClick={() => setActiveTab('campaigns')}
                     className={`pb-3 px-4 font-semibold transition-colors ${activeTab === 'campaigns'
-                            ? 'text-blue-600 border-b-2 border-blue-600'
-                            : 'text-gray-500 hover:text-gray-700'
+                        ? 'text-blue-600 border-b-2 border-blue-600'
+                        : 'text-gray-500 hover:text-gray-700'
                         }`}
                 >
                     Campaigns
@@ -214,8 +217,8 @@ export default function AdminAdManager() {
                 <button
                     onClick={() => setActiveTab('pending')}
                     className={`pb-3 px-4 font-semibold transition-colors relative ${activeTab === 'pending'
-                            ? 'text-blue-600 border-b-2 border-blue-600'
-                            : 'text-gray-500 hover:text-gray-700'
+                        ? 'text-blue-600 border-b-2 border-blue-600'
+                        : 'text-gray-500 hover:text-gray-700'
                         }`}
                 >
                     Pending Approvals
@@ -273,8 +276,8 @@ function CampaignsTable({ campaigns }) {
                                 </td>
                                 <td className="px-6 py-4">
                                     <span className={`px-2 py-1 rounded-full text-xs font-medium ${camp.status === 'active' ? 'bg-green-100 text-green-700' :
-                                            camp.status === 'paused' ? 'bg-yellow-100 text-yellow-700' :
-                                                'bg-gray-100 text-gray-600'
+                                        camp.status === 'paused' ? 'bg-yellow-100 text-yellow-700' :
+                                            'bg-gray-100 text-gray-600'
                                         }`}>
                                         {camp.status.toUpperCase()}
                                     </span>
@@ -352,7 +355,7 @@ function PendingAdsTable({ ads, onApprove, onReject }) {
                                     <div className="flex items-center gap-4 text-xs text-gray-500">
                                         <span>Campaign: {ad.campaign?.name}</span>
                                         <span>•</span>
-                                        <span>By: @{ad.advertiser?.ad_campaigns?.advertiser?.username}</span>
+                                        <span>By: @{ad.campaign?.profiles?.username || 'Unknown'}</span>
                                         <span>•</span>
                                         <span>Target: {ad.target_url}</span>
                                     </div>
