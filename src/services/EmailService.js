@@ -1,6 +1,11 @@
 import { supabase } from '../supabaseClient'
 
-const API_BASE_URL = import.meta.env.PROD ? '/api' : 'http://localhost:8000'
+// API URLs - In production (Vercel), uses /api routes as serverless functions
+// In development, you can run the API locally or use production API
+const API_BASE_URL = import.meta.env.PROD
+    ? '/api'  // Production: Vercel serverless functions
+    : import.meta.env.VITE_API_URL || 'https://codecommunitie.vercel.app/api' // Development: use production API by default
+
 const SEND_EMAIL_URL = `${API_BASE_URL}/send-email`
 const GENERATE_LINK_URL = `${API_BASE_URL}/generate-link`
 const OTP_URL = `${API_BASE_URL}/otp`
