@@ -176,7 +176,7 @@ export default function Sidebar({ session }) {
                         <div className="divide-y divide-gray-50">
                             {suggestedUsers.map(user => (
                                 <div key={user.id} className="flex items-center justify-between px-5 py-3.5 hover:bg-gray-50 transition-colors">
-                                    <Link to={`/user/${user.id}`} className="flex items-center gap-3 group min-w-0">
+                                    <Link to={`/user/@${user.username}`} className="flex items-center gap-3 group min-w-0">
                                         <Avatar src={user.profile_picture_url} alt={user.username} size="sm" />
                                         <div className="flex flex-col min-w-0 overflow-hidden">
                                             <span className="text-sm font-bold text-gray-900 truncate group-hover:underline flex items-center gap-1">

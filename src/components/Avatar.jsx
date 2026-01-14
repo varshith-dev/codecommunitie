@@ -9,9 +9,9 @@ import { useState } from 'react'
  * @param {string} props.alt - Alt text (usually username)
  * @param {string} props.size - Size variant: 'xs', 'sm', 'md', 'lg', 'xl'
  * @param {string} props.className - Additional classes
- * @param {string} props.userId - Optional user ID for linking to profile
+ * @param {string} props.username - Optional username for linking to profile (will be formatted as /@username)
  */
-export default function Avatar({ src, alt = 'User', size = 'md', className = '', userId = null }) {
+export default function Avatar({ src, alt = 'User', size = 'md', className = '', username = null }) {
     const [imageError, setImageError] = useState(false)
 
     const sizeClasses = {
@@ -67,9 +67,9 @@ export default function Avatar({ src, alt = 'User', size = 'md', className = '',
         </div>
     )
 
-    if (userId) {
+    if (username) {
         return (
-            <Link to={`/user/${userId}`} className="flex-shrink-0">
+            <Link to={`/user/@${username}`} className="flex-shrink-0">
                 {avatarContent}
             </Link>
         )

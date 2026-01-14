@@ -72,7 +72,7 @@ export default function UserListModal({ userId, type, onClose, title }) {
                             {users.map(user => (
                                 <Link
                                     key={user.id}
-                                    to={`/user/${user.id}`}
+                                    to={`/user/@${user.username}`}
                                     onClick={onClose}
                                     className="flex items-center gap-3 p-3 hover:bg-gray-50 rounded-xl transition-colors group"
                                 >
