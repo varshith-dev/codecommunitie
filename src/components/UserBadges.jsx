@@ -9,30 +9,36 @@ export default function UserBadges({ user, showToOwner = true }) {
     const isAdvertiser = user.is_advertiser || user.role === 'advertiser'
     const isVerified = user.is_verified
 
-    // PRIORITY 1: ADMIN (Red)
+    // PRIORITY 1: ADMIN (Gold Tick)
     if (isAdmin) {
         return (
-            <span className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-semibold bg-red-100 text-red-700 border border-red-200">
-                ADMIN
-            </span>
+            <BadgeCheck
+                size={18}
+                className="text-yellow-500 fill-yellow-500" // Gold
+                title="Admin"
+            />
         )
     }
 
-    // PRIORITY 2: ADVERTISER (Green - User Requested)
+    // PRIORITY 2: ADVERTISER (Green Tick)
     if (isAdvertiser) {
         return (
-            <span className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-semibold bg-green-100 text-green-700 border border-green-200">
-                ADVERTISER
-            </span>
+            <BadgeCheck
+                size={18}
+                className="text-green-500 fill-green-500" // Green
+                title="Advertiser"
+            />
         )
     }
 
-    // PRIORITY 3: MODERATOR (Purple - Changed from Green to distinguish from Advertiser)
+    // PRIORITY 3: MODERATOR (Purple Tick)
     if (isModerator) {
         return (
-            <span className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-semibold bg-purple-100 text-purple-700 border border-purple-200">
-                MOD
-            </span>
+            <BadgeCheck
+                size={18}
+                className="text-purple-500 fill-purple-500" // Purple
+                title="Moderator"
+            />
         )
     }
 
@@ -41,8 +47,8 @@ export default function UserBadges({ user, showToOwner = true }) {
         return (
             <BadgeCheck
                 size={18}
-                className="text-blue-500 fill-blue-500"
-                title="Verified Account"
+                className="text-blue-500 fill-blue-500" // Blue
+                title="Verified"
             />
         )
     }

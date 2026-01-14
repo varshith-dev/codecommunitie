@@ -57,6 +57,10 @@ PASSWORD = os.environ.get("SMTP_PASSWORD")
 SUPABASE_URL = os.environ.get("VITE_SUPABASE_URL", "https://your-project.supabase.co")
 SUPABASE_SERVICE_ROLE_KEY = os.environ.get("SUPABASE_SERVICE_ROLE_KEY")
 
+if not SUPABASE_SERVICE_ROLE_KEY:
+    print("⚠️  WARNING: SUPABASE_SERVICE_ROLE_KEY is missing! Admin API calls will fail.")
+    print("👉 Check .env.local and ensure the key is present without quotes.")
+
 # --- CONCURRENCY ---
 class ThreadingTCPServer(socketserver.ThreadingMixIn, socketserver.TCPServer):
     daemon_threads = True

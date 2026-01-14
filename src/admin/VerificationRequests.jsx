@@ -71,7 +71,7 @@ export default function VerificationRequests() {
                     .from('verification_requests')
                     .select('*, profiles:user_id (id, username, display_name, profile_picture_url)')
                     .eq('status', 'pending')
-                    .order('requested_at', { ascending: false })
+                    .order('created_at', { ascending: false })
 
                 const { data, error } = await query
 
@@ -88,7 +88,7 @@ export default function VerificationRequests() {
 
                 setRequests(filteredData)
             } catch (err) {
-                console.warn('Sort by requested_at failed, retrying without sort:', err)
+                console.warn('Sort by created_at failed, retrying without sort:', err)
                 // Fallback: Fetch without sort
                 const { data: retryData, error: retryError } = await supabase
                     .from('verification_requests')
