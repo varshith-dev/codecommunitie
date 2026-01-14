@@ -462,19 +462,12 @@ export default function Settings({ session }) {
                                     <button
                                         onClick={async () => {
                                             try {
-                                                const response = await fetch('/api/send-password-reset', {
-                                                    method: 'POST',
-                                                    headers: { 'Content-Type': 'application/json' },
-                                                    body: JSON.stringify({ email: session.user.email })
+                                                // Using Supabase default until backend APIs are deployed
+                                                const { error } = await supabase.auth.resetPasswordForEmail(session.user.email, {
+                                                    redirectTo: `${window.location.origin}/reset-password`
                                                 })
-
-                                                const data = await response.json()
-
-                                                if (data.success) {
-                                                    toast.success('Password reset email sent! Check your inbox.')
-                                                } else {
-                                                    throw new Error(data.error || 'Failed to send email')
-                                                }
+                                                if (error) throw error
+                                                toast.success('Password reset email sent! Check your inbox.')
                                             } catch (error) {
                                                 toast.error(error.message || 'Failed to send reset email')
                                             }
