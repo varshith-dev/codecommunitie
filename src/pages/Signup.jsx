@@ -106,35 +106,29 @@ export default function Signup() {
             }
 
             if (user) {
-                // Try to send welcome email, but don't block signup if it fails
-                let emailSent = false
+                // Send custom verification email with secure token
                 try {
-                    const { EmailService } = await import('../services/EmailService')
-                    const { EmailTemplates, wrapInTemplate } = await import('../services/EmailTemplates')
-
-                    const template = EmailTemplates.SIGNUP_CONFIRMATION
-                    const html = wrapInTemplate(template.body(formData.username), template.title)
-
-                    await EmailService.send({
-                        recipientEmail: formData.email,
-                        memberName: formData.username,
-                        subject: template.subject(formData.username),
-                        htmlContent: html,
-                        templateType: 'SIGNUP_CONFIRMATION',
-                        triggeredBy: 'signup_flow'
+                    const response = await fetch('/api/send-verification-email', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            email: formData.email,
+                            userId: user.id
+                        })
                     })
-                    emailSent = true
+
+                    const data = await response.json()
+
+                    if (data.success) {
+                        toast.success('Account created! Check your email for verification link.')
+                    } else {
+                        toast.success('Account created! Please check your email for verification.')
+                    }
                 } catch (emailErr) {
-                    console.warn('Custom email service unavailable, using Supabase email:', emailErr)
-                    // Supabase automatically sends confirmation email
+                    console.error('Email send error:', emailErr)
+                    toast.success('Account created! Please check your email for verification.')
                 }
 
-                // Show appropriate message based on email status
-                if (emailSent) {
-                    toast.success('Account created! Please check your email for verification.')
-                } else {
-                    toast.success('Account created! Check your email for the confirmation link from Supabase.')
-                }
                 navigate('/verify-email', { state: { email: formData.email } })
             }
         } catch (error) {

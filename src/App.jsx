@@ -19,6 +19,7 @@ import ForgotPassword from './pages/ForgotPassword'
 import ResetPassword from './pages/ResetPassword'
 import LoginWithOTP from './pages/LoginWithOTP'
 import VerifyEmail from './pages/VerifyEmail'
+import VerifyEmailToken from './pages/VerifyEmailToken'
 import Feed from './pages/Feed'
 import CreatePost from './pages/CreatePost'
 import UserProfile from './pages/UserProfile'
@@ -176,6 +177,7 @@ export default function App() {
             <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/login-otp" element={!session ? <LoginWithOTP /> : <Navigate to="/" />} />
             <Route path="/verify-email" element={<VerifyEmail />} />
+            <Route path="/verify" element={<VerifyEmailToken />} />
             <Route path="/terms" element={<TermsOfService />} />
             <Route path="/privacy" element={<PrivacyPolicy />} />
 
