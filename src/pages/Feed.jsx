@@ -613,13 +613,7 @@ export default function Feed({ session }) {
               </div>
             )}
 
-            {/* Content Rating Warning */}
-            {post.content_rating === 'risk' && (
-              <div className="mb-2 p-2 bg-yellow-50 border border-yellow-200 rounded-lg flex items-center gap-2">
-                <AlertTriangle size={16} className="text-yellow-600 flex-shrink-0" />
-                <span className="text-xs font-medium text-yellow-800">⚠️ Watch at your own risk</span>
-              </div>
-            )}
+
 
             {post.title && (
               <h2 className="text-lg font-semibold text-gray-900">{post.title}</h2>

@@ -1,29 +1,27 @@
 -- ========================================
--- REMOVE OLD WARNING FLAGS FROM POSTS
+-- REMOVE POST WARNINGS (CORRECT VERSION)
 -- ========================================
--- Clears warning flags from old media review system
+-- Removes content_rating warnings from posts
 
--- Option 1: Remove all warnings from all posts
+-- First, check which posts have 'risk' rating
+SELECT id, title, content_rating, created_at
+FROM posts
+WHERE content_rating = 'risk'
+ORDER BY created_at DESC;
+
+-- Remove 'risk' rating from all posts (sets to NULL or 'safe')
 UPDATE posts
-SET media_warning = false,
-    requires_review = false
-WHERE media_warning = true OR requires_review = true;
+SET content_rating = NULL
+WHERE content_rating = 'risk';
 
--- Option 2: Remove warnings from specific posts (if you want to be selective)
--- Replace 'POST_ID_HERE' with actual post IDs
+-- Alternatively, set to 'safe'
 /*
 UPDATE posts
-SET media_warning = false,
-    requires_review = false
-WHERE id IN ('POST_ID_1', 'POST_ID_2', 'POST_ID_3');
+SET content_rating = 'safe'
+WHERE content_rating = 'risk';
 */
 
--- Check which posts had warnings
-SELECT id, title, media_warning, requires_review, created_at
+-- Verify removal
+SELECT COUNT(*) as posts_with_risk_rating
 FROM posts
-WHERE media_warning = true OR requires_review = true;
-
--- After running the update, verify they're cleared
-SELECT COUNT(*) as posts_with_warnings
-FROM posts
-WHERE media_warning = true OR requires_review = true;
+WHERE content_rating = 'risk';
