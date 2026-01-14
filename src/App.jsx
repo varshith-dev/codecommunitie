@@ -164,7 +164,14 @@ export default function App() {
             <Route path="email" element={<EmailComposer />} />
             <Route path="beta" element={<BetaManager />} />
             <Route path="releases" element={<ReleaseManager />} />
+            <Route path="prompt-settings" element={<PromptSettings />} />
             <Route path="table/:tableName" element={<TableViewer />} />
+          </Route>
+
+          {/* Advertiser Routes */}
+          <Route path="/advertiser">
+            <Route path="dashboard" element={session ? <AdvertiserDashboard session={session} /> : <Navigate to="/login" />} />
+            <Route path="create-campaign" element={session ? <CreateCampaign session={session} /> : <Navigate to="/login" />} />
           </Route>
 
           {/* === STANDARD APP ROUTES === */}
