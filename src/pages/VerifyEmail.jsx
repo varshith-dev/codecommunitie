@@ -177,7 +177,7 @@ export default function VerifyEmail() {
                             {loading ? <Loader2 className="animate-spin" /> : <>Send OTP Code <ArrowRight size={18} /></>}
                         </button>
                     </div>
-                ) : (
+                ) : step === 'verify' ? (
                     <div className="space-y-6">
                         <div className="flex justify-center gap-2">
                             {otp.map((digit, i) => (
@@ -215,34 +215,34 @@ export default function VerifyEmail() {
                         </button>
                     </div>
                 ) : step === 'verified' ? (
-                <div className="text-center space-y-6">
-                    <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto">
-                        <CheckCircle className="text-green-600" size={48} />
-                    </div>
+                    <div className="text-center space-y-6">
+                        <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto">
+                            <CheckCircle className="text-green-600" size={48} />
+                        </div>
 
-                    <div>
-                        <h2 className="text-2xl font-bold text-gray-900 mb-2">Email Verified!</h2>
-                        <p className="text-gray-600">
-                            Your email <span className="font-semibold text-blue-600">{email}</span> has been successfully verified.
-                        </p>
-                    </div>
+                        <div>
+                            <h2 className="text-2xl font-bold text-gray-900 mb-2">Email Verified!</h2>
+                            <p className="text-gray-600">
+                                Your email <span className="font-semibold text-blue-600">{email}</span> has been successfully verified.
+                            </p>
+                        </div>
 
-                    <div className="space-y-3">
-                        <button
-                            onClick={() => navigate('/')}
-                            className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl transition-all flex items-center justify-center gap-2"
-                        >
-                            Go to Home <ArrowRight size={18} />
-                        </button>
+                        <div className="space-y-3">
+                            <button
+                                onClick={() => navigate('/')}
+                                className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl transition-all flex items-center justify-center gap-2"
+                            >
+                                Go to Home <ArrowRight size={18} />
+                            </button>
 
-                        <button
-                            onClick={() => setStep('input')}
-                            className="w-full py-2 text-sm text-gray-500 hover:text-gray-700"
-                        >
-                            Verify another email
-                        </button>
+                            <button
+                                onClick={() => setStep('input')}
+                                className="w-full py-2 text-sm text-gray-500 hover:text-gray-700"
+                            >
+                                Verify another email
+                            </button>
+                        </div>
                     </div>
-                </div>
                 ) : null}
 
                 <div className="mt-8 text-center">
