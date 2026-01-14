@@ -8,26 +8,41 @@ const iconMap = {
     warning: AlertTriangle,
     info: Info,
     star: Star,
-    alert: Megaphone
+    alert: Megaphone,
+    success: Bell // Default for verified/success can be Bell too or Check
 }
 
-const colorMap = {
-    blue: 'bg-blue-50 border-blue-200 text-blue-900',
-    red: 'bg-red-50 border-red-200 text-red-900',
-    green: 'bg-green-50 border-green-200 text-green-900',
-    yellow: 'bg-yellow-50 border-yellow-200 text-yellow-900'
-}
-
-const buttonColorMap = {
-    blue: 'bg-blue-600 hover:bg-blue-700 text-white',
-    red: 'bg-red-600 hover:bg-red-700 text-white',
-    green: 'bg-green-600 hover:bg-green-700 text-white',
-    yellow: 'bg-yellow-600 hover:bg-yellow-700 text-white'
+// Map types to card styles
+const styleMap = {
+    info: {
+        bg: 'bg-blue-500',
+        text: 'text-white',
+        btnBg: 'bg-white',
+        btnText: 'text-blue-600'
+    },
+    success: {
+        bg: 'bg-[#3eb66d]', // Custom green from screenshot
+        text: 'text-white',
+        btnBg: 'bg-white',
+        btnText: 'text-[#3eb66d]' // Matching text color
+    },
+    warning: {
+        bg: 'bg-orange-500',
+        text: 'text-white',
+        btnBg: 'bg-white',
+        btnText: 'text-orange-600'
+    },
+    error: {
+        bg: 'bg-red-500',
+        text: 'text-white',
+        btnBg: 'bg-white',
+        btnText: 'text-red-600'
+    }
 }
 
 export default function UserPromptsWidget({ userId }) {
     const [prompts, setPrompts] = useState([])
-    const [dismissed, setDismissed] = useState([])
+    const [currentIndex, setCurrentIndex] = useState(0)
 
     useEffect(() => {
         if (!userId) return
@@ -36,13 +51,13 @@ export default function UserPromptsWidget({ userId }) {
 
         // Subscribe to new prompts
         const channel = supabase
-            .channel('user-prompts')
+            .channel('user-prompts-widget')
             .on(
                 'postgres_changes',
                 {
                     event: 'INSERT',
                     schema: 'public',
-                    table: 'automated_prompts',
+                    table: 'user_prompts', // Fixed table name from automated_prompts
                     filter: `user_id=eq.${userId}`
                 },
                 () => loadPrompts()
@@ -55,95 +70,94 @@ export default function UserPromptsWidget({ userId }) {
     }, [userId])
 
     const loadPrompts = async () => {
+        // Fetch prompts that are NOT dismissed
         const { data } = await supabase
-            .from('automated_prompts')
+            .from('user_prompts') // Fixed table name
             .select('*')
             .eq('user_id', userId)
-            .in('status', ['sent', 'viewed'])
+            .eq('is_dismissed', false)
             .order('created_at', { ascending: false })
             .limit(5)
 
         if (data) {
-            // Mark as viewed
-            const unviewedIds = data.filter(p => p.status === 'sent').map(p => p.id)
-            if (unviewedIds.length > 0) {
-                await supabase
-                    .from('automated_prompts')
-                    .update({ status: 'viewed', viewed_at: new Date().toISOString() })
-                    .in('id', unviewedIds)
-            }
-
-            setPrompts(data.filter(p => !dismissed.includes(p.id)))
+            setPrompts(data)
         }
     }
 
     const handleDismiss = async (promptId) => {
-        setDismissed(prev => [...prev, promptId])
+        // Optimistic update
+        const newPrompts = prompts.filter(p => p.id !== promptId)
+        setPrompts(newPrompts)
+
+        // Adjust index if needed
+        if (currentIndex >= newPrompts.length && newPrompts.length > 0) {
+            setCurrentIndex(newPrompts.length - 1)
+        }
 
         await supabase
-            .from('automated_prompts')
-            .update({
-                status: 'dismissed',
-                dismissed_at: new Date().toISOString()
-            })
+            .from('user_prompts')
+            .update({ is_dismissed: true })
             .eq('id', promptId)
     }
 
-    const handleClick = async (prompt) => {
-        await supabase
-            .from('automated_prompts')
-            .update({
-                status: 'clicked',
-                clicked_at: new Date().toISOString()
-            })
-            .eq('id', prompt.id)
+    if (prompts.length === 0) return null
 
-        setDismissed(prev => [...prev, prompt.id])
-    }
+    const currentPrompt = prompts[currentIndex]
+    if (!currentPrompt) return null
 
-    const activePrompts = prompts.filter(p => !dismissed.includes(p.id))
-
-    if (activePrompts.length === 0) return null
+    const Icon = iconMap[currentPrompt.icon] || Bell
+    const styles = styleMap[currentPrompt.type] || styleMap.info
 
     return (
-        <div className="space-y-3 mb-6">
-            {activePrompts.map(prompt => {
-                const Icon = iconMap[prompt.icon] || Bell
-                const colorClass = colorMap[prompt.btn_color] || colorMap.blue
-                const buttonClass = buttonColorMap[prompt.btn_color] || buttonColorMap.blue
-
-                return (
-                    <div
-                        key={prompt.id}
-                        className={`${colorClass} border rounded-xl p-4 shadow-sm animate-slide-down`}
-                    >
-                        <div className="flex items-start gap-3">
-                            <div className="mt-0.5">
-                                <Icon size={20} />
-                            </div>
-                            <div className="flex-1">
-                                <h4 className="font-semibold mb-1">{prompt.title}</h4>
-                                <p className="text-sm opacity-90">{prompt.message}</p>
-                                {prompt.action_url && prompt.btn_label && (
-                                    <Link
-                                        to={prompt.action_url}
-                                        onClick={() => handleClick(prompt)}
-                                        className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium mt-3 ${buttonClass} transition-colors`}
-                                    >
-                                        {prompt.btn_label}
-                                    </Link>
-                                )}
-                            </div>
-                            <button
-                                onClick={() => handleDismiss(prompt.id)}
-                                className="text-gray-400 hover:text-gray-600 transition-colors"
-                            >
-                                <X size={20} />
-                            </button>
-                        </div>
+        <div className="mb-6">
+            <div className={`relative rounded-xl p-5 shadow-lg ${styles.bg} ${styles.text} transition-colors duration-300`}>
+                {/* Header Row */}
+                <div className="flex justify-between items-start mb-2">
+                    <div className="flex items-center gap-2">
+                        <Icon size={20} className="fill-current text-white/90" />
+                        <h3 className="font-bold text-lg leading-tight">{currentPrompt.title}</h3>
+                        <span className="bg-white/20 px-2 py-0.5 rounded-full text-xs font-medium text-white/90">
+                            {currentIndex + 1}/{prompts.length}
+                        </span>
                     </div>
-                )
-            })}
+                    <button
+                        onClick={() => handleDismiss(currentPrompt.id)}
+                        className="text-white/80 hover:text-white transition-colors p-1"
+                    >
+                        <X size={18} />
+                    </button>
+                </div>
+
+                {/* Content */}
+                <p className="font-medium text-[15px] mb-4 opacity-95 leading-relaxed">
+                    {currentPrompt.message}
+                </p>
+
+                {/* Action Button */}
+                {currentPrompt.action_url && (
+                    <Link
+                        to={currentPrompt.action_url}
+                        className={`inline-block px-5 py-2 rounded-full font-bold text-sm shadow-sm ${styles.btnBg} ${styles.btnText} hover:opacity-90 transition-opacity`}
+                    >
+                        {currentPrompt.action_label || 'Check it'}
+                    </Link>
+                )}
+            </div>
+
+            {/* Pagination Dots */}
+            {prompts.length > 1 && (
+                <div className="flex justify-center gap-2 mt-3">
+                    {prompts.map((_, idx) => (
+                        <button
+                            key={idx}
+                            onClick={() => setCurrentIndex(idx)}
+                            className={`w-2 h-2 rounded-full transition-all duration-300 ${idx === currentIndex ? 'bg-blue-500 w-4' : 'bg-gray-300 hover:bg-gray-400'
+                                }`}
+                            aria-label={`Go to slide ${idx + 1}`}
+                        />
+                    ))}
+                </div>
+            )}
         </div>
     )
 }

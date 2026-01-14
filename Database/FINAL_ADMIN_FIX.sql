@@ -1,41 +1,82 @@
--- FINAL ADMIN FIX: Run this in Supabase SQL Editor
--- This script ensures all necessary columns exist and permissions are open for the Admin panel.
+-- FINAL ADMIN FIX
+-- 1. Ensure extensions and auth schema are accessible
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
--- 1. Ensure 'is_verified' and 'role' exist on profiles
-ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS is_verified BOOLEAN DEFAULT false;
-ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS role TEXT DEFAULT 'user';
-ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS is_banned BOOLEAN DEFAULT false;
-ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT NOW();
-ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT NOW();
+-- 2. Grant Admin Role by Username (Primary Target)
+UPDATE profiles
+SET role = 'admin'
+WHERE username = 'varshith.code';
 
--- 2. Ensure columns exist on posts
-ALTER TABLE public.posts ADD COLUMN IF NOT EXISTS image_url TEXT;
-ALTER TABLE public.posts ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT NOW();
+-- 3. Grant Admin Role by Email (Secondary Target, handling typos)
+UPDATE profiles
+SET role = 'admin'
+WHERE id IN (
+    SELECT id FROM auth.users 
+    WHERE email ILIKE 'varshithtillu08@%'
+);
 
--- 3. DISABLE RLS Policy (Simplest fix for Admins in development)
-ALTER TABLE public.profiles DISABLE ROW LEVEL SECURITY;
-ALTER TABLE public.posts DISABLE ROW LEVEL SECURITY;
-ALTER TABLE public.tags DISABLE ROW LEVEL SECURITY;
+-- 4. Re-create the function with CORRECT SEARCH PATH
+CREATE OR REPLACE FUNCTION admin_send_user_prompt(
+    p_user_id UUID,
+    p_title TEXT,
+    p_message TEXT,
+    p_icon TEXT,
+    p_type TEXT,
+    p_action_label TEXT,
+    p_action_url TEXT
+)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+-- IMPORTANT: Include 'auth' and 'extensions' in search_path so auth.uid() works!
+SET search_path = public, auth, extensions
+AS $$
+DECLARE
+    v_curr_user_id UUID;
+    v_is_admin BOOLEAN;
+    v_new_prompt_id UUID;
+    v_debug_role TEXT;
+BEGIN
+    -- Try to get user ID from auth.uid() or directly from settings
+    v_curr_user_id := auth.uid();
+    
+    -- Fallback: try raw setting if auth.uid() failed
+    IF v_curr_user_id IS NULL THEN
+        BEGIN
+            v_curr_user_id := current_setting('request.jwt.claim.sub', true)::uuid;
+        EXCEPTION WHEN OTHERS THEN
+            v_curr_user_id := NULL;
+        END;
+    END IF;
 
--- 4. Grant Permissions
-GRANT ALL ON public.profiles TO postgres, service_role;
-GRANT ALL ON public.profiles TO authenticated, anon;
+    -- Get current role for debugging
+    SELECT role INTO v_debug_role FROM profiles WHERE id = v_curr_user_id;
 
-GRANT ALL ON public.posts TO postgres, service_role;
-GRANT ALL ON public.posts TO authenticated, anon;
+    -- Check if the caller is an admin/moderator
+    SELECT EXISTS (
+        SELECT 1 FROM profiles
+        WHERE id = v_curr_user_id
+        AND role IN ('admin', 'moderator')
+    ) INTO v_is_admin;
 
-GRANT ALL ON public.tags TO postgres, service_role;
-GRANT ALL ON public.tags TO authenticated, anon;
+    IF NOT v_is_admin THEN
+        RAISE EXCEPTION 'Access denied. ID: %, Role: %. Make sure you are logged in.', v_curr_user_id, v_debug_role;
+    END IF;
 
--- 5. Fix Foreign Key relationships
--- Ensure posts.user_id references profiles.id
-DO $$ 
-BEGIN 
-  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'posts_user_id_fkey') THEN
-    ALTER TABLE public.posts 
-    ADD CONSTRAINT posts_user_id_fkey 
-    FOREIGN KEY (user_id) 
-    REFERENCES public.profiles(id) 
-    ON DELETE CASCADE;
-  END IF;
-END $$;
+    -- Insert the prompt
+    INSERT INTO user_prompts (
+        user_id, title, message, icon, type, action_label, action_url
+    )
+    VALUES (
+        p_user_id, p_title, p_message, p_icon, p_type, p_action_label, p_action_url
+    )
+    RETURNING id INTO v_new_prompt_id;
+
+    RETURN jsonb_build_object('success', true, 'id', v_new_prompt_id);
+END;
+$$;
+
+-- 5. Grant execute permissions
+GRANT EXECUTE ON FUNCTION admin_send_user_prompt TO authenticated;
+GRANT EXECUTE ON FUNCTION admin_send_user_prompt TO service_role;
+GRANT EXECUTE ON FUNCTION admin_send_user_prompt TO public; -- Fallback

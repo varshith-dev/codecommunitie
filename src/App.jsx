@@ -34,6 +34,7 @@ import PrivacyPolicy from './pages/PrivacyPolicy'
 import Referrals from './pages/Referrals'
 import AdvertiserDashboard from './advertiser/Dashboard'
 import CreateCampaign from './advertiser/CreateCampaign'
+import CampaignDetails from './advertiser/CampaignDetails'
 
 // Admin Components
 import AdminLayout from './admin/AdminLayout'
@@ -177,6 +178,7 @@ export default function App() {
           <Route path="/advertiser">
             <Route path="dashboard" element={session ? <AdvertiserDashboard session={session} /> : <Navigate to="/login" />} />
             <Route path="create-campaign" element={session ? <CreateCampaign session={session} /> : <Navigate to="/login" />} />
+            <Route path="campaign/:id" element={session ? <CampaignDetails session={session} /> : <Navigate to="/login" />} />
           </Route>
 
           {/* === STANDARD APP ROUTES === */}

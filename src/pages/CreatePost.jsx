@@ -33,6 +33,11 @@ export default function CreatePost() {
     if (user) {
       const { data } = await supabase.from('profiles').select('is_verified, role').eq('id', user.id).single()
       setUserProfile(data)
+
+      if (data?.role === 'advertiser') {
+        toast.error('Advertisers should use the Ad Dashboard')
+        navigate('/advertiser/dashboard')
+      }
     }
   }
 

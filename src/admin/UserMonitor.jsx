@@ -65,19 +65,18 @@ export default function UserMonitor() {
     const sendMessage = async () => {
         if (!promptTitle || !promptMessage) return toast.error('All fields required')
 
-        const { error } = await supabase
-            .from('user_prompts')
-            .insert({
-                user_id: selectedUser.id,
-                title: promptTitle,
-                message: promptMessage,
-                type: promptType,
-                action_url: '/settings', // Default action
-                action_label: 'View Settings'
-            })
+        const { error } = await supabase.rpc('admin_send_user_prompt', {
+            p_user_id: selectedUser.id,
+            p_title: promptTitle,
+            p_message: promptMessage,
+            p_icon: 'bell', // Default icon for quick messages
+            p_type: promptType,
+            p_action_url: '/settings',
+            p_action_label: 'View Settings'
+        })
 
         if (error) {
-            toast.error('Failed to send message')
+            toast.error('Failed to send message: ' + error.message)
         } else {
             toast.success('Message sent successfully')
             setShowMessageModal(false)
@@ -170,8 +169,8 @@ export default function UserMonitor() {
                                             <button
                                                 onClick={() => handleBan(user)}
                                                 className={`p-2 rounded-lg transition-colors border border-transparent ${user.is_banned
-                                                        ? 'text-gray-400 hover:text-green-600 hover:bg-green-50 hover:border-green-100'
-                                                        : 'text-gray-400 hover:text-red-600 hover:bg-red-50 hover:border-red-100'
+                                                    ? 'text-gray-400 hover:text-green-600 hover:bg-green-50 hover:border-green-100'
+                                                    : 'text-gray-400 hover:text-red-600 hover:bg-red-50 hover:border-red-100'
                                                     }`}
                                                 title={user.is_banned ? "Unban User" : "Ban User"}
                                             >

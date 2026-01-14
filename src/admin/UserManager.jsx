@@ -178,17 +178,16 @@ export default function UserManager() {
         if (!promptTitle) return toast.error('Title is required')
         setProcessing(true)
 
-        const { error } = await supabase
-            .from('user_prompts')
-            .insert({
-                user_id: userId,
-                title: promptTitle,
-                message: promptMessage,
-                action_label: promptActionLabel || null,
-                action_url: promptActionUrl || null,
-                type: promptType,
-                icon: promptIcon
-            })
+        // Use secure RPC call to bypass RLS issues
+        const { error } = await supabase.rpc('admin_send_user_prompt', {
+            p_user_id: userId,
+            p_title: promptTitle,
+            p_message: promptMessage,
+            p_icon: promptIcon,
+            p_type: promptType,
+            p_action_label: promptActionLabel || null,
+            p_action_url: promptActionUrl || null
+        })
 
         if (error) {
             toast.error('Failed to send prompt: ' + error.message)
@@ -199,6 +198,8 @@ export default function UserManager() {
             setPromptMessage('')
             setPromptActionLabel('')
             setPromptActionUrl('')
+            // Refresh history
+            fetchUserData()
         }
         setProcessing(false)
     }

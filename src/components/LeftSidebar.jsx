@@ -1,4 +1,5 @@
-import { Home, Search, PlusSquare, User, Zap, Settings, LogOut, Bookmark, BookMarked } from 'lucide-react'
+import React from 'react'
+import { Home, Search, PlusSquare, User, Zap, Settings, LogOut, Bookmark, BookMarked, Megaphone } from 'lucide-react'
 import { Link, useLocation } from 'react-router-dom'
 import { supabase } from '../supabaseClient'
 import Avatar from './Avatar'
@@ -8,6 +9,17 @@ export default function LeftSidebar({ session }) {
     const path = location.pathname
 
     const isActive = (p) => path === p
+    const [userRole, setUserRole] = React.useState(null)
+
+    React.useEffect(() => {
+        if (session?.user) {
+            supabase.from('profiles')
+                .select('role')
+                .eq('id', session.user.id)
+                .single()
+                .then(({ data }) => setUserRole(data?.role))
+        }
+    }, [session])
 
     const navItems = [
         { icon: Home, label: 'Home', path: '/' },
@@ -33,8 +45,8 @@ export default function LeftSidebar({ session }) {
                         key={item.path}
                         to={item.path}
                         className={`flex items-center gap-4 px-4 py-3.5 rounded-2xl transition-all group ${isActive(item.path)
-                                ? 'bg-blue-50 text-blue-600 font-bold'
-                                : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900 font-medium'
+                            ? 'bg-blue-50 text-blue-600 font-bold'
+                            : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900 font-medium'
                             }`}
                     >
                         <item.icon size={26} strokeWidth={isActive(item.path) ? 2.5 : 2} className="transition-transform group-hover:scale-110" />
@@ -42,13 +54,24 @@ export default function LeftSidebar({ session }) {
                     </Link>
                 ))}
 
-                <Link
-                    to="/create"
-                    className="flex items-center gap-4 px-4 py-3.5 mt-8 rounded-2xl bg-blue-600 text-white font-bold shadow-lg shadow-blue-500/30 hover:bg-blue-700 hover:shadow-xl transition-all transform hover:-translate-y-0.5"
-                >
-                    <PlusSquare size={26} />
-                    <span className="text-lg">Create Post</span>
-                </Link>
+                {/* Dynamic Button based on Role */}
+                {userRole === 'advertiser' ? (
+                    <Link
+                        to="/advertiser/dashboard"
+                        className="flex items-center gap-4 px-4 py-3.5 mt-8 rounded-2xl bg-gradient-to-r from-green-600 to-emerald-600 text-white font-bold shadow-lg shadow-green-500/30 hover:bg-green-700 hover:shadow-xl transition-all transform hover:-translate-y-0.5"
+                    >
+                        <Megaphone size={26} />
+                        <span className="text-lg">Ad Dashboard</span>
+                    </Link>
+                ) : (
+                    <Link
+                        to="/create"
+                        className="flex items-center gap-4 px-4 py-3.5 mt-8 rounded-2xl bg-blue-600 text-white font-bold shadow-lg shadow-blue-500/30 hover:bg-blue-700 hover:shadow-xl transition-all transform hover:-translate-y-0.5"
+                    >
+                        <PlusSquare size={26} />
+                        <span className="text-lg">Create Post</span>
+                    </Link>
+                )}
             </nav>
 
             {/* User Mini Profile */}
