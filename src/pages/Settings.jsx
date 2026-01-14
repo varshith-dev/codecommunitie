@@ -229,10 +229,10 @@ export default function Settings({ session }) {
                                 key={tab.id}
                                 onClick={() => setSearchParams({ tab: tab.id })}
                                 className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition-all border ${activeTab === tab.id
-                                        ? (tab.beta ? 'bg-purple-50 text-purple-700 border-purple-200 shadow-sm' : 'bg-blue-50 text-blue-600 border-transparent shadow-sm')
-                                        : (tab.beta
-                                            ? 'bg-purple-50/30 text-gray-700 border-purple-200/50 hover:bg-purple-50 hover:border-purple-200 backdrop-blur-sm'
-                                            : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900 border-transparent')
+                                    ? (tab.beta ? 'bg-purple-50 text-purple-700 border-purple-200 shadow-sm' : 'bg-blue-50 text-blue-600 border-transparent shadow-sm')
+                                    : (tab.beta
+                                        ? 'bg-purple-50/30 text-gray-700 border-purple-200/50 hover:bg-purple-50 hover:border-purple-200 backdrop-blur-sm'
+                                        : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900 border-transparent')
                                     }`}
                             >
                                 <tab.icon size={18} className={tab.beta ? (activeTab === tab.id ? "text-purple-600" : "text-purple-400") : ""} />
@@ -462,11 +462,19 @@ export default function Settings({ session }) {
                                     <button
                                         onClick={async () => {
                                             try {
-                                                const { error } = await supabase.auth.resetPasswordForEmail(session.user.email, {
-                                                    redirectTo: `${window.location.origin}/reset-password`
+                                                const response = await fetch('/api/send-password-reset', {
+                                                    method: 'POST',
+                                                    headers: { 'Content-Type': 'application/json' },
+                                                    body: JSON.stringify({ email: session.user.email })
                                                 })
-                                                if (error) throw error
-                                                toast.success('Password reset email sent! Check your inbox.')
+
+                                                const data = await response.json()
+
+                                                if (data.success) {
+                                                    toast.success('Password reset email sent! Check your inbox.')
+                                                } else {
+                                                    throw new Error(data.error || 'Failed to send email')
+                                                }
                                             } catch (error) {
                                                 toast.error(error.message || 'Failed to send reset email')
                                             }
