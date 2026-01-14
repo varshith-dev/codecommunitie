@@ -1,129 +1,100 @@
 import { supabase } from '../supabaseClient'
 
-/**
- * Email Service - Refactored to use Supabase Auth
- * No backend API server required!
- */
+const API_BASE_URL = import.meta.env.PROD ? '/api' : 'http://localhost:8000'
+const SEND_EMAIL_URL = `${API_BASE_URL}/send-email`
+const GENERATE_LINK_URL = `${API_BASE_URL}/generate-link`
+const OTP_URL = `${API_BASE_URL}/otp`
+
 export const EmailService = {
     /**
-     * Send OTP Code using Supabase Auth
-     * Supabase automatically sends the OTP email if SMTP is configured
+     * Send OTP Code
      */
     sendOTP: async (email) => {
-        try {
-            const { error } = await supabase.auth.signInWithOtp({
-                email,
-                options: {
-                    shouldCreateUser: false // Don't create new user, just send OTP
-                }
-            })
-
-            if (error) throw error
-            return { success: true, message: 'OTP sent successfully' }
-        } catch (error) {
-            console.error('Send OTP error:', error)
-            throw new Error(error.message || 'Failed to send OTP')
-        }
+        const response = await fetch(OTP_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'send', email })
+        })
+        const data = await response.json()
+        if (!response.ok) throw new Error(data.error || 'Failed to send OTP')
+        return data
     },
 
     /**
-     * Verify OTP Code using Supabase Auth
+     * Verify OTP Code
      */
-    verifyOTP: async (email, token) => {
-        try {
-            const { data, error } = await supabase.auth.verifyOtp({
-                email,
-                token,
-                type: 'email'
-            })
-
-            if (error) throw error
-            return {
-                success: true,
-                message: 'Verified successfully',
-                user: data.user,
-                session: data.session
-            }
-        } catch (error) {
-            console.error('Verify OTP error:', error)
-            throw new Error(error.message || 'Failed to verify OTP')
-        }
+    verifyOTP: async (email, code) => {
+        const response = await fetch(OTP_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'verify', email, code })
+        })
+        const data = await response.json()
+        if (!response.ok) throw new Error(data.error || 'Failed to verified OTP')
+        return data
     },
 
     /**
-     * Send Password Reset Email using Supabase Auth
-     * Supabase automatically sends reset link email
+     * Send Password Reset OTP
      */
     sendResetOTP: async (email) => {
-        try {
-            const { error } = await supabase.auth.resetPasswordForEmail(email, {
-                redirectTo: `${window.location.origin}/reset-password`
-            })
-
-            if (error) throw error
-            return { success: true, message: 'Password reset email sent' }
-        } catch (error) {
-            console.error('Send reset email error:', error)
-            throw new Error(error.message || 'Failed to send reset email')
-        }
+        const response = await fetch(OTP_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'forgot_password', email })
+        })
+        const data = await response.json()
+        if (!response.ok) throw new Error(data.error || 'Failed to send Reset OTP')
+        return data
     },
 
     /**
-     * Reset Password - Use Supabase's session-based reset
-     * This method is called after user clicks the reset link in email
+     * Reset Password with OTP
      */
     resetPasswordWithOTP: async (email, code, newPassword) => {
-        try {
-            // First verify the OTP/code
-            const { data, error: verifyError } = await supabase.auth.verifyOtp({
-                email,
-                token: code,
-                type: 'recovery'
-            })
-
-            if (verifyError) throw verifyError
-
-            // Then update the password
-            const { error: updateError } = await supabase.auth.updateUser({
-                password: newPassword
-            })
-
-            if (updateError) throw updateError
-
-            return { success: true, message: 'Password updated successfully' }
-        } catch (error) {
-            console.error('Reset password error:', error)
-            throw new Error(error.message || 'Failed to reset password')
-        }
+        const response = await fetch(OTP_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'reset_password', email, code, newPassword })
+        })
+        const data = await response.json()
+        if (!response.ok) throw new Error(data.error || 'Failed to reset password')
+        return data
     },
     /**
-     * Send custom emails (for admin features)
-     * Note: This requires Supabase SMTP to be configured or will log as failed
-     * For production, consider using Supabase Edge Functions with Resend
+     * Sends an email via the local Python backend and logs it to Supabase.
+     * @param {Object} params - { recipientEmail, memberName, subject, htmlContent, templateType, triggeredBy }
      */
     send: async ({ recipientEmail, memberName, subject, htmlContent, templateType = 'CUSTOM', triggeredBy = 'admin' }) => {
         let status = 'sent'
         let errorMessage = null
 
         try {
-            // For now, we log the intent to send
-            // In production, you should set up Supabase SMTP or use Edge Functions
-            console.warn('Custom email send requested. Configure Supabase SMTP or create Edge Function for actual delivery.')
-            console.log('Email details:', { recipientEmail, subject, templateType })
+            // 1. Send via Backend (Python local or Vercel Prod)
+            const response = await fetch(SEND_EMAIL_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    recipientEmail,
+                    memberName, // Optional, for backend logging/fallback
+                    subject,
+                    htmlContent
+                })
+            })
 
-            // You can implement actual sending here using:
-            // 1. Supabase SMTP (if configured)
-            // 2. Supabase Edge Function with Resend
-            // 3. Third-party email service
+            const data = await response.json()
 
-            status = 'pending' // Mark as pending until you implement actual sending
+            if (!response.ok) {
+                throw new Error(data.message || 'Failed to send via backend')
+            }
 
         } catch (error) {
             console.error('EmailService Send Error:', error)
             status = 'failed'
             errorMessage = error.message
+            throw error // Re-throw to let the UI know
         } finally {
-            // Log to Supabase for tracking
+            // 2. Log to Supabase (Fire and Forget)
             try {
                 await supabase.from('email_logs').insert({
                     recipient_email: recipientEmail,
@@ -154,9 +125,32 @@ export const EmailService = {
     },
 
     /**
+     * Generates a Supabase Verification Link via the Backend.
+     */
+    generateVerificationLink: async (email, redirectTo) => {
+        try {
+            const response = await fetch(GENERATE_LINK_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email, redirectTo })
+            })
+
+            const data = await response.json()
+            if (!response.ok) throw new Error(data.message || 'Failed to generate link')
+
+            return data.link
+        } catch (error) {
+            console.error('Failed to generate verification link:', error)
+            return null // Fallback to generic if fails
+        }
+    },
+
+    /**
      * Get stats for the dashboard.
      */
     getStats: async () => {
+        // Fetch specifically for counts. This is a naive implementation.
+        // Ideally use .count() with filters.
         const { count: total } = await supabase.from('email_logs').select('*', { count: 'exact', head: true })
         const { count: sent } = await supabase.from('email_logs').select('*', { count: 'exact', head: true }).eq('status', 'sent')
         const { count: failed } = await supabase.from('email_logs').select('*', { count: 'exact', head: true }).eq('status', 'failed')
