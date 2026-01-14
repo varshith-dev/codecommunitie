@@ -33,9 +33,14 @@ export default function Signup() {
     }, [searchParams])
 
     const handleChange = (e) => {
+        const { name, value } = e.target
+
+        // Replace spaces with underscores for username
+        const processedValue = name === 'username' ? value.replace(/\s+/g, '_') : value
+
         setFormData(prev => ({
             ...prev,
-            [e.target.name]: e.target.value
+            [name]: processedValue
         }))
     }
 
