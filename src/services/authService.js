@@ -1,4 +1,5 @@
 import { supabase } from '../supabaseClient'
+import { trackDeviceLogin } from './deviceTracking'
 
 /**
  * Authentication Service
@@ -51,9 +52,25 @@ export async function signInWithEmail(email, password) {
         })
 
         if (error) throw error
+
+        // CHECK IF EMAIL IS VERIFIED
+        if (!data.user.email_confirmed_at) {
+            // Sign them out immediately
+            await supabase.auth.signOut()
+
+            // Return custom error
+            const verificationError = new Error('Please verify your email before logging in')
+            verificationError.code = 'EMAIL_NOT_VERIFIED'
+            verificationError.userEmail = email
+            throw verificationError
+        }
+
+        // TRACK DEVICE LOGIN
+        await trackDeviceLogin(data.user.id)
+
         return { user: data.user, session: data.session, error: null }
     } catch (error) {
-        console.error('Login error:', error)
+        console.error('Sign in error:', error)
         return { user: null, session: null, error }
     }
 }

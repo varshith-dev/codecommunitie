@@ -25,10 +25,19 @@ export default function Login() {
             const { user, error } = await signInWithEmail(email, password)
 
             if (error) {
+                // Check for email verification error
+                if (error.code === 'EMAIL_NOT_VERIFIED') {
+                    toast.error('Please verify your email before logging in')
+                    // Redirect to verification page with email prefilled
+                    navigate('/verify-email', { state: { email: error.userEmail || email } })
+                    return
+                }
+
                 if (error.message?.includes('Invalid login credentials')) {
                     toast.error('Invalid email or password')
                 } else if (error.message?.includes('Email not confirmed')) {
                     toast.error('Please verify your email before logging in')
+                    navigate('/verify-email', { state: { email } })
                 } else {
                     toast.error(error.message || 'Login failed')
                 }
