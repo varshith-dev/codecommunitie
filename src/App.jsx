@@ -35,6 +35,9 @@ import Referrals from './pages/Referrals'
 import AdvertiserDashboard from './advertiser/Dashboard'
 import CreateCampaign from './advertiser/CreateCampaign'
 import CampaignDetails from './advertiser/CampaignDetails'
+import AdminAdManager from './admin/AdminAdManager'
+
+
 
 // Admin Components
 import AdminLayout from './admin/AdminLayout'
@@ -168,6 +171,7 @@ export default function App() {
             <Route path="features" element={<FeatureManager />} />
             <Route path="email" element={<EmailComposer />} />
             <Route path="referrals" element={<AdminReferrals />} />
+            <Route path="ads" element={<AdminAdManager />} />
             <Route path="beta" element={<BetaManager />} />
             <Route path="releases" element={<ReleaseManager />} />
             <Route path="prompt-settings" element={<PromptSettings />} />

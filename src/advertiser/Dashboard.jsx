@@ -3,7 +3,7 @@ import { supabase } from '../supabaseClient'
 import { useNavigate } from 'react-router-dom'
 import {
     BarChart3, TrendingUp, DollarSign, Eye, MousePointerClick,
-    Plus, Settings as SettingsIcon, Pause, Play, Trash2
+    Plus, Settings as SettingsIcon, Pause, Play, Trash2, Edit2, RefreshCw
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 
@@ -11,6 +11,7 @@ export default function AdvertiserDashboard({ session }) {
     const navigate = useNavigate()
     const [loading, setLoading] = useState(true)
     const [campaigns, setCampaigns] = useState([])
+    const [editingCampaign, setEditingCampaign] = useState(null)
     const [stats, setStats] = useState({
         totalCampaigns: 0,
         activeCampaigns: 0,
@@ -27,7 +28,7 @@ export default function AdvertiserDashboard({ session }) {
     const checkAdvertiserAccess = async () => {
         const { data: profile } = await supabase
             .from('profiles')
-            .select('role') // Changed from is_advertiser to role
+            .select('role')
             .eq('id', session.user.id)
             .single()
 
@@ -46,7 +47,8 @@ export default function AdvertiserDashboard({ session }) {
                     advertisements (
                         id,
                         impressions,
-                        clicks
+                        clicks,
+                        status
                     )
                 `)
                 .eq('advertiser_id', session.user.id)
@@ -87,6 +89,73 @@ export default function AdvertiserDashboard({ session }) {
         setStats(stats)
     }
 
+    const handlePauseCampaign = async (campaignId) => {
+        try {
+            const { error } = await supabase
+                .from('ad_campaigns')
+                .update({ status: 'paused' })
+                .eq('id', campaignId)
+
+            if (error) throw error
+
+            toast.success('Campaign paused')
+            fetchCampaigns()
+        } catch (error) {
+            toast.error('Failed to pause campaign')
+        }
+    }
+
+    const handleActivateCampaign = async (campaignId) => {
+        try {
+            const { error } = await supabase
+                .from('ad_campaigns')
+                .update({ status: 'active' })
+                .eq('id', campaignId)
+
+            if (error) throw error
+
+            toast.success('Campaign activated')
+            fetchCampaigns()
+        } catch (error) {
+            toast.error('Failed to activate campaign')
+        }
+    }
+
+    const handleDeleteCampaign = async (campaignId) => {
+        if (!confirm('Are you sure you want to delete this campaign? This action cannot be undone.')) return
+
+        try {
+            const { error } = await supabase
+                .from('ad_campaigns')
+                .delete()
+                .eq('id', campaignId)
+
+            if (error) throw error
+
+            toast.success('Campaign deleted')
+            fetchCampaigns()
+        } catch (error) {
+            toast.error('Failed to delete campaign')
+        }
+    }
+
+    const handleEditCampaign = async (campaignId, updates) => {
+        try {
+            const { error } = await supabase
+                .from('ad_campaigns')
+                .update(updates)
+                .eq('id', campaignId)
+
+            if (error) throw error
+
+            toast.success('Campaign updated')
+            setEditingCampaign(null)
+            fetchCampaigns()
+        } catch (error) {
+            toast.error('Failed to update campaign')
+        }
+    }
+
     if (loading) {
         return (
             <div className="max-w-7xl mx-auto p-6">
@@ -110,13 +179,23 @@ export default function AdvertiserDashboard({ session }) {
                     <h1 className="text-3xl font-bold text-gray-900">Advertiser Dashboard</h1>
                     <p className="text-gray-600 mt-1">Manage your campaigns and track performance</p>
                 </div>
-                <button
-                    onClick={() => navigate('/advertiser/create-campaign')}
-                    className="px-6 py-3 bg-blue-600 text-white rounded-xl font-semibold flex items-center gap-2 hover:bg-blue-700 transition-colors"
-                >
-                    <Plus size={20} />
-                    Create Campaign
-                </button>
+                <div className="flex gap-3">
+                    <button
+                        onClick={fetchCampaigns}
+                        className="px-4 py-3 bg-gray-100 text-gray-700 rounded-xl font-semibold flex items-center gap-2 hover:bg-gray-200 transition-colors"
+                        title="Refresh Data"
+                    >
+                        <RefreshCw size={20} />
+                        Refresh
+                    </button>
+                    <button
+                        onClick={() => navigate('/advertiser/create-campaign')}
+                        className="px-6 py-3 bg-blue-600 text-white rounded-xl font-semibold flex items-center gap-2 hover:bg-blue-700 transition-colors"
+                    >
+                        <Plus size={20} />
+                        Create Campaign
+                    </button>
+                </div>
             </div>
 
             {/* Stats Cards */}
@@ -176,7 +255,7 @@ export default function AdvertiserDashboard({ session }) {
 
             {/* Campaigns List */}
             <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-                <div className="px-6 py-4 border-b border-gray-200">
+                <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
                     <h2 className="text-lg font-semibold text-gray-900">Your Campaigns</h2>
                 </div>
 
@@ -195,49 +274,88 @@ export default function AdvertiserDashboard({ session }) {
                     </div>
                 ) : (
                     <div className="divide-y divide-gray-200">
-                        {campaigns.map(campaign => (
-                            <div key={campaign.id} className="p-6 hover:bg-gray-50 transition-colors">
-                                <div className="flex justify-between items-start">
-                                    <div className="flex-1">
-                                        <div className="flex items-center gap-3 mb-2">
-                                            <h3 className="text-lg font-semibold text-gray-900">{campaign.name}</h3>
-                                            <span className={`px-2 py-1 text-xs font-semibold rounded-full ${campaign.status === 'active' ? 'bg-green-100 text-green-700' :
-                                                campaign.status === 'paused' ? 'bg-yellow-100 text-yellow-700' :
-                                                    'bg-gray-100 text-gray-700'
-                                                }`}>
-                                                {campaign.status}
-                                            </span>
+                        {campaigns.map(campaign => {
+                            const isEditing = editingCampaign === campaign.id
+                            const totalImpressions = campaign.advertisements?.reduce((sum, ad) => sum + (ad.impressions || 0), 0) || 0
+                            const totalClicks = campaign.advertisements?.reduce((sum, ad) => sum + (ad.clicks || 0), 0) || 0
+                            const activeAds = campaign.advertisements?.filter(ad => ad.status === 'active').length || 0
+
+                            return (
+                                <div key={campaign.id} className="p-6 hover:bg-gray-50 transition-colors">
+                                    <div className="flex justify-between items-start">
+                                        <div className="flex-1">
+                                            <div className="flex items-center gap-3 mb-2">
+                                                <h3 className="text-lg font-semibold text-gray-900">{campaign.name}</h3>
+                                                <span className={`px-2 py-1 text-xs font-semibold rounded-full ${campaign.status === 'active' ? 'bg-green-100 text-green-700' :
+                                                        campaign.status === 'paused' ? 'bg-yellow-100 text-yellow-700' :
+                                                            'bg-gray-100 text-gray-700'
+                                                    }`}>
+                                                    {campaign.status.toUpperCase()}
+                                                </span>
+                                            </div>
+                                            {campaign.description && (
+                                                <p className="text-gray-600 text-sm mb-3">{campaign.description}</p>
+                                            )}
+                                            <div className="grid grid-cols-2 md:grid-cols-5 gap-4 text-sm">
+                                                <div>
+                                                    <span className="text-gray-500">Budget:</span>
+                                                    <span className="ml-2 font-semibold">₹{campaign.budget}</span>
+                                                </div>
+                                                <div>
+                                                    <span className="text-gray-500">Spent:</span>
+                                                    <span className="ml-2 font-semibold text-orange-600">₹{campaign.spent}</span>
+                                                </div>
+                                                <div>
+                                                    <span className="text-gray-500">Ads:</span>
+                                                    <span className="ml-2 font-semibold">{campaign.advertisements?.length || 0} ({activeAds} active)</span>
+                                                </div>
+                                                <div>
+                                                    <span className="text-gray-500">Impressions:</span>
+                                                    <span className="ml-2 font-semibold text-purple-600">{totalImpressions.toLocaleString()}</span>
+                                                </div>
+                                                <div>
+                                                    <span className="text-gray-500">Clicks:</span>
+                                                    <span className="ml-2 font-semibold text-blue-600">{totalClicks.toLocaleString()}</span>
+                                                </div>
+                                            </div>
                                         </div>
-                                        {campaign.description && (
-                                            <p className="text-gray-600 text-sm mb-3">{campaign.description}</p>
-                                        )}
-                                        <div className="flex gap-6 text-sm">
-                                            <div>
-                                                <span className="text-gray-500">Budget:</span>
-                                                <span className="ml-2 font-semibold">${campaign.budget}</span>
-                                            </div>
-                                            <div>
-                                                <span className="text-gray-500">Spent:</span>
-                                                <span className="ml-2 font-semibold">${campaign.spent}</span>
-                                            </div>
-                                            <div>
-                                                <span className="text-gray-500">Ads:</span>
-                                                <span className="ml-2 font-semibold">{campaign.advertisements?.length || 0}</span>
-                                            </div>
+                                        <div className="flex gap-2 ml-4">
+                                            {campaign.status === 'active' ? (
+                                                <button
+                                                    onClick={() => handlePauseCampaign(campaign.id)}
+                                                    className="p-2 text-yellow-600 hover:text-yellow-700 hover:bg-yellow-50 rounded-lg transition-colors"
+                                                    title="Pause Campaign"
+                                                >
+                                                    <Pause size={20} />
+                                                </button>
+                                            ) : (
+                                                <button
+                                                    onClick={() => handleActivateCampaign(campaign.id)}
+                                                    className="p-2 text-green-600 hover:text-green-700 hover:bg-green-50 rounded-lg transition-colors"
+                                                    title="Activate Campaign"
+                                                >
+                                                    <Play size={20} />
+                                                </button>
+                                            )}
+                                            <button
+                                                onClick={() => navigate(`/advertiser/campaign/${campaign.id}`)}
+                                                className="p-2 text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-colors"
+                                                title="Manage Ads"
+                                            >
+                                                <SettingsIcon size={20} />
+                                            </button>
+                                            <button
+                                                onClick={() => handleDeleteCampaign(campaign.id)}
+                                                className="p-2 text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors"
+                                                title="Delete Campaign"
+                                            >
+                                                <Trash2 size={20} />
+                                            </button>
                                         </div>
-                                    </div>
-                                    <div className="flex gap-2">
-                                        <button
-                                            onClick={() => navigate(`/advertiser/campaign/${campaign.id}`)}
-                                            className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg"
-                                            title="View Details"
-                                        >
-                                            <SettingsIcon size={20} />
-                                        </button>
                                     </div>
                                 </div>
-                            </div>
-                        ))}
+                            )
+                        })}
                     </div>
                 )}
             </div>
