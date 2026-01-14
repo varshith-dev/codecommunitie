@@ -1,18 +1,15 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useLocation, Link } from 'react-router-dom'
-import { EmailService } from '../services/EmailService'
-import { supabase } from '../supabaseClient'
 import toast from 'react-hot-toast'
-import { Lock, Code2, KeyRound, Eye, EyeOff, ArrowLeft, XCircle } from 'lucide-react'
+import { Lock, Code2, KeyRound, Eye, EyeOff, XCircle } from 'lucide-react'
 
 export default function ResetPassword() {
     const navigate = useNavigate()
     const location = useLocation()
 
-    // Check if there's a valid reset token in URL hash
     const [hasValidToken, setHasValidToken] = useState(null) // null = checking, true/false = result
-    const [email, setEmail] = useState(location.state?.email || '')
-    const [code, setCode] = useState('')
+    const [email, setEmail] = useState('')
+    const [resetToken, setResetToken] = useState('')
     const [password, setPassword] = useState('')
     const [confirmPassword, setConfirmPassword] = useState('')
 
@@ -22,21 +19,33 @@ export default function ResetPassword() {
     // Check for valid reset token on mount
     useEffect(() => {
         const checkResetToken = async () => {
-            const hashParams = new URLSearchParams(location.hash.substring(1))
-            const accessToken = hashParams.get('access_token')
-            const type = hashParams.get('type')
+            const queryParams = new URLSearchParams(location.search)
+            const token = queryParams.get('token')
 
-            // If there's an access_token and type=recovery, it's a valid reset link
-            if (accessToken && type === 'recovery') {
-                setHasValidToken(true)
+            if (!token) {
+                setHasValidToken(false)
+                return
+            }
 
-                // Get session to pre-fill email
-                const { data: { session } } = await supabase.auth.getSession()
-                if (session?.user?.email) {
-                    setEmail(session.user.email)
+            // Verify token via custom API
+            try {
+                const response = await fetch('/api/verify-reset-token', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ token })
+                })
+
+                const data = await response.json()
+
+                if (data.success) {
+                    setHasValidToken(true)
+                    setEmail(data.email || '')
+                    setResetToken(token)
+                } else {
+                    setHasValidToken(false)
                 }
-            } else {
-                // No valid reset token
+            } catch (error) {
+                console.error('Token verification error:', error)
                 setHasValidToken(false)
             }
         }
@@ -65,17 +74,23 @@ export default function ResetPassword() {
         setLoading(true)
 
         try {
-            // Update password using Supabase Auth (works with the reset token in URL)
-            const { error } = await supabase.auth.updateUser({
-                password: password
+            // Reset password via custom API
+            const response = await fetch('/api/reset-password-with-token', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    token: resetToken,
+                    newPassword: password
+                })
             })
 
-            if (error) throw error
+            const data = await response.json()
+
+            if (!data.success) {
+                throw new Error(data.message || data.error || 'Failed to reset password')
+            }
 
             toast.success('Password updated successfully! Redirecting to login...')
-
-            // Sign out and redirect to login
-            await supabase.auth.signOut()
             setTimeout(() => navigate('/login'), 2000)
         } catch (error) {
             console.error('Reset password error:', error)
@@ -142,7 +157,8 @@ export default function ResetPassword() {
                         <h1 className="text-2xl font-bold text-gray-900">CodeKrafts</h1>
                     </div>
                     <h2 className="text-xl font-bold text-gray-900 mb-1">Set New Password</h2>
-                    <p className="text-gray-500">Enter the code sent to your email and your new password.</p>
+                    <p className="text-gray-500">Enter your new password below</p>
+                    {email && <p className="text-sm text-gray-500 mt-2">for {email}</p>}
                 </div>
 
                 {/* Form */}
