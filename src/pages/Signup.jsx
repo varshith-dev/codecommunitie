@@ -106,7 +106,8 @@ export default function Signup() {
             }
 
             if (user) {
-                // Send Welcome/Verification Email via Custom Service
+                // Try to send welcome email, but don't block signup if it fails
+                let emailSent = false
                 try {
                     const { EmailService } = await import('../services/EmailService')
                     const { EmailTemplates, wrapInTemplate } = await import('../services/EmailTemplates')
@@ -122,12 +123,18 @@ export default function Signup() {
                         templateType: 'SIGNUP_CONFIRMATION',
                         triggeredBy: 'signup_flow'
                     })
+                    emailSent = true
                 } catch (emailErr) {
-                    console.error('Failed to send welcome email:', emailErr)
-                    // Don't block signup success
+                    console.warn('Custom email service unavailable, using Supabase email:', emailErr)
+                    // Supabase automatically sends confirmation email
                 }
 
-                toast.success('Account created! Please check your email.')
+                // Show appropriate message based on email status
+                if (emailSent) {
+                    toast.success('Account created! Please check your email for verification.')
+                } else {
+                    toast.success('Account created! Check your email for the confirmation link from Supabase.')
+                }
                 navigate('/verify-email', { state: { email: formData.email } })
             }
         } catch (error) {
