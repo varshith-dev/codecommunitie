@@ -216,9 +216,6 @@ export default function PublicProfile({ session }) {
 
     return (
         <>
-            {/* Offline Indicator */}
-            <OfflineIndicator />
-
             <div className="max-w-4xl mx-auto">
                 {/* Profile Header Card */}
                 <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden mb-8 animate-slide-up">
@@ -415,5 +412,6 @@ export default function PublicProfile({ session }) {
                     />
                 )}
             </div>
-            )
+        </>
+    )
 }
