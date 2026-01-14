@@ -9,37 +9,43 @@ export default function UserBadges({ user, showToOwner = true }) {
     const isAdvertiser = user.is_advertiser || user.role === 'advertiser'
     const isVerified = user.is_verified
 
-    return (
-        <div className="inline-flex items-center gap-1.5">
-            {/* Verified Icon - Blue Checkmark */}
-            {isVerified && (
-                <BadgeCheck
-                    size={18}
-                    className="text-blue-500 fill-blue-500"
-                    title="Verified Account"
-                />
-            )}
+    // PRIORITY 1: ADMIN (Red)
+    if (isAdmin) {
+        return (
+            <span className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-semibold bg-red-100 text-red-700 border border-red-200">
+                ADMIN
+            </span>
+        )
+    }
 
-            {/* Admin Badge */}
-            {isAdmin && (
-                <span className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-semibold bg-red-100 text-red-700 border border-red-200">
-                    ADMIN
-                </span>
-            )}
+    // PRIORITY 2: ADVERTISER (Green - User Requested)
+    if (isAdvertiser) {
+        return (
+            <span className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-semibold bg-green-100 text-green-700 border border-green-200">
+                ADVERTISER
+            </span>
+        )
+    }
 
-            {/* Moderator Badge */}
-            {isModerator && (
-                <span className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-semibold bg-green-100 text-green-700 border border-green-200">
-                    MOD
-                </span>
-            )}
+    // PRIORITY 3: MODERATOR (Purple - Changed from Green to distinguish from Advertiser)
+    if (isModerator) {
+        return (
+            <span className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-semibold bg-purple-100 text-purple-700 border border-purple-200">
+                MOD
+            </span>
+        )
+    }
 
-            {/* Advertiser Badge */}
-            {isAdvertiser && (
-                <span className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-semibold bg-purple-100 text-purple-700 border border-purple-200">
-                    ADVERTISER
-                </span>
-            )}
-        </div>
-    )
+    // PRIORITY 4: VERIFIED (Blue Tick)
+    if (isVerified) {
+        return (
+            <BadgeCheck
+                size={18}
+                className="text-blue-500 fill-blue-500"
+                title="Verified Account"
+            />
+        )
+    }
+
+    return null
 }
