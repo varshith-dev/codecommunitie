@@ -258,7 +258,7 @@ export default function Feed({ session }) {
 
       setPosts(postsWithData)
 
-      // Fetch active ads
+      // Fetch active ads (only approved ones)
       const { data: adsData } = await supabase
         .from('advertisements')
         .select(`
@@ -267,6 +267,7 @@ export default function Feed({ session }) {
         `)
         .eq('status', 'active')
         .eq('campaign.status', 'active')
+        .eq('approval_status', 'approved')
         .eq('placement', 'feed')
         .order('created_at', { ascending: false })
         .limit(5)
