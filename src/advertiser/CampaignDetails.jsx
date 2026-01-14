@@ -301,154 +301,131 @@ export default function CampaignDetails({ session }) {
                 ))}
             </div >
 
-            {
-                ads.length === 0 && (
-                    <div className="text-center py-12 bg-gray-50 rounded-xl border border-dashed border-gray-300">
-                        <p className="text-gray-500 mb-4">No ads in this campaign yet</p>
-                        <button
-                            onClick={() => setShowCreateModal(true)}
-                            className="text-blue-600 font-semibold hover:underline"
-                        >
-                            Create your first ad
-                        </button>
-                    </div>
-                )
-            }
+            {ads.length === 0 && (
+                <div className="text-center py-12 bg-gray-50 rounded-xl border border-dashed border-gray-300">
+                    <p className="text-gray-500 mb-4">No ads in this campaign yet</p>
+                    <button
+                        onClick={() => setShowCreateModal(true)}
+                        className="text-blue-600 font-semibold hover:underline"
+                    >
+                        Create your first ad
+                    </button>
+                </div>
+            )}
+
 
             {/* Create Ad Modal */}
-            {
-                showCreateModal && (
-                    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-                        <div className="bg-white rounded-xl max-w-lg w-full p-6 animate-scale-in">
-                            <div className="flex justify-between items-center mb-6">
-                                <h2 className="text-xl font-bold">Create New Advertisement</h2>
-                                <button onClick={() => setShowCreateModal(false)} className="text-gray-400 hover:text-gray-600">
-                                    <X size={24} />
-                                </button>
+            {showCreateModal && (
+                <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+                    <div className="bg-white rounded-xl max-w-lg w-full p-6 animate-scale-in">
+                        <div className="flex justify-between items-center mb-6">
+                            <h2 className="text-xl font-bold">Create New Advertisement</h2>
+                            <button onClick={() => setShowCreateModal(false)} className="text-gray-400 hover:text-gray-600">
+                                <X size={24} />
+                            </button>
+                        </div>
+
+                        <form onSubmit={handleCreateAd} className="space-y-4">
+                            <div>
+                                <label className="block text-sm font-medium mb-1">Headline *</label>
+                                <input
+                                    type="text"
+                                    required
+                                    value={newAd.title}
+                                    onChange={e => setNewAd({ ...newAd, title: e.target.value })}
+                                    className="w-full border rounded-lg px-3 py-2"
+                                    placeholder="Catchy headline"
+                                />
                             </div>
 
-                            <form onSubmit={handleCreateAd} className="space-y-4">
-                                <div>
-                                    <label className="block text-sm font-medium mb-1">Headline *</label>
-                                    <input
-                                        type="text"
-                                        required
-                                        value={newAd.title}
-                                        onChange={e => setNewAd({ ...newAd, title: e.target.value })}
-                                        className="w-full border rounded-lg px-3 py-2"
-                                        placeholder="Catchy headline"
-                                    />
-                                </div>
+                            <div>
+                                <label className="block text-sm font-medium mb-1">Description</label>
+                                <textarea
+                                    value={newAd.description}
+                                    onChange={e => setNewAd({ ...newAd, description: e.target.value })}
+                                    className="w-full border rounded-lg px-3 py-2"
+                                    rows="2"
+                                    placeholder="Ad copy text..."
+                                />
+                            </div>
 
-                                <div>
-                                    <label className="block text-sm font-medium mb-1">Description</label>
-                                    <textarea
-                                        value={newAd.description}
-                                        onChange={e => setNewAd({ ...newAd, description: e.target.value })}
-                                        className="w-full border rounded-lg px-3 py-2"
-                                        rows="2"
-                                        placeholder="Ad copy text..."
-                                    />
-                                </div>
-
-                                <div>
-                                    <label className="block text-sm font-medium mb-1">Image URL</label>
-                                    <div className="flex gap-2">
-                                        <input
-                                            type="url"
-                                            value={newAd.image_url}
-                                            onChange={e => setNewAd({ ...newAd, image_url: e.target.value })}
-                                            className="w-full border rounded-lg px-3 py-2"
-                                            placeholder="https://..."
-                                        />
-                                        <button type="button" className="p-2 border rounded-lg hover:bg-gray-50" title="Upload Image (Mock)">
-                                            <ImageIcon size={20} className="text-gray-500" />
-                                        </button>
-                                    </div>
-                                </div>
-
-                                <div>
-                                    <label className="block text-sm font-medium mb-1">Target URL *</label>
+                            <div>
+                                <label className="block text-sm font-medium mb-1">Image URL</label>
+                                <div className="flex gap-2">
                                     <input
                                         type="url"
-                                        required
-                                        value={newAd.target_url}
-                                        onChange={e => setNewAd({ ...newAd, target_url: e.target.value })}
+                                        value={newAd.image_url}
+                                        onChange={e => setNewAd({ ...newAd, image_url: e.target.value })}
                                         className="w-full border rounded-lg px-3 py-2"
-                                        placeholder="Where users will go..."
+                                        placeholder="https://..."
                                     />
-                                </div>
-
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div>
-                                        <label className="block text-sm font-medium mb-1">CTA Button</label>
-                                        <select
-                                            value={newAd.cta_text}
-                                            onChange={e => setNewAd({ ...newAd, cta_text: e.target.value })}
-                                            className="w-full border rounded-lg px-3 py-2"
-                                        >
-                                            <option>Learn More</option>
-                                            <option>Shop Now</option>
-                                            <option>Sign Up</option>
-                                            <option>Get Offer</option>
-                                            <option>Contact Us</option>
-                                        </select>
-                                    </div>
-                                    <div>
-                                        <label className="block text-sm font-medium mb-1">Placement</label>
-                                        <select
-                                            value={newAd.placement}
-                                            onChange={e => setNewAd({ ...newAd, placement: e.target.value })}
-                                            className="w-full border rounded-lg px-3 py-2"
-                                        >
-                                            <option value="feed">News Feed</option>
-                                            <option value="sidebar">Sidebar</option>
-                                            <option value="banner">Top Banner</option>
-                                        </select>
-                                    </div>
-                                </div>
-
-                                <div className="flex gap-3 mt-6 pt-4 border-t">
-                                    <button
-                                        type="button"
-                                        onClick={() => setShowCreateModal(false)}
-                                        className="flex-1 px-4 py-2 border rounded-lg hover:bg-gray-50"
-                                    >
-                                        Cancel
-                                    </button>
-                                    <button
-                                        type="submit"
-                                        disabled={creatingAd}
-                                        className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
-                                    >
-                                        {creatingAd ? 'Creating...' : 'Launch Ad'}
+                                    <button type="button" className="p-2 border rounded-lg hover:bg-gray-50" title="Upload Image (Mock)">
+                                        <ImageIcon size={20} className="text-gray-500" />
                                     </button>
                                 </div>
-                            </form>
-                        </div>
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-medium mb-1">Target URL *</label>
+                                <input
+                                    type="url"
+                                    required
+                                    value={newAd.target_url}
+                                    onChange={e => setNewAd({ ...newAd, target_url: e.target.value })}
+                                    className="w-full border rounded-lg px-3 py-2"
+                                    placeholder="Where users will go..."
+                                />
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-sm font-medium mb-1">CTA Button</label>
+                                    <select
+                                        value={newAd.cta_text}
+                                        onChange={e => setNewAd({ ...newAd, cta_text: e.target.value })}
+                                        className="w-full border rounded-lg px-3 py-2"
+                                    >
+                                        <option>Learn More</option>
+                                        <option>Shop Now</option>
+                                        <option>Sign Up</option>
+                                        <option>Get Offer</option>
+                                        <option>Contact Us</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium mb-1">Placement</label>
+                                    <select
+                                        value={newAd.placement}
+                                        onChange={e => setNewAd({ ...newAd, placement: e.target.value })}
+                                        className="w-full border rounded-lg px-3 py-2"
+                                    >
+                                        <option value="feed">News Feed</option>
+                                        <option value="sidebar">Sidebar</option>
+                                        <option value="banner">Top Banner</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div className="flex gap-3 mt-6 pt-4 border-t">
+                                <button
+                                    type="button"
+                                    onClick={() => setShowCreateModal(false)}
+                                    className="flex-1 px-4 py-2 border rounded-lg hover:bg-gray-50"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    type="submit"
+                                    disabled={creatingAd}
+                                    className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+                                >
+                                    {creatingAd ? 'Creating...' : 'Launch Ad'}
+                                </button>
+                            </div>
+                        </form>
                     </div>
-                )
-            }
-        </div >
-    )
-}
-
-function X({ size, className }) {
-    return (
-        <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width={size}
-            height={size}
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            className={className}
-        >
-            <path d="M18 6 6 18" />
-            <path d="m6 6 18 18" />
-        </svg>
+                </div>
+            )}
+        </div>
     )
 }

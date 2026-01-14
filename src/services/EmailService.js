@@ -54,6 +54,20 @@ export const EmailService = {
     },
 
     /**
+     * Verify Password Reset OTP
+     */
+    verifyResetOTP: async (email, code) => {
+        const response = await fetch(OTP_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'verify_reset', email, code })
+        })
+        const data = await response.json()
+        if (!response.ok) throw new Error(data.error || 'Invalid or expired code')
+        return data
+    },
+
+    /**
      * Reset Password with OTP
      */
     resetPasswordWithOTP: async (email, code, newPassword) => {

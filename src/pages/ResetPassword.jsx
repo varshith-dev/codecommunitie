@@ -1,59 +1,97 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useNavigate, useLocation, Link } from 'react-router-dom'
+import { EmailService } from '../services/EmailService'
 import toast from 'react-hot-toast'
-import { Lock, Code2, KeyRound, Eye, EyeOff, XCircle } from 'lucide-react'
+import { Lock, Code2, KeyRound, Eye, EyeOff, ArrowLeft, CheckCircle } from 'lucide-react'
 
 export default function ResetPassword() {
     const navigate = useNavigate()
     const location = useLocation()
 
-    const [hasValidToken, setHasValidToken] = useState(null) // null = checking, true/false = result
-    const [email, setEmail] = useState('')
-    const [resetToken, setResetToken] = useState('')
+    const email = location.state?.email || ''
+    const [step, setStep] = useState('verify-otp') // 'verify-otp' or 'set-password'
+
+    // OTP Verification State
+    const [otp, setOtp] = useState(['', '', '', '', '', ''])
+    const [verifying, setVerifying] = useState(false)
+
+    // Password Reset State
     const [password, setPassword] = useState('')
     const [confirmPassword, setConfirmPassword] = useState('')
-
-    const [loading, setLoading] = useState(false)
     const [showPassword, setShowPassword] = useState(false)
+    const [resetting, setResetting] = useState(false)
 
-    // Check for valid reset token on mount
-    useEffect(() => {
-        const checkResetToken = async () => {
-            const queryParams = new URLSearchParams(location.search)
-            const token = queryParams.get('token')
+    // Redirect if no email
+    if (!email) {
+        navigate('/forgot-password')
+        return null
+    }
 
-            if (!token) {
-                setHasValidToken(false)
+    const handleOtpChange = (index, value) => {
+        if (value.length > 1) value = value.slice(0, 1)
+        if (!/^\d*$/.test(value)) return // Only digits
+
+        const newOtp = [...otp]
+        newOtp[index] = value
+        setOtp(newOtp)
+
+        // Auto-focus next input
+        if (value && index < 5) {
+            document.getElementById(`otp-${index + 1}`)?.focus()
+        }
+    }
+
+    const handleOtpKeyDown = (index, e) => {
+        if (e.key === 'Backspace' && !otp[index] && index > 0) {
+            document.getElementById(`otp-${index - 1}`)?.focus()
+        }
+    }
+
+    const handleVerifyOtp = async (e) => {
+        e.preventDefault()
+
+        const otpCode = otp.join('')
+        if (otpCode.length !== 6) {
+            toast.error('Please enter the complete 6-digit code')
+            return
+        }
+
+        setVerifying(true)
+
+        try {
+            const { success, error } = await EmailService.verifyResetOTP(email, otpCode)
+
+            if (error) {
+                toast.error(error || 'Invalid or expired code')
                 return
             }
 
-            // Verify token via custom API
-            try {
-                const response = await fetch('/api/verify-reset-token', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ token })
-                })
-
-                const data = await response.json()
-
-                if (data.success) {
-                    setHasValidToken(true)
-                    setEmail(data.email || '')
-                    setResetToken(token)
-                } else {
-                    setHasValidToken(false)
-                }
-            } catch (error) {
-                console.error('Token verification error:', error)
-                setHasValidToken(false)
+            if (success) {
+                toast.success('Code verified! Set your new password.')
+                setStep('set-password')
             }
+        } catch (error) {
+            console.error('OTP verification error:', error)
+            toast.error('Failed to verify code. Please try again.')
+        } finally {
+            setVerifying(false)
         }
+    }
 
-        checkResetToken()
-    }, [location])
+    const handleResendOtp = async () => {
+        try {
+            const { success } = await EmailService.sendResetOTP(email)
+            if (success) {
+                toast.success('New code sent to your email!')
+                setOtp(['', '', '', '', '', ''])
+                document.getElementById('otp-0')?.focus()
+            }
+        } catch (error) {
+            toast.error('Failed to resend code')
+        }
+    }
 
-    const handleSubmit = async (e) => {
+    const handleResetPassword = async (e) => {
         e.preventDefault()
 
         if (!password || !confirmPassword) {
@@ -71,163 +109,187 @@ export default function ResetPassword() {
             return
         }
 
-        setLoading(true)
+        setResetting(true)
 
         try {
-            // Reset password via custom API
-            const response = await fetch('/api/reset-password-with-token', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    token: resetToken,
-                    newPassword: password
-                })
-            })
+            const otpCode = otp.join('')
+            const { success, error } = await EmailService.resetPasswordWithOTP(email, otpCode, password)
 
-            const data = await response.json()
-
-            if (!data.success) {
-                throw new Error(data.message || data.error || 'Failed to reset password')
+            if (error) {
+                toast.error(error || 'Failed to reset password')
+                return
             }
 
-            toast.success('Password updated successfully! Redirecting to login...')
-            setTimeout(() => navigate('/login'), 2000)
+            if (success) {
+                toast.success('Password updated successfully! Redirecting to login...')
+                setTimeout(() => navigate('/login'), 2000)
+            }
         } catch (error) {
-            console.error('Reset password error:', error)
-            toast.error(error.message || 'Something went wrong. Please try again.')
+            console.error('Password reset error:', error)
+            toast.error('Something went wrong. Please try again.')
         } finally {
-            setLoading(false)
+            setResetting(false)
         }
     }
 
-    // Show loading while checking token
-    if (hasValidToken === null) {
-        return (
-            <div className="min-h-screen flex items-center justify-center bg-gray-50">
-                <div className="text-center">
-                    <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-                    <p className="text-gray-600">Validating reset link...</p>
-                </div>
-            </div>
-        )
-    }
-
-    // Show error if no valid token
-    if (hasValidToken === false) {
-        return (
-            <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
-                <div className="w-full max-w-md animate-fade-in">
-                    <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-8 text-center">
-                        <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                            <XCircle size={32} className="text-red-600" />
-                        </div>
-                        <h2 className="text-2xl font-bold text-gray-900 mb-2">Invalid or Expired Link</h2>
-                        <p className="text-gray-600 mb-6">
-                            This password reset link is invalid or has expired. Please request a new one.
-                        </p>
-                        <div className="space-y-3">
-                            <Link
-                                to="/forgot-password"
-                                className="block w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl transition-colors"
-                            >
-                                Request New Reset Link
-                            </Link>
-                            <Link
-                                to="/login"
-                                className="block w-full py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold rounded-xl transition-colors"
-                            >
-                                Back to Login
-                            </Link>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        )
-    }
-
     return (
-        <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
+        <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-white to-purple-50 px-4">
             <div className="w-full max-w-md animate-fade-in">
-                {/* Logo */}
+                {/* Header */}
                 <div className="text-center mb-8">
-                    <div className="inline-flex items-center gap-3 mb-4">
-                        <div className="w-12 h-12 bg-blue-600 rounded-xl flex items-center justify-center">
-                            <Code2 size={28} className="text-white" />
+                    <div className="inline-flex items-center gap-2 mb-4">
+                        <div className="w-12 h-12 bg-gradient-to-br from-blue-600 to-purple-600 rounded-xl flex items-center justify-center">
+                            <span className="text-2xl">💻</span>
                         </div>
-                        <h1 className="text-2xl font-bold text-gray-900">CodeKrafts</h1>
+                        <h1 className="text-3xl font-bold gradient-text">CodeKrafts</h1>
                     </div>
-                    <h2 className="text-xl font-bold text-gray-900 mb-1">Set New Password</h2>
-                    <p className="text-gray-500">Enter your new password below</p>
-                    {email && <p className="text-sm text-gray-500 mt-2">for {email}</p>}
+                    <h2 className="text-2xl font-bold text-gray-900 mb-2">
+                        {step === 'verify-otp' ? 'Verify Code' : 'Set New Password'}
+                    </h2>
+                    <p className="text-gray-600">
+                        {step === 'verify-otp'
+                            ? `We sent a 6-digit code to ${email}`
+                            : 'Enter your new password below'
+                        }
+                    </p>
                 </div>
 
-                {/* Form */}
-                <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 sm:p-8">
-                    <form onSubmit={handleSubmit} className="space-y-5">
+                {/* Form Card */}
+                <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-8 animate-scale-in">
+                    {step === 'verify-otp' ? (
+                        <form onSubmit={handleVerifyOtp} className="space-y-6">
+                            {/* OTP Input */}
+                            <div>
+                                <label className="block text-sm font-semibold text-gray-700 mb-3 text-center">
+                                    Enter 6-Digit Code
+                                </label>
+                                <div className="flex gap-2 justify-center">
+                                    {otp.map((digit, index) => (
+                                        <input
+                                            key={index}
+                                            id={`otp-${index}`}
+                                            type="text"
+                                            inputMode="numeric"
+                                            maxLength={1}
+                                            value={digit}
+                                            onChange={(e) => handleOtpChange(index, e.target.value)}
+                                            onKeyDown={(e) => handleOtpKeyDown(index, e)}
+                                            className="w-12 h-14 text-center text-xl font-bold border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all"
+                                            disabled={verifying}
+                                            autoFocus={index === 0}
+                                        />
+                                    ))}
+                                </div>
+                            </div>
 
-                        {/* New Password */}
-                        <div>
-                            <label className="block text-sm font-semibold text-gray-700 mb-2">New Password</label>
-                            <div className="relative">
-                                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
-                                <input
-                                    type={showPassword ? "text" : "password"}
-                                    value={password}
-                                    onChange={(e) => setPassword(e.target.value)}
-                                    placeholder="••••••••"
-                                    className="w-full pl-12 pr-12 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500"
-                                    required
-                                    minLength={6}
-                                />
+                            {/* Verify Button */}
+                            <button
+                                type="submit"
+                                disabled={verifying || otp.join('').length !== 6}
+                                className="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white font-semibold py-3 px-4 rounded-xl hover:shadow-lg hover:scale-[1.02] transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 flex items-center justify-center gap-2"
+                            >
+                                {verifying ? (
+                                    <>
+                                        <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                        Verifying...
+                                    </>
+                                ) : (
+                                    <>
+                                        <CheckCircle size={20} />
+                                        Verify Code
+                                    </>
+                                )}
+                            </button>
+
+                            {/* Resend Code */}
+                            <div className="text-center">
                                 <button
                                     type="button"
-                                    onClick={() => setShowPassword(!showPassword)}
-                                    className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400"
+                                    onClick={handleResendOtp}
+                                    className="text-sm text-blue-600 hover:text-blue-700 font-medium"
                                 >
-                                    {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                                    Didn't receive the code? Resend
                                 </button>
                             </div>
-                            <p className="text-xs text-gray-500 mt-1">Minimum 6 characters</p>
-                        </div>
+                        </form>
+                    ) : (
+                        <form onSubmit={handleResetPassword} className="space-y-5">
+                            {/* New Password */}
+                            <div>
+                                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                                    New Password
+                                </label>
+                                <div className="relative">
+                                    <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
+                                    <input
+                                        type={showPassword ? "text" : "password"}
+                                        value={password}
+                                        onChange={(e) => setPassword(e.target.value)}
+                                        placeholder="••••••••"
+                                        className="w-full pl-12 pr-12 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                                        required
+                                        minLength={6}
+                                        disabled={resetting}
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowPassword(!showPassword)}
+                                        className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                                    >
+                                        {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                                    </button>
+                                </div>
+                                <p className="text-xs text-gray-500 mt-1">Minimum 6 characters</p>
+                            </div>
 
-                        {/* Confirm Password */}
-                        <div>
-                            <label className="block text-sm font-semibold text-gray-700 mb-2">Confirm Password</label>
-                            <input
-                                type="password"
-                                value={confirmPassword}
-                                onChange={(e) => setConfirmPassword(e.target.value)}
-                                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500"
-                                required
-                            />
-                        </div>
+                            {/* Confirm Password */}
+                            <div>
+                                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                                    Confirm Password
+                                </label>
+                                <div className="relative">
+                                    <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
+                                    <input
+                                        type="password"
+                                        value={confirmPassword}
+                                        onChange={(e) => setConfirmPassword(e.target.value)}
+                                        placeholder="••••••••"
+                                        className="w-full pl-12 pr-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                                        required
+                                        disabled={resetting}
+                                    />
+                                </div>
+                            </div>
 
-                        <button
-                            type="submit"
-                            disabled={loading}
-                            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-4 rounded-xl transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
-                        >
-                            {loading ? (
-                                <>
-                                    <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                                    Updating...
-                                </>
-                            ) : (
-                                <>
-                                    <KeyRound size={20} />
-                                    Reset Password
-                                </>
-                            )}
-                        </button>
-                    </form>
+                            {/* Submit Button */}
+                            <button
+                                type="submit"
+                                disabled={resetting}
+                                className="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white font-semibold py-3 px-4 rounded-xl hover:shadow-lg hover:scale-[1.02] transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 flex items-center justify-center gap-2"
+                            >
+                                {resetting ? (
+                                    <>
+                                        <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                        Updating...
+                                    </>
+                                ) : (
+                                    <>
+                                        <KeyRound size={20} />
+                                        Reset Password
+                                    </>
+                                )}
+                            </button>
+                        </form>
+                    )}
 
                     {/* Back to Login */}
-                    <div className="mt-6 text-center">
+                    <div className="mt-6">
                         <Link
                             to="/login"
-                            className="text-sm font-semibold text-blue-600 hover:text-blue-700"
+                            className="flex items-center justify-center gap-2 text-gray-600 hover:text-gray-900 transition-colors"
                         >
-                            Back to Login
+                            <ArrowLeft size={16} />
+                            <span className="text-sm font-medium">Back to login</span>
                         </Link>
                     </div>
                 </div>
