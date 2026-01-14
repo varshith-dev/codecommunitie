@@ -13,6 +13,7 @@ import { Link } from 'react-router-dom'
 import BookmarkButton from '../components/BookmarkButton'
 import UserBadges from '../components/UserBadges'
 import VideoPlayer from '../components/VideoPlayer'
+import UserPromptsWidget from '../components/UserPromptsWidget'
 
 import EditPostModal from '../components/EditPostModal'
 import ShareModal from '../components/ShareModal'
@@ -466,6 +467,9 @@ export default function Feed({ session }) {
           </button>
         ))}
       </div>
+
+      {/* User Prompts Widget - Shows email verification reminders */}
+      {session && <UserPromptsWidget userId={session.user.id} />}
 
       {editingPost && (
         <EditPostModal
