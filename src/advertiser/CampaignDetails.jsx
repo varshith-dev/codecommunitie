@@ -49,7 +49,7 @@ export default function CampaignDetails({ session }) {
             // Fetch Ads for this campaign
             const { data: adsData, error: adsError } = await supabase
                 .from('advertisements')
-                .select('*')
+                .select('*, approval_status, approved_at, rejection_reason')
                 .eq('campaign_id', id)
                 .order('created_at', { ascending: false })
 
@@ -64,6 +64,18 @@ export default function CampaignDetails({ session }) {
             setLoading(false)
         }
     }
+
+    // Auto-refresh when tab becomes visible (user switches back)
+    useEffect(() => {
+        const handleVisibilityChange = () => {
+            if (!document.hidden && id) {
+                fetchCampaignDetails()
+            }
+        }
+
+        document.addEventListener('visibilitychange', handleVisibilityChange)
+        return () => document.removeEventListener('visibilitychange', handleVisibilityChange)
+    }, [id])
 
     const handleCreateAd = async (e) => {
         e.preventDefault()
