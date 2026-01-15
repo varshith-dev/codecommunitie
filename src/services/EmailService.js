@@ -82,9 +82,10 @@ export const EmailService = {
     },
     /**
      * Sends an email via the local Python backend and logs it to Supabase.
-     * @param {Object} params - { recipientEmail, memberName, subject, htmlContent, templateType, triggeredBy }
+     * @param {Object} params - { recipientEmail, memberName, subject, htmlContent, templateType, triggeredBy, attachments }
      */
-    send: async ({ recipientEmail, memberName, subject, htmlContent, templateType = 'CUSTOM', triggeredBy = 'admin' }) => {
+    send: async (params) => {
+        const { recipientEmail, memberName, subject, htmlContent, templateType = 'CUSTOM', triggeredBy = 'admin' } = params
         let status = 'sent'
         let errorMessage = null
 
@@ -97,7 +98,8 @@ export const EmailService = {
                     recipientEmail,
                     memberName, // Optional, for backend logging/fallback
                     subject,
-                    htmlContent
+                    htmlContent,
+                    attachments: params.attachments || [] // Attachments support
                 })
             })
 

@@ -9,6 +9,7 @@ import RollingCounter from '../components/RollingCounter'
 import { useNavigate } from 'react-router-dom'
 import { EmailService } from '../services/EmailService'
 import { EmailTemplates, wrapInTemplate } from '../services/EmailTemplates'
+import { InvoiceGenerator } from '../utils/InvoiceGenerator'
 
 export default function AdminAdManager() {
     const navigate = useNavigate()
@@ -265,17 +266,30 @@ export default function AdminAdManager() {
             if (error) throw error
             toast.success('Credits approved & added to wallet')
 
-            // Send Email
+            // Send Email with Invoice
             if (reqData?.advertiser?.email) {
                 const user = reqData.advertiser
                 const template = EmailTemplates.CREDITS_APPROVED
+
+                // Generate Invoice
+                const invoiceDataURI = InvoiceGenerator.getDataURI(
+                    { id: requestId, amount: reqData.amount, date: reqData.created_at, description: 'Ad Credits Replenishment' },
+                    { name: user.display_name || user.username, email: user.email }
+                )
+
                 await EmailService.send({
                     recipientEmail: user.email,
                     memberName: user.display_name || user.username,
                     subject: template.subject(),
                     htmlContent: wrapInTemplate(template.body(user.display_name || user.username, reqData.amount), template.title),
                     templateType: 'CREDITS_APPROVED',
-                    triggeredBy: 'admin'
+                    triggeredBy: 'admin',
+                    attachments: [
+                        {
+                            filename: `BS_Invoice_${requestId.slice(0, 8)}.pdf`,
+                            path: invoiceDataURI
+                        }
+                    ]
                 }).catch(err => console.error('Failed to send email:', err))
             }
 

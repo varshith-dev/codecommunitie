@@ -20,7 +20,7 @@ export default async function handler(req, res) {
         return;
     }
 
-    const { recipientEmail, subject, htmlContent } = req.body;
+    const { recipientEmail, subject, htmlContent, attachments } = req.body;
 
     if (!recipientEmail || !htmlContent) {
         res.status(400).json({ message: 'Recipient Email and HTML Content are required' });
@@ -43,6 +43,7 @@ export default async function handler(req, res) {
             to: recipientEmail,
             subject: subject || "Notification from Truvgo",
             html: htmlContent,
+            attachments: attachments // Add attachments support
         });
 
         console.log("Message sent: %s", info.messageId);

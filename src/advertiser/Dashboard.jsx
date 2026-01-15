@@ -3,14 +3,17 @@ import { supabase } from '../supabaseClient'
 import { useNavigate } from 'react-router-dom'
 import {
     BarChart3, TrendingUp, DollarSign, Eye, MousePointerClick,
-    Plus, Settings as SettingsIcon, Pause, Play, Trash2, Edit2, RefreshCw
+    Plus, Settings as SettingsIcon, Pause, Play, Trash2, Edit2, RefreshCw, Download, Receipt
 } from 'lucide-react'
 import toast from 'react-hot-toast'
+import { InvoiceGenerator } from '../utils/InvoiceGenerator'
 
 export default function AdvertiserDashboard({ session }) {
     const navigate = useNavigate()
     const [loading, setLoading] = useState(true)
     const [campaigns, setCampaigns] = useState([])
+    const [transactions, setTransactions] = useState([])
+    const [activeTab, setActiveTab] = useState('campaigns') // 'campaigns' | 'billing'
     const [editingCampaign, setEditingCampaign] = useState(null)
     const [credits, setCredits] = useState(0)
     const [requestModalOpen, setRequestModalOpen] = useState(false)
@@ -28,6 +31,7 @@ export default function AdvertiserDashboard({ session }) {
         checkAdvertiserAccess()
         fetchCampaigns()
         fetchCredits()
+        fetchTransactions()
     }, [])
 
     const fetchCredits = async () => {
@@ -37,6 +41,37 @@ export default function AdvertiserDashboard({ session }) {
             .eq('id', session.user.id)
             .single()
         setCredits(data?.ad_credits || 0)
+    }
+
+    const fetchTransactions = async () => {
+        try {
+            const { data, error } = await supabase
+                .from('ad_credit_requests')
+                .select('*')
+                .eq('advertiser_id', session.user.id)
+                .order('created_at', { ascending: false })
+
+            if (error) throw error
+            setTransactions(data || [])
+        } catch (error) {
+            console.error('Error fetching transactions:', error)
+        }
+    }
+
+    const downloadInvoice = (transaction) => {
+        const user = {
+            name: session.user.user_metadata?.full_name || session.user.email.split('@')[0],
+            email: session.user.email
+        }
+        InvoiceGenerator.download(
+            {
+                id: transaction.id,
+                amount: transaction.amount,
+                date: transaction.created_at,
+                description: 'Ad Credits Replenishment'
+            },
+            user
+        )
     }
 
     const handleRequestCredits = async (e) => {
@@ -55,6 +90,7 @@ export default function AdvertiserDashboard({ session }) {
             toast.success('Credit request sent successfully!')
             setRequestModalOpen(false)
             setRequestAmount('')
+            fetchTransactions() // Refresh list
         } catch (error) {
             toast.error('Failed to send request')
         } finally {
@@ -297,136 +333,234 @@ export default function AdvertiserDashboard({ session }) {
                 </div>
             </div>
 
-            {/* Campaigns List */}
-            <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-                <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
-                    <h2 className="text-lg font-semibold text-gray-900">Your Campaigns</h2>
-                </div>
+            {/* Navigation Tabs */}
+            <div className="border-b border-gray-200 mb-6">
+                <nav className="-mb-px flex space-x-8">
+                    <button
+                        onClick={() => setActiveTab('campaigns')}
+                        className={`
+                            whitespace-nowrap pb-4 px-1 border-b-2 font-medium text-sm flex items-center gap-2
+                            ${activeTab === 'campaigns'
+                                ? 'border-blue-500 text-blue-600'
+                                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}
+                        `}
+                    >
+                        <BarChart3 size={18} />
+                        Campaigns
+                    </button>
+                    <button
+                        onClick={() => setActiveTab('billing')}
+                        className={`
+                            whitespace-nowrap pb-4 px-1 border-b-2 font-medium text-sm flex items-center gap-2
+                            ${activeTab === 'billing'
+                                ? 'border-blue-500 text-blue-600'
+                                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}
+                        `}
+                    >
+                        <Receipt size={18} />
+                        Billing & Invoices
+                    </button>
+                </nav>
+            </div>
 
-                {campaigns.length === 0 ? (
-                    <div className="p-12 text-center">
-                        <BarChart3 size={48} className="text-gray-300 mx-auto mb-4" />
-                        <h3 className="text-lg font-semibold text-gray-900 mb-2">No campaigns yet</h3>
-                        <p className="text-gray-500 mb-4">Create your first campaign to start advertising</p>
-                        <button
-                            onClick={() => navigate('/advertiser/create-campaign')}
-                            className="px-6 py-3 bg-blue-600 text-white rounded-xl font-semibold inline-flex items-center gap-2 hover:bg-blue-700"
-                        >
-                            <Plus size={20} />
-                            Create Campaign
-                        </button>
+            {/* Content Area */}
+            {activeTab === 'campaigns' ? (
+                <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+                    <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
+                        <h2 className="text-lg font-semibold text-gray-900">Your Campaigns</h2>
                     </div>
-                ) : (
-                    <div className="divide-y divide-gray-200">
-                        {campaigns.map(campaign => {
-                            const isEditing = editingCampaign === campaign.id
-                            const totalImpressions = campaign.advertisements?.reduce((sum, ad) => sum + (ad.impressions || 0), 0) || 0
-                            const totalClicks = campaign.advertisements?.reduce((sum, ad) => sum + (ad.clicks || 0), 0) || 0
-                            const activeAds = campaign.advertisements?.filter(ad => ad.status === 'active').length || 0
 
-                            return (
-                                <div key={campaign.id} className="p-6 hover:bg-gray-50 transition-colors">
-                                    <div className="flex justify-between items-start">
-                                        <div className="flex-1">
-                                            <div className="flex items-center gap-3 mb-2">
-                                                <h3 className="text-lg font-semibold text-gray-900">{campaign.name}</h3>
-                                                <span className={`px-2 py-1 text-xs font-semibold rounded-full ${campaign.status === 'active' ? 'bg-green-100 text-green-700' :
-                                                    campaign.status === 'paused' ? 'bg-yellow-100 text-yellow-700' :
-                                                        'bg-gray-100 text-gray-700'
-                                                    }`}>
-                                                    {campaign.status.toUpperCase()}
-                                                </span>
-                                            </div>
-                                            {campaign.description && (
-                                                <p className="text-gray-600 text-sm mb-3">{campaign.description}</p>
-                                            )}
-                                            <div className="grid grid-cols-2 md:grid-cols-5 gap-4 text-sm">
-                                                <div>
-                                                    <span className="text-gray-500">Campaign Limit:</span>
-                                                    <span className="ml-2 font-semibold">₹{campaign.budget}</span>
-                                                </div>
-                                                <div>
-                                                    <span className="text-gray-500">Credits Used:</span>
-                                                    <span className="ml-2 font-semibold text-orange-600">₹{campaign.spent}</span>
-                                                </div>
-                                                <div>
-                                                    <span className="text-gray-500">Ads:</span>
-                                                    <span className="ml-2 font-semibold">{campaign.advertisements?.length || 0} ({activeAds} active)</span>
-                                                </div>
-                                                <div>
-                                                    <span className="text-gray-500">Impressions:</span>
-                                                    <span className="ml-2 font-semibold text-purple-600">{totalImpressions.toLocaleString()}</span>
-                                                </div>
-                                                <div>
-                                                    <span className="text-gray-500">Clicks:</span>
-                                                    <span className="ml-2 font-semibold text-blue-600">{totalClicks.toLocaleString()}</span>
-                                                </div>
-                                            </div>
+                    {campaigns.length === 0 ? (
+                        <div className="p-12 text-center">
+                            <BarChart3 size={48} className="text-gray-300 mx-auto mb-4" />
+                            <h3 className="text-lg font-semibold text-gray-900 mb-2">No campaigns yet</h3>
+                            <p className="text-gray-500 mb-4">Create your first campaign to start advertising</p>
+                            <button
+                                onClick={() => navigate('/advertiser/create-campaign')}
+                                className="px-6 py-3 bg-blue-600 text-white rounded-xl font-semibold inline-flex items-center gap-2 hover:bg-blue-700"
+                            >
+                                <Plus size={20} />
+                                Create Campaign
+                            </button>
+                        </div>
+                    ) : (
+                        <div className="divide-y divide-gray-200">
+                            {campaigns.map(campaign => {
+                                const totalImpressions = campaign.advertisements?.reduce((sum, ad) => sum + (ad.impressions || 0), 0) || 0
+                                const totalClicks = campaign.advertisements?.reduce((sum, ad) => sum + (ad.clicks || 0), 0) || 0
+                                const activeAds = campaign.advertisements?.filter(ad => ad.status === 'active').length || 0
 
-                                            {/* Limit Progress Bar */}
-                                            <div className="mt-4 pt-4 border-t border-gray-100">
-                                                <div className="flex justify-between items-center text-xs font-medium text-gray-500 mb-1">
-                                                    <span>Campaign Limit Usage</span>
-                                                    <span className={campaign.budget - (campaign.spent || 0) < 100 ? "text-red-600" : "text-green-600"}>
-                                                        {Math.max(0, campaign.budget - (campaign.spent || 0))} limit remaining
+                                return (
+                                    <div key={campaign.id} className="p-6 hover:bg-gray-50 transition-colors">
+                                        <div className="flex justify-between items-start">
+                                            <div className="flex-1">
+                                                <div className="flex items-center gap-3 mb-2">
+                                                    <h3 className="text-lg font-semibold text-gray-900">{campaign.name}</h3>
+                                                    <span className={`px-2 py-1 text-xs font-semibold rounded-full ${campaign.status === 'active' ? 'bg-green-100 text-green-700' :
+                                                        campaign.status === 'paused' ? 'bg-yellow-100 text-yellow-700' :
+                                                            'bg-gray-100 text-gray-700'
+                                                        }`}>
+                                                        {campaign.status.toUpperCase()}
                                                     </span>
                                                 </div>
-                                                <div className="w-full bg-gray-100 rounded-full h-2 overflow-hidden">
-                                                    <div
-                                                        className={`h-2 rounded-full transition-all duration-500 ${(campaign.spent || 0) / campaign.budget > 0.9 ? 'bg-red-500' :
-                                                            (campaign.spent || 0) / campaign.budget > 0.7 ? 'bg-yellow-500' : 'bg-blue-600'
-                                                            }`}
-                                                        style={{ width: `${Math.min(100, ((campaign.spent || 0) / campaign.budget) * 100)}%` }}
-                                                    ></div>
-                                                </div>
-                                                {/* Global Credits Warning */}
-                                                {credits <= 10 && (
-                                                    <div className="mt-1 text-xs text-red-600 font-medium">
-                                                        Warning: Your wallet is low ({credits} credits). Campaigns may pause soon.
-                                                    </div>
+                                                {campaign.description && (
+                                                    <p className="text-gray-600 text-sm mb-3">{campaign.description}</p>
                                                 )}
+                                                <div className="grid grid-cols-2 md:grid-cols-5 gap-4 text-sm">
+                                                    <div>
+                                                        <span className="text-gray-500">Campaign Limit:</span>
+                                                        <span className="ml-2 font-semibold">₹{campaign.budget}</span>
+                                                    </div>
+                                                    <div>
+                                                        <span className="text-gray-500">Credits Used:</span>
+                                                        <span className="ml-2 font-semibold text-orange-600">₹{campaign.spent}</span>
+                                                    </div>
+                                                    <div>
+                                                        <span className="text-gray-500">Ads:</span>
+                                                        <span className="ml-2 font-semibold">{campaign.advertisements?.length || 0} ({activeAds} active)</span>
+                                                    </div>
+                                                    <div>
+                                                        <span className="text-gray-500">Impressions:</span>
+                                                        <span className="ml-2 font-semibold text-purple-600">{totalImpressions.toLocaleString()}</span>
+                                                    </div>
+                                                    <div>
+                                                        <span className="text-gray-500">Clicks:</span>
+                                                        <span className="ml-2 font-semibold text-blue-600">{totalClicks.toLocaleString()}</span>
+                                                    </div>
+                                                </div>
+
+                                                {/* Limit Progress Bar */}
+                                                <div className="mt-4 pt-4 border-t border-gray-100">
+                                                    <div className="flex justify-between items-center text-xs font-medium text-gray-500 mb-1">
+                                                        <span>Campaign Limit Usage</span>
+                                                        <span className={campaign.budget - (campaign.spent || 0) < 100 ? "text-red-600" : "text-green-600"}>
+                                                            {Math.max(0, campaign.budget - (campaign.spent || 0))} limit remaining
+                                                        </span>
+                                                    </div>
+                                                    <div className="w-full bg-gray-100 rounded-full h-2 overflow-hidden">
+                                                        <div
+                                                            className={`h-2 rounded-full transition-all duration-500 ${(campaign.spent || 0) / campaign.budget > 0.9 ? 'bg-red-500' :
+                                                                (campaign.spent || 0) / campaign.budget > 0.7 ? 'bg-yellow-500' : 'bg-blue-600'
+                                                                }`}
+                                                            style={{ width: `${Math.min(100, ((campaign.spent || 0) / campaign.budget) * 100)}%` }}
+                                                        ></div>
+                                                    </div>
+                                                    {/* Global Credits Warning */}
+                                                    {credits <= 10 && (
+                                                        <div className="mt-1 text-xs text-red-600 font-medium">
+                                                            Warning: Your wallet is low ({credits} credits). Campaigns may pause soon.
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </div>
+                                            <div className="flex gap-2 ml-4">
+                                                {campaign.status === 'active' ? (
+                                                    <button
+                                                        onClick={() => handlePauseCampaign(campaign.id)}
+                                                        className="p-2 text-yellow-600 hover:text-yellow-700 hover:bg-yellow-50 rounded-lg transition-colors"
+                                                        title="Pause Campaign"
+                                                    >
+                                                        <Pause size={20} />
+                                                    </button>
+                                                ) : (
+                                                    <button
+                                                        onClick={() => handleActivateCampaign(campaign)}
+                                                        className="p-2 text-green-600 hover:text-green-700 hover:bg-green-50 rounded-lg transition-colors"
+                                                        title="Activate Campaign"
+                                                    >
+                                                        <Play size={20} />
+                                                    </button>
+                                                )}
+                                                <button
+                                                    onClick={() => navigate(`/advertiser/campaign/${campaign.id}`)}
+                                                    className="p-2 text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-colors"
+                                                    title="Manage Ads"
+                                                >
+                                                    <SettingsIcon size={20} />
+                                                </button>
+                                                <button
+                                                    onClick={() => handleDeleteCampaign(campaign.id)}
+                                                    className="p-2 text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors"
+                                                    title="Delete Campaign"
+                                                >
+                                                    <Trash2 size={20} />
+                                                </button>
                                             </div>
                                         </div>
-                                        <div className="flex gap-2 ml-4">
-                                            {campaign.status === 'active' ? (
+                                    </div>
+                                )
+                            })}
+                        </div>
+                    )}
+                </div>
+            ) : (
+                <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+                    <div className="px-6 py-4 border-b border-gray-200 bg-gray-50 flex justify-between items-center">
+                        <h2 className="text-lg font-semibold text-gray-900">Billing History</h2>
+                        <button
+                            onClick={fetchTransactions}
+                            className="text-sm text-blue-600 hover:text-blue-800 flex items-center gap-1"
+                        >
+                            <RefreshCw size={16} /> Refresh
+                        </button>
+                    </div>
+                    <div className="overflow-x-auto">
+                        <table className="w-full">
+                            <thead className="bg-gray-50">
+                                <tr>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Transaction ID</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Details</th>
+                                </tr>
+                            </thead>
+                            <tbody className="bg-white divide-y divide-gray-200">
+                                {transactions.map((tx) => (
+                                    <tr key={tx.id} className="hover:bg-gray-50">
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                            {new Date(tx.created_at).toLocaleDateString()}
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-500">
+                                            {tx.id.slice(0, 8)}
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-900">
+                                            ₹{tx.amount}
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap">
+                                            <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${tx.status === 'approved' ? 'bg-green-100 text-green-800' :
+                                                    tx.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                                                        'bg-red-100 text-red-800'
+                                                }`}>
+                                                {tx.status.toUpperCase()}
+                                            </span>
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                            {tx.status === 'approved' && (
                                                 <button
-                                                    onClick={() => handlePauseCampaign(campaign.id)}
-                                                    className="p-2 text-yellow-600 hover:text-yellow-700 hover:bg-yellow-50 rounded-lg transition-colors"
-                                                    title="Pause Campaign"
+                                                    onClick={() => downloadInvoice(tx)}
+                                                    className="text-blue-600 hover:text-blue-900 inline-flex items-center gap-1"
                                                 >
-                                                    <Pause size={20} />
-                                                </button>
-                                            ) : (
-                                                <button
-                                                    onClick={() => handleActivateCampaign(campaign)}
-                                                    className="p-2 text-green-600 hover:text-green-700 hover:bg-green-50 rounded-lg transition-colors"
-                                                    title="Activate Campaign"
-                                                >
-                                                    <Play size={20} />
+                                                    <Download size={16} />
+                                                    Download Invoice
                                                 </button>
                                             )}
-                                            <button
-                                                onClick={() => navigate(`/advertiser/campaign/${campaign.id}`)}
-                                                className="p-2 text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-colors"
-                                                title="Manage Ads"
-                                            >
-                                                <SettingsIcon size={20} />
-                                            </button>
-                                            <button
-                                                onClick={() => handleDeleteCampaign(campaign.id)}
-                                                className="p-2 text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors"
-                                                title="Delete Campaign"
-                                            >
-                                                <Trash2 size={20} />
-                                            </button>
-                                        </div>
-                                    </div>
-                                </div>
-                            )
-                        })}
+                                        </td>
+                                    </tr>
+                                ))}
+                                {transactions.length === 0 && (
+                                    <tr>
+                                        <td colSpan="5" className="px-6 py-12 text-center text-gray-500">
+                                            No billing history found.
+                                        </td>
+                                    </tr>
+                                )}
+                            </tbody>
+                        </table>
                     </div>
-                )}
-            </div>
+                </div>
+            )}
+
             {/* Request Credits Modal */}
             {requestModalOpen && (
                 <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
