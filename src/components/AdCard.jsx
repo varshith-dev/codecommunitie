@@ -72,16 +72,7 @@ export default function AdCard({ ad }) {
                         {ad.description}
                     </p>
 
-                    {/* Ad Tags */}
-                    {ad.tags && ad.tags.length > 0 && (
-                        <div className="flex flex-wrap gap-2 mb-4">
-                            {ad.tags.map(tag => (
-                                <span key={tag} className="text-[10px] uppercase font-bold text-gray-400 bg-gray-50 px-2 py-1 rounded-md tracking-wider">
-                                    #{tag.replace(/^#/, '')}
-                                </span>
-                            ))}
-                        </div>
-                    )}
+
 
                     {/* CTA Button */}
                     <div className="flex items-center justify-between mt-2">
