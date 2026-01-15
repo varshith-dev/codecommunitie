@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import { ExternalLink, MousePointerClick } from 'lucide-react'
 import { supabase } from '../supabaseClient'
 
@@ -5,9 +6,8 @@ export default function AdCard({ ad }) {
 
     const trackClick = async () => {
         try {
-            await supabase.rpc('track_ad_action', {
-                ad_id: ad.id,
-                action_type: 'click'
+            await supabase.rpc('track_ad_click', {
+                ad_id: ad.id
             })
         } catch (error) {
             console.error('Error tracking click:', error)
@@ -16,9 +16,8 @@ export default function AdCard({ ad }) {
 
     const trackImpression = async () => {
         try {
-            await supabase.rpc('track_ad_action', {
-                ad_id: ad.id,
-                action_type: 'impression'
+            await supabase.rpc('track_ad_impression', {
+                ad_id: ad.id
             })
         } catch (error) {
             console.error('Error tracking impression:', error)
@@ -27,11 +26,9 @@ export default function AdCard({ ad }) {
 
     // Simple impression tracking on mount
     // In a real app, use IntersectionObserver
-    import('react').then(({ useEffect }) => {
-        useEffect(() => {
-            trackImpression()
-        }, [])
-    })
+    useEffect(() => {
+        trackImpression()
+    }, [])
 
     return (
         <article className="bg-white rounded-2xl shadow-sm border border-green-100 overflow-hidden mb-6 animate-fade-in relative group hover:shadow-md transition-all">

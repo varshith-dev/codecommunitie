@@ -259,7 +259,7 @@ export default function Feed({ session }) {
       setPosts(postsWithData)
 
       // Fetch active ads (only approved ones)
-      const { data: adsData } = await supabase
+      const { data: adsData, error: adsError } = await supabase
         .from('advertisements')
         .select(`
           *,
@@ -271,6 +271,12 @@ export default function Feed({ session }) {
         .eq('placement', 'feed')
         .order('created_at', { ascending: false })
         .limit(5)
+
+      if (adsError) {
+        console.error('Error fetching ads:', adsError)
+      } else {
+        console.log('Ads fetched:', adsData?.length)
+      }
 
       setAds(adsData || [])
 
@@ -528,9 +534,9 @@ export default function Feed({ session }) {
 
       {displayedPosts.map((post, index) => (
         <div key={post.id}>
-          {/* Inject Ad every 5 posts */}
-          {index > 0 && index % 5 === 0 && ads.length > 0 && (
-            <AdCard ad={ads[(index / 5 - 1) % ads.length]} />
+          {/* Inject Ad every 3 posts */}
+          {index > 0 && index % 3 === 0 && ads.length > 0 && (
+            <AdCard ad={ads[(index / 3 - 1) % ads.length]} />
           )}
 
           <article className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden mb-6 animate-slide-up">

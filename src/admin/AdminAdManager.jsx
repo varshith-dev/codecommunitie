@@ -284,7 +284,11 @@ function CampaignsTable({ campaigns }) {
                                     <div className="text-xs text-gray-500 truncate max-w-[200px]">{camp.description}</div>
                                 </td>
                                 <td className="px-6 py-4 text-sm text-gray-600">
-                                    @{camp.advertiser?.username || 'Unknown'}
+                                    @{(() => {
+                                        const p = camp.advertiser
+                                        if (Array.isArray(p)) return p[0]?.username || 'Unknown'
+                                        return p?.username || 'Unknown'
+                                    })()}
                                 </td>
                                 <td className="px-6 py-4">
                                     <span className={`px-2 py-1 rounded-full text-xs font-medium ${camp.status === 'active' ? 'bg-green-100 text-green-700' :
@@ -367,7 +371,12 @@ function PendingAdsTable({ ads, onApprove, onReject }) {
                                     <div className="flex items-center gap-4 text-xs text-gray-500">
                                         <span>Campaign: {ad.campaign?.name}</span>
                                         <span>•</span>
-                                        <span>By: @{ad.campaign?.profiles?.username || 'Unknown'}</span>
+                                        <span>By: @{(() => {
+                                            const p = ad.campaign?.profiles
+                                            // Handle if it's an array or object
+                                            if (Array.isArray(p)) return p[0]?.username || 'Unknown'
+                                            return p?.username || 'Unknown'
+                                        })()}</span>
                                         <span>•</span>
                                         <span>Target: {ad.target_url}</span>
                                     </div>
