@@ -480,421 +480,377 @@ export default function Feed({ session }) {
   }
 
   return (
-    <div className="flex gap-6 max-w-7xl mx-auto items-start pb-20">
-      {/* Main Feed Column */}
-      <div className="flex-1 min-w-0">
+    <div className="max-w-full mx-auto pb-20">
 
-        {/* Feed Toggle - Smooth & Satisfying Design */}
-        <div className="sticky top-20 z-30 bg-white/80 backdrop-blur-xl border border-gray-100 rounded-2xl p-1.5 mb-6 shadow-sm flex items-center justify-between">
-          {[
-            { id: 'latest', label: 'Latest', icon: Clock },
-            { id: 'trending', label: 'Trending', icon: TrendingUp },
-            { id: 'following', label: 'Following', icon: Users }
-          ].map(tab => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`
+      {/* Feed Toggle - Smooth & Satisfying Design */}
+      <div className="sticky top-20 z-30 bg-white/80 backdrop-blur-xl border border-gray-100 rounded-2xl p-1.5 mb-6 shadow-sm flex items-center justify-between max-w-2xl mx-auto">
+        {[
+          { id: 'latest', label: 'Latest', icon: Clock },
+          { id: 'trending', label: 'Trending', icon: TrendingUp },
+          { id: 'following', label: 'Following', icon: Users }
+        ].map(tab => (
+          <button
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id)}
+            className={`
               flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl font-bold text-sm transition-all duration-300 relative overflow-hidden
               ${activeTab === tab.id
-                  ? 'text-blue-600 bg-blue-50 shadow-sm'
-                  : 'text-gray-500 hover:text-gray-900 hover:bg-gray-50'
-                }
+                ? 'text-blue-600 bg-blue-50 shadow-sm'
+                : 'text-gray-500 hover:text-gray-900 hover:bg-gray-50'
+              }
             `}
-            >
-              <tab.icon size={18} className={`transition-transform duration-300 ${activeTab === tab.id ? 'scale-110' : 'group-hover:scale-105'}`} strokeWidth={2.5} />
-              <span>{tab.label}</span>
-            </button>
-          ))}
+          >
+            <tab.icon size={18} className={`transition-transform duration-300 ${activeTab === tab.id ? 'scale-110' : 'group-hover:scale-105'}`} strokeWidth={2.5} />
+            <span>{tab.label}</span>
+          </button>
+        ))}
+      </div>
+
+      {/* Top Banner Ad - Shows first active ad if available */}
+      {ads.length > 0 && activeTab === 'latest' && (
+        <div className="mb-6">
+          <AdCard ad={ads[0]} />
         </div>
+      )}
 
-        {/* Top Banner Ad - Shows first active ad if available */}
-        {ads.length > 0 && activeTab === 'latest' && (
-          <div className="mb-6">
-            <AdCard ad={ads[0]} />
-          </div>
-        )}
+      {/* User Prompts Widget - Shows email verification reminders */}
+      {session && <UserPromptsWidget userId={session.user.id} />}
 
-        {/* User Prompts Widget - Shows email verification reminders */}
-        {session && <UserPromptsWidget userId={session.user.id} />}
-
-        {editingPost && (
-          <EditPostModal
-            post={editingPost}
-            onClose={() => setEditingPost(null)}
-            onUpdate={handlePostUpdate}
-          />
-        )}
-
-        <ShareModal
-          isOpen={!!sharingPost}
-          onClose={() => setSharingPost(null)}
-          post={sharingPost}
+      {editingPost && (
+        <EditPostModal
+          post={editingPost}
+          onClose={() => setEditingPost(null)}
+          onUpdate={handlePostUpdate}
         />
+      )}
 
-        {connectionError && (
-          <div className="bg-red-50 border border-red-200 text-red-600 p-4 rounded-xl mb-6 text-center">
-            <p className="font-semibold">Connection Error</p>
-            <p className="text-sm">Please ensure the database is set up correctly.</p>
-            <div className="mt-4 text-left bg-white p-4 rounded-lg border border-red-100 font-mono text-xs overflow-x-auto">
-              <h3 className="font-bold text-gray-900 mb-2">Troubleshooting Steps:</h3>
-              <div className="mb-2">
-                <h3 className="font-bold text-gray-900 mb-2">1. Run Completions</h3>
-                <p className="text-sm text-gray-600">Open SQL Editor in Supabase and run the contents of <code className="bg-gray-100 px-2 py-1 rounded">database_complete.sql</code></p>
+      <ShareModal
+        isOpen={!!sharingPost}
+        onClose={() => setSharingPost(null)}
+        post={sharingPost}
+      />
+
+      {connectionError && (
+        <div className="bg-red-50 border border-red-200 text-red-600 p-4 rounded-xl mb-6 text-center">
+          <p className="font-semibold">Connection Error</p>
+          <p className="text-sm">Please ensure the database is set up correctly.</p>
+          <div className="mt-4 text-left bg-white p-4 rounded-lg border border-red-100 font-mono text-xs overflow-x-auto">
+            <h3 className="font-bold text-gray-900 mb-2">Troubleshooting Steps:</h3>
+            <div className="mb-2">
+              <h3 className="font-bold text-gray-900 mb-2">1. Run Completions</h3>
+              <p className="text-sm text-gray-600">Open SQL Editor in Supabase and run the contents of <code className="bg-gray-100 px-2 py-1 rounded">database_complete.sql</code></p>
+            </div>
+            <div>
+              <h3 className="font-bold text-gray-900 mb-2">3. Create Storage Buckets</h3>
+              <p className="text-sm text-gray-600">Create public buckets: <code className="bg-gray-100 px-1 rounded text-xs">profile-pictures</code>, <code className="bg-gray-100 px-1 rounded text-xs">banner-images</code>, <code className="bg-gray-100 px-1 rounded text-xs">meme-uploads</code></p>
+            </div>
+            <div>
+              <h3 className="font-bold text-gray-900 mb-2">4. Configure Environment</h3>
+              <p className="text-sm text-gray-600">Copy <code className="bg-gray-100 px-2 py-1 rounded">.env.example</code> to <code className="bg-gray-100 px-2 py-1 rounded">.env.local</code> and add your Supabase credentials</p>
+            </div>
+          </div>
+          <p className="text-sm text-gray-500 mt-4">See README.md for detailed instructions</p>
+        </div>
+      )}
+
+      {displayedPosts.map((post, index) => (
+        <div key={post.id}>
+          {/* Inject Ad every 3 posts */}
+          {index > 0 && index % 3 === 0 && ads.length > 0 && (
+            <AdCard ad={ads[(index / 3 - 1) % ads.length]} />
+          )}
+
+          <article className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden mb-6 animate-slide-up">
+            {/* Post Header */}
+            <div className="p-4 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <Link to={`/user/@${post.profile?.username || post.user_id}`}>
+                  <Avatar src={post.profile?.profile_picture_url} alt={post.profile?.display_name || post.profile?.username} />
+                </Link>
+                <div>
+                  <Link to={`/user/@${post.profile?.username || post.user_id}`} className="font-semibold text-gray-900 hover:text-blue-600 transition-colors flex items-center gap-1">
+                    {post.profile?.display_name || post.profile?.username || 'Anonymous'}
+                    <UserBadges user={post.profile} />
+                  </Link>
+                  <div className="flex items-center gap-2 text-xs text-gray-500">
+                    <span>@{post.profile?.username || 'user'}</span>
+                    <span>•</span>
+                    <span>{timeAgo(post.created_at)}</span>
+                    {post.edited_at && <span className="text-gray-400 italic">(edited)</span>}
+                    {post.visibility === 'followers' && <span className="bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded text-[10px]">Followers</span>}
+                  </div>
+                </div>
               </div>
-              <div>
-                <h3 className="font-bold text-gray-900 mb-2">3. Create Storage Buckets</h3>
-                <p className="text-sm text-gray-600">Create public buckets: <code className="bg-gray-100 px-1 rounded text-xs">profile-pictures</code>, <code className="bg-gray-100 px-1 rounded text-xs">banner-images</code>, <code className="bg-gray-100 px-1 rounded text-xs">meme-uploads</code></p>
-              </div>
-              <div>
-                <h3 className="font-bold text-gray-900 mb-2">4. Configure Environment</h3>
-                <p className="text-sm text-gray-600">Copy <code className="bg-gray-100 px-2 py-1 rounded">.env.example</code> to <code className="bg-gray-100 px-2 py-1 rounded">.env.local</code> and add your Supabase credentials</p>
+
+              <div className="flex items-center gap-2">
+                <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${post.type === 'code' ? 'bg-blue-50 text-blue-600' :
+                  post.type === 'blog' ? 'bg-purple-50 text-purple-600' :
+                    'bg-pink-50 text-pink-600'
+                  }`}>
+                  {post.type.toUpperCase()}
+                </span>
+
+                {/* Admin Controls */}
+                {isAdmin && (
+                  <div className="flex items-center gap-1 ml-2 border-l border-gray-200 pl-2">
+                    <button
+                      onClick={async () => {
+                        const label = window.prompt('Set Admin Label (e.g., Trending, Featured, Staff Pick)', post.admin_label || '')
+                        if (label === null) return // Cancelled
+
+                        const { error } = await supabase
+                          .from('posts')
+                          .update({ admin_label: label || null })
+                          .eq('id', post.id)
+
+                        if (error) {
+                          toast.error('Failed to update label')
+                        } else {
+                          toast.success('Label updated')
+                          setPosts(posts.map(p => p.id === post.id ? { ...p, admin_label: label || null } : p))
+                        }
+                      }}
+                      className="text-gray-400 hover:text-purple-600 transition-colors p-2 rounded-full hover:bg-purple-50"
+                      title="Set Admin Label"
+                    >
+                      <Sparkles size={16} />
+                    </button>
+                    <button
+                      onClick={() => handleDelete(post.id)}
+                      className="text-gray-400 hover:text-red-500 transition-colors p-2 rounded-full hover:bg-red-50"
+                      title="Admin Delete"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
+                )}
+
+                {/* Edit/Delete Buttons (Owner) */}
+                {session && session.user.id === post.user_id && !isAdmin && (
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => setEditingPost(post)}
+                      className="text-gray-400 hover:text-blue-500 transition-colors p-2 rounded-full hover:bg-blue-50"
+                    >
+                      <Edit2 size={16} />
+                    </button>
+                    <button
+                      onClick={() => handleDelete(post.id)}
+                      className="text-gray-400 hover:text-red-500 transition-colors p-2 rounded-full hover:bg-red-50"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
-            <p className="text-sm text-gray-500 mt-4">See README.md for detailed instructions</p>
-          </div>
-        )}
 
-        {displayedPosts.map((post, index) => (
-          <div key={post.id}>
-            {/* Inject Ad every 3 posts */}
-            {index > 0 && index % 3 === 0 && ads.length > 0 && (
-              <AdCard ad={ads[(index / 3 - 1) % ads.length]} />
-            )}
-
-            <article className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden mb-6 animate-slide-up">
-              {/* Post Header */}
-              <div className="p-4 flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <Link to={`/user/@${post.profile?.username || post.user_id}`}>
-                    <Avatar src={post.profile?.profile_picture_url} alt={post.profile?.display_name || post.profile?.username} />
-                  </Link>
-                  <div>
-                    <Link to={`/user/@${post.profile?.username || post.user_id}`} className="font-semibold text-gray-900 hover:text-blue-600 transition-colors flex items-center gap-1">
-                      {post.profile?.display_name || post.profile?.username || 'Anonymous'}
-                      <UserBadges user={post.profile} />
-                    </Link>
-                    <div className="flex items-center gap-2 text-xs text-gray-500">
-                      <span>@{post.profile?.username || 'user'}</span>
-                      <span>•</span>
-                      <span>{timeAgo(post.created_at)}</span>
-                      {post.edited_at && <span className="text-gray-400 italic">(edited)</span>}
-                      {post.visibility === 'followers' && <span className="bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded text-[10px]">Followers</span>}
-                    </div>
-                  </div>
+            {/* Post Title & Tags */}
+            <div className="px-4 pb-2">
+              {/* Admin Label Display */}
+              {post.admin_label && (
+                <div className="mb-2 inline-flex items-center gap-1 px-2 py-0.5 bg-gradient-to-r from-purple-500 to-pink-500 text-white text-xs font-bold rounded shadow-sm">
+                  <Sparkles size={10} />
+                  {post.admin_label.toUpperCase()}
                 </div>
-
-                <div className="flex items-center gap-2">
-                  <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${post.type === 'code' ? 'bg-blue-50 text-blue-600' :
-                    post.type === 'blog' ? 'bg-purple-50 text-purple-600' :
-                      'bg-pink-50 text-pink-600'
-                    }`}>
-                    {post.type.toUpperCase()}
-                  </span>
-
-                  {/* Admin Controls */}
-                  {isAdmin && (
-                    <div className="flex items-center gap-1 ml-2 border-l border-gray-200 pl-2">
-                      <button
-                        onClick={async () => {
-                          const label = window.prompt('Set Admin Label (e.g., Trending, Featured, Staff Pick)', post.admin_label || '')
-                          if (label === null) return // Cancelled
-
-                          const { error } = await supabase
-                            .from('posts')
-                            .update({ admin_label: label || null })
-                            .eq('id', post.id)
-
-                          if (error) {
-                            toast.error('Failed to update label')
-                          } else {
-                            toast.success('Label updated')
-                            setPosts(posts.map(p => p.id === post.id ? { ...p, admin_label: label || null } : p))
-                          }
-                        }}
-                        className="text-gray-400 hover:text-purple-600 transition-colors p-2 rounded-full hover:bg-purple-50"
-                        title="Set Admin Label"
-                      >
-                        <Sparkles size={16} />
-                      </button>
-                      <button
-                        onClick={() => handleDelete(post.id)}
-                        className="text-gray-400 hover:text-red-500 transition-colors p-2 rounded-full hover:bg-red-50"
-                        title="Admin Delete"
-                      >
-                        <Trash2 size={16} />
-                      </button>
-                    </div>
-                  )}
-
-                  {/* Edit/Delete Buttons (Owner) */}
-                  {session && session.user.id === post.user_id && !isAdmin && (
-                    <div className="flex items-center gap-1">
-                      <button
-                        onClick={() => setEditingPost(post)}
-                        className="text-gray-400 hover:text-blue-500 transition-colors p-2 rounded-full hover:bg-blue-50"
-                      >
-                        <Edit2 size={16} />
-                      </button>
-                      <button
-                        onClick={() => handleDelete(post.id)}
-                        className="text-gray-400 hover:text-red-500 transition-colors p-2 rounded-full hover:bg-red-50"
-                      >
-                        <Trash2 size={16} />
-                      </button>
-                    </div>
-                  )}
+              )}
+              {post.tags && post.tags.length > 0 && (
+                <div className="flex flex-wrap gap-2 mb-2">
+                  {post.tags.map(tag => (
+                    <span key={tag.id} className="text-xs font-medium text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full">
+                      #{tag.name}
+                    </span>
+                  ))}
                 </div>
-              </div>
+              )}
 
-              {/* Post Title & Tags */}
-              <div className="px-4 pb-2">
-                {/* Admin Label Display */}
-                {post.admin_label && (
-                  <div className="mb-2 inline-flex items-center gap-1 px-2 py-0.5 bg-gradient-to-r from-purple-500 to-pink-500 text-white text-xs font-bold rounded shadow-sm">
-                    <Sparkles size={10} />
-                    {post.admin_label.toUpperCase()}
+
+
+              {post.title && (
+                <h2 className="text-lg font-semibold text-gray-900">{post.title}</h2>
+              )}
+            </div>
+
+            {/* Post Content */}
+            <div className="px-4 pb-2">
+              {post.type === 'meme' && post.content_url && (
+                <>
+                  <div className="rounded-xl overflow-hidden bg-black/5 border border-gray-100">
+                    {/* Robust Video Detection */}
+                    {(post.content_url.match(/\.(mp4|webm|ogg|mov|mkv|avi|qt)$/i) || post.content_url.includes('video')) ? (
+                      <VideoPlayer
+                        src={post.content_url}
+                        title={post.title}
+                      />
+                    ) : (
+                      <img src={post.content_url} alt={post.title} className="w-full max-h-[600px] object-contain" loading="lazy" />
+                    )}
                   </div>
-                )}
-                {post.tags && post.tags.length > 0 && (
-                  <div className="flex flex-wrap gap-2 mb-2">
-                    {post.tags.map(tag => (
-                      <span key={tag.id} className="text-xs font-medium text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full">
-                        #{tag.name}
-                      </span>
-                    ))}
+                  {post.description && (
+                    <p className="mt-3 text-gray-700 text-sm leading-relaxed">{post.description}</p>
+                  )}
+                </>
+              )}
+
+              {post.type === 'code' && post.code_snippet && (
+                <div className="rounded-xl overflow-hidden border border-gray-800 shadow-md">
+                  <div className="bg-[#1e1e1e] px-4 py-2 flex justify-between items-center border-b border-gray-700">
+                    <span className="text-xs font-mono text-blue-400 flex items-center gap-1">
+                      <Code2 size={12} />
+                      {post.code_language || 'PLAINTEXT'}
+                    </span>
+
+                    <div className="flex items-center gap-3">
+                      {(post.code_language?.toLowerCase() === 'html' || post.code_language?.toLowerCase() === 'xml') && (
+                        <button
+                          onClick={() => togglePreview(post.id)}
+                          className={`text-[10px] px-2 py-0.5 rounded border transition-colors ${previewStates[post.id]
+                            ? 'bg-blue-600 text-white border-blue-600'
+                            : 'text-gray-400 border-gray-600 hover:text-white hover:border-gray-400'
+                            }`}
+                        >
+                          {previewStates[post.id] ? 'Hide Preview' : 'Show Preview'}
+                        </button>
+                      )}
+
+                      <button
+                        onClick={() => handleCopyCode(post.code_snippet)}
+                        className="text-gray-400 hover:text-white transition-colors"
+                        title="Copy Code"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-copy"><rect width="14" height="14" x="8" y="8" rx="2" ry="2" /><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2" /></svg>
+                      </button>
+                    </div>
                   </div>
-                )}
 
+                  {previewStates[post.id] ? (
+                    <div className="bg-white border-b border-gray-200">
+                      <iframe
+                        title={`Preview ${post.id}`}
+                        srcDoc={injectConsole(post.code_snippet)}
+                        className="w-full h-96 border-0 block"
+                        sandbox="allow-scripts allow-modals"
+                      />
+                    </div>
+                  ) : (
+                    <div className="relative group">
+                      <div className={`transition-all duration-300 ${expandedCode[post.id] ? 'max-h-none' : 'max-h-60 overflow-hidden'}`}>
+                        <SyntaxHighlighter
+                          language={(post.code_language || 'javascript').toLowerCase()}
+                          style={vscDarkPlus}
+                          customStyle={{ margin: 0, padding: '1.5rem', fontSize: '0.9rem' }}
+                          showLineNumbers={true}
+                          wrapLongLines={true}
+                        >
+                          {post.code_snippet}
+                        </SyntaxHighlighter>
+                      </div>
 
-
-                {post.title && (
-                  <h2 className="text-lg font-semibold text-gray-900">{post.title}</h2>
-                )}
-              </div>
-
-              {/* Post Content */}
-              <div className="px-4 pb-2">
-                {post.type === 'meme' && post.content_url && (
-                  <>
-                    <div className="rounded-xl overflow-hidden bg-black/5 border border-gray-100">
-                      {/* Robust Video Detection */}
-                      {(post.content_url.match(/\.(mp4|webm|ogg|mov|mkv|avi|qt)$/i) || post.content_url.includes('video')) ? (
-                        <VideoPlayer
-                          src={post.content_url}
-                          title={post.title}
-                        />
-                      ) : (
-                        <img src={post.content_url} alt={post.title} className="w-full max-h-[600px] object-contain" loading="lazy" />
+                      {post.code_snippet.length > 300 && (
+                        <div className={`absolute bottom-0 left-0 right-0 p-2 flex justify-center ${!expandedCode[post.id] ? 'bg-gradient-to-t from-[#1e1e1e] to-transparent pt-12' : 'bg-[#1e1e1e]/50'}`}>
+                          <button
+                            onClick={() => toggleExpanded(post.id)}
+                            className="bg-blue-600/90 hover:bg-blue-600 text-white text-xs px-3 py-1 rounded-full shadow-lg backdrop-blur-sm transition-all flex items-center gap-1"
+                          >
+                            {expandedCode[post.id] ? (
+                              <>Show Less <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m18 15-6-6-6 6" /></svg></>
+                            ) : (
+                              <>Show Full Code <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6" /></svg></>
+                            )}
+                          </button>
+                        </div>
                       )}
                     </div>
-                    {post.description && (
-                      <p className="mt-3 text-gray-700 text-sm leading-relaxed">{post.description}</p>
-                    )}
-                  </>
-                )}
-
-                {post.type === 'code' && post.code_snippet && (
-                  <div className="rounded-xl overflow-hidden border border-gray-800 shadow-md">
-                    <div className="bg-[#1e1e1e] px-4 py-2 flex justify-between items-center border-b border-gray-700">
-                      <span className="text-xs font-mono text-blue-400 flex items-center gap-1">
-                        <Code2 size={12} />
-                        {post.code_language || 'PLAINTEXT'}
-                      </span>
-
-                      <div className="flex items-center gap-3">
-                        {(post.code_language?.toLowerCase() === 'html' || post.code_language?.toLowerCase() === 'xml') && (
-                          <button
-                            onClick={() => togglePreview(post.id)}
-                            className={`text-[10px] px-2 py-0.5 rounded border transition-colors ${previewStates[post.id]
-                              ? 'bg-blue-600 text-white border-blue-600'
-                              : 'text-gray-400 border-gray-600 hover:text-white hover:border-gray-400'
-                              }`}
-                          >
-                            {previewStates[post.id] ? 'Hide Preview' : 'Show Preview'}
-                          </button>
-                        )}
-
-                        <button
-                          onClick={() => handleCopyCode(post.code_snippet)}
-                          className="text-gray-400 hover:text-white transition-colors"
-                          title="Copy Code"
-                        >
-                          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-copy"><rect width="14" height="14" x="8" y="8" rx="2" ry="2" /><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2" /></svg>
-                        </button>
-                      </div>
-                    </div>
-
-                    {previewStates[post.id] ? (
-                      <div className="bg-white border-b border-gray-200">
-                        <iframe
-                          title={`Preview ${post.id}`}
-                          srcDoc={injectConsole(post.code_snippet)}
-                          className="w-full h-96 border-0 block"
-                          sandbox="allow-scripts allow-modals"
-                        />
-                      </div>
-                    ) : (
-                      <div className="relative group">
-                        <div className={`transition-all duration-300 ${expandedCode[post.id] ? 'max-h-none' : 'max-h-60 overflow-hidden'}`}>
-                          <SyntaxHighlighter
-                            language={(post.code_language || 'javascript').toLowerCase()}
-                            style={vscDarkPlus}
-                            customStyle={{ margin: 0, padding: '1.5rem', fontSize: '0.9rem' }}
-                            showLineNumbers={true}
-                            wrapLongLines={true}
-                          >
-                            {post.code_snippet}
-                          </SyntaxHighlighter>
-                        </div>
-
-                        {post.code_snippet.length > 300 && (
-                          <div className={`absolute bottom-0 left-0 right-0 p-2 flex justify-center ${!expandedCode[post.id] ? 'bg-gradient-to-t from-[#1e1e1e] to-transparent pt-12' : 'bg-[#1e1e1e]/50'}`}>
-                            <button
-                              onClick={() => toggleExpanded(post.id)}
-                              className="bg-blue-600/90 hover:bg-blue-600 text-white text-xs px-3 py-1 rounded-full shadow-lg backdrop-blur-sm transition-all flex items-center gap-1"
-                            >
-                              {expandedCode[post.id] ? (
-                                <>Show Less <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m18 15-6-6-6 6" /></svg></>
-                              ) : (
-                                <>Show Full Code <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6" /></svg></>
-                              )}
-                            </button>
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {post.type === 'blog' && post.description && (
-                  <div className="prose prose-sm max-w-none">
-                    <div
-                      className="text-gray-800 leading-relaxed whitespace-pre-wrap break-words"
-                      dangerouslySetInnerHTML={{
-                        __html: post.description
-                          .replace(/&/g, '&amp;')
-                          .replace(/</g, '&lt;')
-                          .replace(/>/g, '&gt;')
-                          .replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:text-blue-700 underline">$1</a>')
-                          .replace(/\n/g, '<br/>')
-                      }}
-                    />
-                  </div>
-                )}
-              </div>
-
-              {/* Post Actions */}
-              <div className="px-4 pb-3 flex items-center gap-2 border-t border-gray-100 pt-3">
-                <button
-                  onClick={() => handleLike(post.id)}
-                  className={`flex items-center gap-1 px-3 py-2 rounded-lg transition-all ${userLikes.has(post.id)
-                    ? 'text-pink-600 bg-pink-50 hover:bg-pink-100'
-                    : 'text-gray-500 hover:text-pink-600 hover:bg-gray-100'
-                    }`}
-                >
-                  <Heart size={20} className={userLikes.has(post.id) ? 'fill-current' : ''} />
-                  <span className="text-sm font-medium">{likeCounts[post.id] || 0}</span>
-                </button>
-
-                <button
-                  onClick={() => toggleComments(post.id)}
-                  className="flex items-center gap-1 px-3 py-2 rounded-lg text-gray-500 hover:text-blue-600 hover:bg-gray-100 transition-all"
-                >
-                  <MessageCircle size={20} />
-                  <span className="text-sm font-medium">{commentCounts[post.id] || 0}</span>
-                </button>
-
-                <BookmarkButton postId={post.id} session={session} size={20} />
-
-                <button
-                  onClick={() => setSharingPost(post)}
-                  className="flex items-center gap-1 px-3 py-2 rounded-lg text-gray-500 hover:text-blue-600 hover:bg-gray-100 transition-all ml-auto"
-                >
-                  <Share2 size={20} />
-                </button>
-              </div>
-
-              {activeCommentId === post.id && (
-                <CommentSection
-                  postId={post.id}
-                  session={session}
-                  onCommentAdded={() => {
-                    setCommentCounts(prev => ({
-                      ...prev,
-                      [post.id]: (prev[post.id] || 0) + 1
-                    }))
-                  }}
-                />
+                  )}
+                </div>
               )}
 
-            </article>
-          </div>
-        ))}
-
-        {
-          posts.length === 0 && (
-            <div className="text-center py-20 bg-white rounded-2xl border border-dashed border-gray-200 animate-fade-in">
-              <div className="bg-blue-50 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
-                <Code2 className="text-blue-500" size={32} />
-              </div>
-              <h3 className="text-lg font-semibold text-gray-900">No posts yet</h3>
-              <p className="text-gray-500 mt-2">Be the first to share something amazing!</p>
-              {session && (
-                <Link
-                  to="/create"
-                  className="mt-4 inline-block px-6 py-2 bg-blue-600 text-white rounded-full font-semibold hover:bg-blue-700 transition-colors"
-                >
-                  Create Post
-                </Link>
+              {post.type === 'blog' && post.description && (
+                <div className="prose prose-sm max-w-none">
+                  <div
+                    className="text-gray-800 leading-relaxed whitespace-pre-wrap break-words"
+                    dangerouslySetInnerHTML={{
+                      __html: post.description
+                        .replace(/&/g, '&amp;')
+                        .replace(/</g, '&lt;')
+                        .replace(/>/g, '&gt;')
+                        .replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:text-blue-700 underline">$1</a>')
+                        .replace(/\n/g, '<br/>')
+                    }}
+                  />
+                </div>
               )}
             </div>
-          )
-        }
-      </div>
 
-      {/* Right Sidebar - Desktop Only */}
-      <div className="hidden lg:block w-80 sticky top-24 space-y-6">
+            {/* Post Actions */}
+            <div className="px-4 pb-3 flex items-center gap-2 border-t border-gray-100 pt-3">
+              <button
+                onClick={() => handleLike(post.id)}
+                className={`flex items-center gap-1 px-3 py-2 rounded-lg transition-all ${userLikes.has(post.id)
+                  ? 'text-pink-600 bg-pink-50 hover:bg-pink-100'
+                  : 'text-gray-500 hover:text-pink-600 hover:bg-gray-100'
+                  }`}
+              >
+                <Heart size={20} className={userLikes.has(post.id) ? 'fill-current' : ''} />
+                <span className="text-sm font-medium">{likeCounts[post.id] || 0}</span>
+              </button>
 
-        {/* Sidebar Ad */}
-        {ads.length > 1 && (
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4">
-            <h3 className="text-xs font-bold text-gray-400 uppercase mb-3">Sponsored</h3>
-            <AdCard ad={ads[1]} />
-          </div>
-        )}
+              <button
+                onClick={() => toggleComments(post.id)}
+                className="flex items-center gap-1 px-3 py-2 rounded-lg text-gray-500 hover:text-blue-600 hover:bg-gray-100 transition-all"
+              >
+                <MessageCircle size={20} />
+                <span className="text-sm font-medium">{commentCounts[post.id] || 0}</span>
+              </button>
 
-        {/* Trending / Suggested Section */}
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4">
-          <h3 className="font-bold text-gray-900 mb-4 flex items-center gap-2">
-            <TrendingUp size={18} className="text-blue-600" />
-            Trending Now
-          </h3>
-          <div className="space-y-4">
-            {posts
-              .filter(p => (likeCounts[p.id] || 0) > 0)
-              .sort((a, b) => (likeCounts[b.id] || 0) - (likeCounts[a.id] || 0))
-              .slice(0, 3)
-              .map(post => (
-                <div key={post.id} className="group cursor-pointer">
-                  <Link to={`/post/${post.id}`} className="block">
-                    <h4 className="font-medium text-gray-900 text-sm group-hover:text-blue-600 line-clamp-2 mb-1">
-                      {post.title || post.description || 'Untitled Post'}
-                    </h4>
-                    <div className="flex items-center gap-2 text-xs text-gray-500">
-                      <span className="flex items-center gap-1">
-                        <Heart size={10} /> {likeCounts[post.id] || 0}
-                      </span>
-                      <span>•</span>
-                      <span>{post.profile?.username || 'user'}</span>
-                    </div>
-                  </Link>
-                </div>
-              ))}
-          </div>
+              <BookmarkButton postId={post.id} session={session} size={20} />
+
+              <button
+                onClick={() => setSharingPost(post)}
+                className="flex items-center gap-1 px-3 py-2 rounded-lg text-gray-500 hover:text-blue-600 hover:bg-gray-100 transition-all ml-auto"
+              >
+                <Share2 size={20} />
+              </button>
+            </div>
+
+            {activeCommentId === post.id && (
+              <CommentSection
+                postId={post.id}
+                session={session}
+                onCommentAdded={() => {
+                  setCommentCounts(prev => ({
+                    ...prev,
+                    [post.id]: (prev[post.id] || 0) + 1
+                  }))
+                }}
+              />
+            )}
+
+          </article>
         </div>
+      ))}
 
-      </div>
+      {
+        posts.length === 0 && (
+          <div className="text-center py-20 bg-white rounded-2xl border border-dashed border-gray-200 animate-fade-in">
+            <div className="bg-blue-50 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+              <Code2 className="text-blue-500" size={32} />
+            </div>
+            <h3 className="text-lg font-semibold text-gray-900">No posts yet</h3>
+            <p className="text-gray-500 mt-2">Be the first to share something amazing!</p>
+            {session && (
+              <Link
+                to="/create"
+                className="mt-4 inline-block px-6 py-2 bg-blue-600 text-white rounded-full font-semibold hover:bg-blue-700 transition-colors"
+              >
+                Create Post
+              </Link>
+            )}
+          </div>
+        )
+      }
     </div>
+
+    </div >
   )
 }

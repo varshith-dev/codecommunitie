@@ -5,10 +5,13 @@ import { supabase } from '../supabaseClient'
 import Avatar from './Avatar'
 import UserBadges from './UserBadges'
 
+import AdCard from './AdCard'
+
 export default function Sidebar({ session }) {
     const [trendingTags, setTrendingTags] = useState([])
     const [pinnedTags, setPinnedTags] = useState([])
     const [suggestedUsers, setSuggestedUsers] = useState([])
+    const [ad, setAd] = useState(null)
     const [loading, setLoading] = useState(true)
 
     useEffect(() => {
@@ -17,8 +20,32 @@ export default function Sidebar({ session }) {
 
     const fetchData = async () => {
         setLoading(true)
-        await Promise.all([fetchTrending(), fetchSuggestions()])
+        await Promise.all([fetchTrending(), fetchSuggestions(), fetchAd()])
         setLoading(false)
+    }
+
+    const fetchAd = async () => {
+        try {
+            const { data } = await supabase
+                .from('advertisements')
+                .select(`
+                    *,
+                    campaign:ad_campaigns!inner(status)
+                `)
+                .eq('status', 'active')
+                .eq('campaign.status', 'active')
+                .eq('approval_status', 'approved')
+                .eq('placement', 'feed') // Or 'sidebar' if we had that, but reusing 'feed' for now or picking one
+                .order('created_at', { ascending: false })
+                .limit(2) // Get a couple to pick from
+
+            if (data && data.length > 0) {
+                // Pick the second one if available (to simulate "sidebar" ad distinct from top feed ad), or just random
+                setAd(data[1] || data[0])
+            }
+        } catch (error) {
+            console.error('Error fetching ad:', error)
+        }
     }
 
     const fetchTrending = async () => {
@@ -93,6 +120,14 @@ export default function Sidebar({ session }) {
     return (
         <aside className="hidden lg:block col-span-1">
             <div className="sticky top-24 space-y-6 max-h-[calc(100vh-6rem)] overflow-y-auto pr-2 custom-scrollbar">
+
+                {/* Sidebar Ad */}
+                {ad && (
+                    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4">
+                        <h3 className="text-xs font-bold text-gray-400 uppercase mb-3">Suggested for you</h3>
+                        <AdCard ad={ad} />
+                    </div>
+                )}
                 {/* Pinned Tags */}
                 {pinnedTags.length > 0 && (
                     <div className="bg-gradient-to-br from-purple-50 to-white rounded-2xl shadow-sm border border-purple-100 overflow-hidden">
