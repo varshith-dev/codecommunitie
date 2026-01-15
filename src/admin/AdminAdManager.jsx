@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { supabase } from '../supabaseClient'
 import {
     LayoutDashboard, DollarSign, Users, MousePointerClick,
-    TrendingUp, Activity, Archive, PauseCircle, PlayCircle, Loader, CheckCircle, XCircle, Eye, CreditCard, Settings
+    TrendingUp, Activity, Archive, PauseCircle, PlayCircle, Loader, CheckCircle, XCircle, Eye, CreditCard, Settings, AlertTriangle
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import RollingCounter from '../components/RollingCounter'
@@ -17,7 +17,8 @@ export default function AdminAdManager() {
     const [campaigns, setCampaigns] = useState([])
     const [pendingAds, setPendingAds] = useState([])
     const [creditRequests, setCreditRequests] = useState([])
-    const [activeTab, setActiveTab] = useState('campaigns') // 'campaigns', 'pending', 'credits', 'advertisers'
+    const [adReports, setAdReports] = useState([])
+    const [activeTab, setActiveTab] = useState('campaigns') // 'campaigns', 'pending', 'credits', 'advertisers', 'reports'
     const [advertisers, setAdvertisers] = useState([])
     const [isAddCreditModalOpen, setIsAddCreditModalOpen] = useState(false)
     const [selectedAdvertiser, setSelectedAdvertiser] = useState(null)
@@ -31,7 +32,8 @@ export default function AdminAdManager() {
         totalImpressions: 0,
         totalClicks: 0,
         pendingApprovals: 0,
-        pendingCredits: 0
+        pendingCredits: 0,
+        pendingReports: 0
     })
 
     useEffect(() => {
@@ -99,6 +101,19 @@ export default function AdminAdManager() {
 
             if (creditError) console.error('Error fetching credits:', creditError)
             setCreditRequests(creditData || [])
+
+            // 3b. Fetch Ad Reports
+            const { data: reportsData, error: reportsError } = await supabase
+                .from('ad_reports')
+                .select(`
+                    *,
+                    ad:advertisements(title, image_url),
+                    reporter:profiles(username)
+                `)
+                .order('created_at', { ascending: false })
+
+            if (reportsError) console.error('Error fetching reports:', reportsError)
+            setAdReports(reportsData || [])
 
             // 4. Fetch All Advertisers (profiles with role 'advertiser' or have campaigns)
             // For now fetching all profiles, or we could filter. Let's fetch profiles with role 'advertiser'
@@ -169,7 +184,8 @@ export default function AdminAdManager() {
                 totalImpressions: impressions,
                 totalClicks: clicks,
                 pendingApprovals: pending,
-                pendingCredits: creditData?.length || 0
+                pendingCredits: creditData?.length || 0,
+                pendingReports: (reportsData || []).filter(r => r.status === 'pending').length
             })
             console.log('Ad Data Fetched:', { processedCampaigns, metrics })
 
@@ -246,6 +262,25 @@ export default function AdminAdManager() {
 
             setPendingAds(prev => prev.filter(ad => ad.id !== adId))
             toast.success('Ad rejected')
+
+            // Send Rejection Email
+            // Fetch ad details first to get user email (if not already in 'ad' object from list, usually it is for pendingAds)
+            // But pendingAds list has 'campaign' with 'profiles' info.
+            const rejectedAd = pendingAds.find(ad => ad.id === adId)
+
+            if (rejectedAd && rejectedAd.campaign?.profiles?.email) {
+                const user = rejectedAd.campaign.profiles
+                const template = EmailTemplates.AD_REJECTED
+                await EmailService.send({
+                    recipientEmail: user.email,
+                    memberName: user.display_name || user.username,
+                    subject: template.subject(),
+                    htmlContent: wrapInTemplate(template.body(user.display_name || user.username, rejectedAd.title, reason), template.title),
+                    templateType: 'AD_REJECTED',
+                    triggeredBy: 'admin'
+                }).catch(err => console.error('Failed to send rejection email:', err))
+            }
+
             fetchAdData()
         } catch (error) {
             console.error('Rejection error:', error)
@@ -271,26 +306,34 @@ export default function AdminAdManager() {
                 const user = reqData.advertiser
                 const template = EmailTemplates.CREDITS_APPROVED
 
-                // Generate Invoice
-                const invoiceDataURI = InvoiceGenerator.getDataURI(
-                    { id: requestId, amount: reqData.amount, date: reqData.created_at, description: 'Ad Credits Replenishment' },
-                    { name: user.display_name || user.username, email: user.email }
-                )
+                try {
+                    // Generate Invoice
+                    console.log('Generating PDF invoice for:', requestId)
+                    const invoiceDataURI = InvoiceGenerator.getDataURI(
+                        { id: requestId, amount: reqData.amount, date: reqData.created_at, description: 'Ad Credits Replenishment' },
+                        { name: user.display_name || user.username, email: user.email }
+                    )
+                    console.log('PDF generated, length:', invoiceDataURI?.length)
 
-                await EmailService.send({
-                    recipientEmail: user.email,
-                    memberName: user.display_name || user.username,
-                    subject: template.subject(),
-                    htmlContent: wrapInTemplate(template.body(user.display_name || user.username, reqData.amount), template.title),
-                    templateType: 'CREDITS_APPROVED',
-                    triggeredBy: 'admin',
-                    attachments: [
-                        {
-                            filename: `BS_Invoice_${requestId.slice(0, 8)}.pdf`,
-                            path: invoiceDataURI
-                        }
-                    ]
-                }).catch(err => console.error('Failed to send email:', err))
+                    await EmailService.send({
+                        recipientEmail: user.email,
+                        memberName: user.display_name || user.username,
+                        subject: template.subject(),
+                        htmlContent: wrapInTemplate(template.body(user.display_name || user.username, reqData.amount), template.title),
+                        templateType: 'CREDITS_APPROVED',
+                        triggeredBy: 'admin',
+                        attachments: [
+                            {
+                                filename: `BS_Invoice_${requestId.slice(0, 8)}.pdf`,
+                                path: invoiceDataURI
+                            }
+                        ]
+                    })
+                    console.log('Invoice email sent successfully')
+                } catch (emailErr) {
+                    console.error('Failed to generate/send invoice:', emailErr)
+                    toast.error('Credits added but failed to send invoice')
+                }
             }
 
             fetchAdData()
@@ -331,14 +374,33 @@ export default function AdminAdManager() {
             // Send Email
             if (selectedAdvertiser.email) {
                 const template = EmailTemplates.CREDITS_APPROVED
-                await EmailService.send({
-                    recipientEmail: selectedAdvertiser.email,
-                    memberName: selectedAdvertiser.display_name || selectedAdvertiser.username,
-                    subject: template.subject(),
-                    htmlContent: wrapInTemplate(template.body(selectedAdvertiser.display_name || selectedAdvertiser.username, creditAmount), template.title),
-                    templateType: 'CREDITS_APPROVED',
-                    triggeredBy: 'admin'
-                }).catch(err => console.error('Failed to send email:', err))
+                try {
+                    // Manual credits - generate mock ID or use timestamp
+                    const mockTxId = 'MANUAL-' + Date.now().toString().slice(-6)
+
+                    console.log('Generating Manual PDF invoice')
+                    const invoiceDataURI = InvoiceGenerator.getDataURI(
+                        { id: mockTxId, amount: parseFloat(creditAmount), date: new Date().toISOString(), description: 'Ad Credits Replenishment (Manual)' },
+                        { name: selectedAdvertiser.display_name || selectedAdvertiser.username, email: selectedAdvertiser.email }
+                    )
+
+                    await EmailService.send({
+                        recipientEmail: selectedAdvertiser.email,
+                        memberName: selectedAdvertiser.display_name || selectedAdvertiser.username,
+                        subject: template.subject(),
+                        htmlContent: wrapInTemplate(template.body(selectedAdvertiser.display_name || selectedAdvertiser.username, creditAmount), template.title),
+                        templateType: 'CREDITS_APPROVED',
+                        triggeredBy: 'admin',
+                        attachments: [
+                            {
+                                filename: `BS_Invoice_Manual.pdf`,
+                                path: invoiceDataURI
+                            }
+                        ]
+                    })
+                } catch (err) {
+                    console.error('Failed to send email/invoice:', err)
+                }
             }
 
             setIsAddCreditModalOpen(false)
@@ -372,6 +434,48 @@ export default function AdminAdManager() {
             toast.error('Failed to update settings')
         } finally {
             setSettingsLoading(false)
+        }
+    }
+
+    const handleDismissReport = async (reportId) => {
+        try {
+            const { error } = await supabase
+                .from('ad_reports')
+                .update({ status: 'dismissed' })
+                .eq('id', reportId)
+
+            if (error) throw error
+            toast.success('Report dismissed')
+            fetchAdData()
+        } catch (error) {
+            console.error('Error dismissing report:', error)
+            toast.error('Failed to dismiss report')
+        }
+    }
+
+    const handleRemoveReportedAd = async (reportId, adId) => {
+        if (!confirm('Are you sure you want to remove this ad? This action cannot be undone.')) return
+
+        try {
+            // 1. Delete the ad (or soft delete if preferred)
+            const { error: adError } = await supabase
+                .from('advertisements')
+                .delete()
+                .eq('id', adId)
+
+            if (adError) throw adError
+
+            // 2. Update report status
+            await supabase
+                .from('ad_reports')
+                .update({ status: 'reviewed' })
+                .eq('id', reportId)
+
+            toast.success('Ad removed & report resolved')
+            fetchAdData()
+        } catch (error) {
+            console.error('Error removing ad:', error)
+            toast.error('Failed to remove ad')
         }
     }
 
@@ -442,6 +546,15 @@ export default function AdminAdManager() {
                     onClick={() => setActiveTab('pending')}
                     clickable={true}
                 />
+                <MetricCard
+                    title="Reported Ads"
+                    value={metrics.pendingReports}
+                    icon={AlertTriangle}
+                    color="text-red-600"
+                    bg="bg-red-50"
+                    onClick={() => setActiveTab('reports')}
+                    clickable={true}
+                />
             </div>
 
             {/* Tabs */}
@@ -492,6 +605,20 @@ export default function AdminAdManager() {
                 >
                     Advertisers
                 </button>
+                <button
+                    onClick={() => setActiveTab('reports')}
+                    className={`pb-3 px-4 font-semibold transition-colors relative ${activeTab === 'reports'
+                        ? 'text-blue-600 border-b-2 border-blue-600'
+                        : 'text-gray-500 hover:text-gray-700'
+                        }`}
+                >
+                    Reports
+                    {metrics.pendingReports > 0 && (
+                        <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
+                            {metrics.pendingReports}
+                        </span>
+                    )}
+                </button>
             </div>
 
             {activeTab === 'campaigns' && <CampaignsTable campaigns={campaigns} navigate={navigate} />}
@@ -504,6 +631,13 @@ export default function AdminAdManager() {
                         setSelectedAdvertiser(user)
                         setIsAddCreditModalOpen(true)
                     }}
+                />
+            )}
+            {activeTab === 'reports' && (
+                <AdReportsTable
+                    reports={adReports}
+                    onDismiss={handleDismissReport}
+                    onRemove={handleRemoveReportedAd}
                 />
             )}
 
@@ -759,6 +893,88 @@ function CampaignsTable({ campaigns, navigate }) { // Accept navigate
                     </tbody>
                 </table>
             </div>
+        </div>
+    )
+}
+
+function AdReportsTable({ reports, onDismiss, onRemove }) {
+    return (
+        <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+            <div className="px-6 py-4 border-b border-gray-100">
+                <h2 className="font-bold text-gray-800">Reported Advertisements</h2>
+            </div>
+            {reports.length === 0 ? (
+                <div className="p-12 text-center text-gray-500">
+                    <p>No reports found.</p>
+                </div>
+            ) : (
+                <div className="overflow-x-auto">
+                    <table className="w-full text-left">
+                        <thead className="bg-gray-50 text-gray-500 text-xs uppercase font-medium">
+                            <tr>
+                                <th className="px-6 py-3">Ad Title</th>
+                                <th className="px-6 py-3">Reason</th>
+                                <th className="px-6 py-3">Reporter</th>
+                                <th className="px-6 py-3">Status</th>
+                                <th className="px-6 py-3">Date</th>
+                                <th className="px-6 py-3">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-100">
+                            {reports.map(report => (
+                                <tr key={report.id}>
+                                    <td className="px-6 py-4">
+                                        <div className="font-semibold text-gray-900">{report.ad?.title || 'Unknown Ad'}</div>
+                                        <div className="text-xs text-gray-500 truncate max-w-[200px]">{report.description}</div>
+                                    </td>
+                                    <td className="px-6 py-4">
+                                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${report.reason === 'fraud' ? 'bg-red-100 text-red-700' :
+                                            report.reason === 'spam' ? 'bg-yellow-100 text-yellow-700' :
+                                                'bg-gray-100 text-gray-700'
+                                            }`}>
+                                            {report.reason.toUpperCase()}
+                                        </span>
+                                    </td>
+                                    <td className="px-6 py-4 text-sm text-gray-500">
+                                        @{report.reporter?.username || 'user'}
+                                    </td>
+                                    <td className="px-6 py-4">
+                                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${report.status === 'pending' ? 'bg-orange-100 text-orange-700' :
+                                            report.status === 'dismissed' ? 'bg-gray-100 text-gray-500' :
+                                                'bg-green-100 text-green-700'
+                                            }`}>
+                                            {report.status.toUpperCase()}
+                                        </span>
+                                    </td>
+                                    <td className="px-6 py-4 text-sm text-gray-500">
+                                        {new Date(report.created_at).toLocaleDateString()}
+                                    </td>
+                                    <td className="px-6 py-4">
+                                        <div className="flex gap-2">
+                                            {report.status === 'pending' && (
+                                                <>
+                                                    <button
+                                                        onClick={() => onDismiss(report.id)}
+                                                        className="px-3 py-1 bg-gray-100 text-gray-600 rounded hover:bg-gray-200 text-xs font-medium"
+                                                    >
+                                                        Dismiss
+                                                    </button>
+                                                    <button
+                                                        onClick={() => onRemove(report.id, report.ad_id)}
+                                                        className="px-3 py-1 bg-red-100 text-red-600 rounded hover:bg-red-200 text-xs font-medium"
+                                                    >
+                                                        Remove Ad
+                                                    </button>
+                                                </>
+                                            )}
+                                        </div>
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            )}
         </div>
     )
 }

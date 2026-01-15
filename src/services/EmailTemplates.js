@@ -162,6 +162,25 @@ export const EmailTemplates = {
             </div>
         `,
         title: "Campaign Launched"
+    },
+    AD_REJECTED: {
+        subject: () => `Update on Your Ad Submission ⚠️`,
+        body: (name, adTitle, reason) => `
+            <div style="text-align: center; margin-bottom: 24px;">
+                <img src="https://cdn-icons-png.flaticon.com/512/6897/6897039.png" width="80" alt="Ad Rejected" />
+            </div>
+            <p>Hi ${name},</p>
+            <p>We reviewed your ad "<strong>${adTitle}</strong>", and unfortunately, it does not meet our advertising policies at this time.</p>
+            <div style="background: #fef2f2; border: 1px solid #fee2e2; padding: 15px; border-radius: 8px; margin: 20px 0; color: #991b1b;">
+                <strong>Reason for Rejection:</strong><br/>
+                ${reason || 'Violation of Community Guidelines'}
+            </div>
+            <p>You can edit your ad to address these issues and submit it for review again.</p>
+            <div class="button-wrapper">
+                <a href="https://codecommunitie.vercel.app/advertiser/dashboard" class="button">Edit Ad</a>
+            </div>
+        `,
+        title: "Ad Rejected"
     }
 }
 

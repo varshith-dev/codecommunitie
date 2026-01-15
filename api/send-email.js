@@ -28,6 +28,9 @@ export default async function handler(req, res) {
     }
 
     try {
+        console.log('API: Sending email to:', recipientEmail, 'Subject:', subject)
+        console.log('API: Attachments count:', attachments?.length || 0)
+
         const transporter = nodemailer.createTransport({
             host: "smtp.zeptomail.in",
             port: 587,
