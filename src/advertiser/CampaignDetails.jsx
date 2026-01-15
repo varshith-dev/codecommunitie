@@ -235,6 +235,28 @@ export default function CampaignDetails({ session }) {
         }
     }
 
+    const handleToggleStatus = async () => {
+        if (campaign.status !== 'active' && (campaign.spent || 0) >= campaign.budget) {
+            return toast.error('Budget exhausted! Increase budget to resume.')
+        }
+
+        const newStatus = campaign.status === 'active' ? 'paused' : 'active'
+
+        try {
+            const { error } = await supabase
+                .from('ad_campaigns')
+                .update({ status: newStatus })
+                .eq('id', campaign.id)
+
+            if (error) throw error
+
+            toast.success(`Campaign ${newStatus === 'active' ? 'activated' : 'paused'}`)
+            setCampaign({ ...campaign, status: newStatus })
+        } catch (error) {
+            toast.error('Failed to update campaign status')
+        }
+    }
+
     const handleEditCampaign = async () => {
         try {
             const { error } = await supabase
@@ -328,6 +350,16 @@ export default function CampaignDetails({ session }) {
                             <Edit2 size={20} />
                         </button>
                         <button
+                            onClick={handleToggleStatus}
+                            className={`p-2 rounded-lg transition-colors ${campaign.status === 'active'
+                                    ? 'bg-yellow-100 text-yellow-700 hover:bg-yellow-200'
+                                    : 'bg-green-100 text-green-700 hover:bg-green-200'
+                                }`}
+                            title={campaign.status === 'active' ? 'Pause Campaign' : 'Resume Campaign'}
+                        >
+                            {campaign.status === 'active' ? <Pause size={20} /> : <Play size={20} />}
+                        </button>
+                        <button
                             onClick={() => setPolicyModalOpen(true)}
                             className="flex items-center gap-2 px-4 py-2 bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 transition-colors font-medium text-sm"
                         >
@@ -352,7 +384,7 @@ export default function CampaignDetails({ session }) {
                     <div className="w-full bg-gray-200 rounded-full h-2.5 overflow-hidden">
                         <div
                             className={`h-2.5 rounded-full transition-all duration-500 ${(campaign.spent || 0) / campaign.budget > 0.9 ? 'bg-red-500' :
-                                    (campaign.spent || 0) / campaign.budget > 0.7 ? 'bg-yellow-500' : 'bg-blue-600'
+                                (campaign.spent || 0) / campaign.budget > 0.7 ? 'bg-yellow-500' : 'bg-blue-600'
                                 }`}
                             style={{ width: `${Math.min(100, ((campaign.spent || 0) / campaign.budget) * 100)}%` }}
                         ></div>

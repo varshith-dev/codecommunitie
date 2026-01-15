@@ -105,12 +105,16 @@ export default function AdvertiserDashboard({ session }) {
         }
     }
 
-    const handleActivateCampaign = async (campaignId) => {
+    const handleActivateCampaign = async (campaign) => {
+        if ((campaign.spent || 0) >= campaign.budget) {
+            return toast.error('Budget exhausted! Increase budget to resume.')
+        }
+
         try {
             const { error } = await supabase
                 .from('ad_campaigns')
                 .update({ status: 'active' })
-                .eq('id', campaignId)
+                .eq('id', campaign.id)
 
             if (error) throw error
 
@@ -330,7 +334,7 @@ export default function AdvertiserDashboard({ session }) {
                                                 <div className="w-full bg-gray-100 rounded-full h-2 overflow-hidden">
                                                     <div
                                                         className={`h-2 rounded-full transition-all duration-500 ${(campaign.spent || 0) / campaign.budget > 0.9 ? 'bg-red-500' :
-                                                                (campaign.spent || 0) / campaign.budget > 0.7 ? 'bg-yellow-500' : 'bg-blue-600'
+                                                            (campaign.spent || 0) / campaign.budget > 0.7 ? 'bg-yellow-500' : 'bg-blue-600'
                                                             }`}
                                                         style={{ width: `${Math.min(100, ((campaign.spent || 0) / campaign.budget) * 100)}%` }}
                                                     ></div>
@@ -348,7 +352,7 @@ export default function AdvertiserDashboard({ session }) {
                                                 </button>
                                             ) : (
                                                 <button
-                                                    onClick={() => handleActivateCampaign(campaign.id)}
+                                                    onClick={() => handleActivateCampaign(campaign)}
                                                     className="p-2 text-green-600 hover:text-green-700 hover:bg-green-50 rounded-lg transition-colors"
                                                     title="Activate Campaign"
                                                 >
