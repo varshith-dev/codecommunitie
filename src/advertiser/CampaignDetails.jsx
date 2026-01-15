@@ -6,6 +6,7 @@ import {
     Type, MousePointerClick, Eye, Trash2, ExternalLink, Edit2, X, Clock, CheckCircle, XCircle
 } from 'lucide-react'
 import toast from 'react-hot-toast'
+import AdvertiserPoliciesModal from './AdvertiserPoliciesModal'
 
 export default function CampaignDetails({ session }) {
     const { id } = useParams()
@@ -17,7 +18,9 @@ export default function CampaignDetails({ session }) {
     const [editingCampaign, setEditingCampaign] = useState(false)
     const [editingAd, setEditingAd] = useState(null)
     const [previewAd, setPreviewAd] = useState(null)
+
     const [campaignEdit, setCampaignEdit] = useState({})
+    const [policyModalOpen, setPolicyModalOpen] = useState(false)
 
     // New Ad Form State
     const [newAd, setNewAd] = useState({
@@ -300,6 +303,8 @@ export default function CampaignDetails({ session }) {
                 Back to Dashboard
             </button>
 
+            <AdvertiserPoliciesModal isOpen={policyModalOpen} onClose={() => setPolicyModalOpen(false)} />
+
             {/* Campaign Header */}
             <div className="bg-white rounded-xl border border-gray-200 p-6 mb-8">
                 <div className="flex justify-between items-start">
@@ -318,16 +323,39 @@ export default function CampaignDetails({ session }) {
                     <div className="flex gap-3">
                         <button
                             onClick={() => { setEditingCampaign(true); setCampaignEdit(campaign); }}
-                            className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+                            className="bg-gray-100 text-gray-700 p-2 rounded-lg hover:bg-gray-200 transition-colors"
                         >
-                            <Edit2 size={16} />
-                            Edit Campaign
+                            <Edit2 size={20} />
                         </button>
-                        <div className="text-right">
-                            <p className="text-sm text-gray-500">Budget</p>
-                            <p className="text-2xl font-bold text-gray-900">₹{campaign.budget}</p>
-                            <p className="text-sm text-gray-500 mt-1">Spent: ₹{campaign.spent}</p>
+                        <button
+                            onClick={() => setPolicyModalOpen(true)}
+                            className="flex items-center gap-2 px-4 py-2 bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 transition-colors font-medium text-sm"
+                        >
+                            <span className="hidden sm:inline">Policies & Rates</span>
+                            <span className="sm:hidden">Policies</span>
+                        </button>
+                    </div>
+                </div>
+
+                {/* Budget Status Bar */}
+                <div className="mt-6 p-4 bg-gray-50 rounded-xl border border-gray-100">
+                    <div className="flex justify-between items-center text-sm font-medium text-gray-700 mb-2">
+                        <span>Budget Usage</span>
+                        <div className="flex gap-4">
+                            <span className="text-gray-500">Spent: <strong>{campaign.spent || 0}</strong></span>
+                            <span className={campaign.budget - (campaign.spent || 0) < 100 ? "text-red-600" : "text-green-600"}>
+                                Remaining: <strong>{Math.max(0, campaign.budget - (campaign.spent || 0))}</strong>
+                            </span>
+                            <span className="text-gray-900">Total: <strong>{campaign.budget}</strong></span>
                         </div>
+                    </div>
+                    <div className="w-full bg-gray-200 rounded-full h-2.5 overflow-hidden">
+                        <div
+                            className={`h-2.5 rounded-full transition-all duration-500 ${(campaign.spent || 0) / campaign.budget > 0.9 ? 'bg-red-500' :
+                                    (campaign.spent || 0) / campaign.budget > 0.7 ? 'bg-yellow-500' : 'bg-blue-600'
+                                }`}
+                            style={{ width: `${Math.min(100, ((campaign.spent || 0) / campaign.budget) * 100)}%` }}
+                        ></div>
                     </div>
                 </div>
             </div>
