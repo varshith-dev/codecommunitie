@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { ExternalLink, MousePointerClick, Flag } from 'lucide-react'
 import { supabase } from '../supabaseClient'
 import ReportAdModal from './ReportAdModal'
