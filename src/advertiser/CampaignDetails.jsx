@@ -29,6 +29,7 @@ export default function CampaignDetails({ session }) {
         placement: 'feed',
         tags: []
     })
+    const [creatingAd, setCreatingAd] = useState(false)
     const [tagInput, setTagInput] = useState('')
 
     // ... (rest of imports and setup)
@@ -150,6 +151,7 @@ export default function CampaignDetails({ session }) {
                 .from('advertisements')
                 .select('*, approval_status, approved_at, rejection_reason')
                 .eq('campaign_id', id)
+                .is('deleted_at', null)
                 .order('created_at', { ascending: false })
 
             if (adsError) throw adsError
@@ -212,20 +214,21 @@ export default function CampaignDetails({ session }) {
     }
 
     const handleDeleteAd = async (adId) => {
-        if (!confirm('Are you sure you want to delete this ad?')) return
+        if (!confirm('Are you sure you want to delete this ad? This will archive it and preserve metrics.')) return
 
         try {
             const { error } = await supabase
                 .from('advertisements')
-                .delete()
+                .update({ deleted_at: new Date().toISOString(), status: 'archived' })
                 .eq('id', adId)
 
             if (error) throw error
 
-            toast.success('Ad deleted')
+            toast.success('Ad archived')
             setAds(ads.filter(a => a.id !== adId))
         } catch (error) {
-            toast.error('Error deleting ad')
+            console.error('Error archiving ad:', error)
+            toast.error('Error archiving ad')
         }
     }
 
