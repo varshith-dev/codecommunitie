@@ -101,6 +101,7 @@ export default function AdminAdManager() {
             const { data: advertiserData, error: advertiserError } = await supabase
                 .from('profiles')
                 .select('*')
+                .eq('role', 'advertiser')
                 .order('created_at', { ascending: false })
 
             if (advertiserError) console.error('Error fetching advertisers:', advertiserError)
@@ -674,7 +675,7 @@ function AdvertisersTable({ advertisers, onAddCredits }) {
                                 </td>
                                 <td className="px-6 py-4">
                                     <span className={`px-2 py-1 rounded-full text-xs font-medium ${user.role === 'admin' ? 'bg-purple-100 text-purple-700' :
-                                            user.role === 'advertiser' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-600'
+                                        user.role === 'advertiser' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-600'
                                         }`}>
                                         {(user.role || 'User').toUpperCase()}
                                     </span>
