@@ -42,8 +42,9 @@ export default function Sidebar({ session }) {
                 .limit(1)
 
             if (data && data.length > 0) {
-                // Pick the second one if available (to simulate "sidebar" ad distinct from top feed ad), or just random
-                setAd(data[1] || data[0])
+                // Shuffle and pick one for dynamic display
+                const randomIndex = Math.floor(Math.random() * data.length)
+                setAd(data[randomIndex])
             }
         } catch (error) {
             console.error('Error fetching ad:', error)

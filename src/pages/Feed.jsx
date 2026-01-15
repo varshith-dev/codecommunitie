@@ -276,10 +276,10 @@ export default function Feed({ session }) {
       if (adsError) {
         console.error('Error fetching ads:', adsError)
       } else {
-        console.log('Ads fetched:', adsData?.length)
+        // Shuffle ads for dynamic display
+        const shuffledAds = adsData?.sort(() => 0.5 - Math.random()) || []
+        setAds(shuffledAds)
       }
-
-      setAds(adsData || [])
 
       // Fetch counts for all posts
       if (postsWithData.length > 0) {

@@ -37,7 +37,7 @@ export default function CampaignDetails({ session }) {
     const handleAddTag = (e) => {
         if (e.key === 'Enter' && tagInput.trim()) {
             e.preventDefault()
-            const tag = tagInput.trim().replace(/^#/, '')
+            const tag = tagInput.trim().replace(/^#+/, '')
             if (!newAd.tags.includes(tag)) {
                 setNewAd(prev => ({ ...prev, tags: [...(prev.tags || []), tag] }))
             }
@@ -57,7 +57,7 @@ export default function CampaignDetails({ session }) {
     const handleAddEditTag = (e) => {
         if (e.key === 'Enter' && editTagInput.trim()) {
             e.preventDefault()
-            const tag = editTagInput.trim().replace(/^#/, '')
+            const tag = editTagInput.trim().replace(/^#+/, '')
             const currentTags = editingAd.tags || []
             if (!currentTags.includes(tag)) {
                 setEditingAd({ ...editingAd, tags: [...currentTags, tag] })
@@ -381,7 +381,7 @@ export default function CampaignDetails({ session }) {
                             {/* Tags display */}
                             <div className="flex flex-wrap gap-1 mb-3">
                                 {ad.tags?.map(tag => (
-                                    <span key={tag} className="text-[10px] bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded">#{tag}</span>
+                                    <span key={tag} className="text-[10px] bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded">#{tag.replace(/^#+/, '')}</span>
                                 ))}
                             </div>
 
