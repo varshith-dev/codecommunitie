@@ -26,9 +26,108 @@ export default function CampaignDetails({ session }) {
         image_url: '',
         target_url: '',
         cta_text: 'Learn More',
-        placement: 'feed'
+        placement: 'feed',
+        tags: []
     })
-    const [creatingAd, setCreatingAd] = useState(false)
+    const [tagInput, setTagInput] = useState('')
+
+    // ... (rest of imports and setup)
+
+    const handleAddTag = (e) => {
+        if (e.key === 'Enter' && tagInput.trim()) {
+            e.preventDefault()
+            const tag = tagInput.trim().replace(/^#/, '')
+            if (!newAd.tags.includes(tag)) {
+                setNewAd(prev => ({ ...prev, tags: [...(prev.tags || []), tag] }))
+            }
+            setTagInput('')
+        }
+    }
+
+    const removeTag = (tagToRemove) => {
+        setNewAd(prev => ({
+            ...prev,
+            tags: prev.tags.filter(t => t !== tagToRemove)
+        }))
+    }
+
+    // For editing
+    const [editTagInput, setEditTagInput] = useState('')
+    const handleAddEditTag = (e) => {
+        if (e.key === 'Enter' && editTagInput.trim()) {
+            e.preventDefault()
+            const tag = editTagInput.trim().replace(/^#/, '')
+            const currentTags = editingAd.tags || []
+            if (!currentTags.includes(tag)) {
+                setEditingAd({ ...editingAd, tags: [...currentTags, tag] })
+            }
+            setEditTagInput('')
+        }
+    }
+    const removeEditTag = (tagToRemove) => {
+        setEditingAd({
+            ...editingAd,
+            tags: (editingAd.tags || []).filter(t => t !== tagToRemove)
+        })
+    }
+
+
+    // ... inside render ...
+
+    // INSIDE CREATE FORM (add before CTA Button)
+    /*
+        <div>
+            <label className="block text-sm font-medium mb-1">Target Interest Tags (Hit Enter)</label>
+            <div className="flex flex-wrap gap-2 mb-2 p-2 border rounded-lg min-h-[42px]">
+                {newAd.tags?.map(tag => (
+                   <span key={tag} className="flex items-center gap-1 bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full">
+                       #{tag}
+                       <button type="button" onClick={() => removeTag(tag)}><X size={12}/></button>
+                   </span> 
+                ))}
+                <input 
+                    type="text" 
+                    value={tagInput}
+                    onChange={e => setTagInput(e.target.value)}
+                    onKeyDown={handleAddTag}
+                    className="flex-1 outline-none text-sm min-w-[100px]"
+                    placeholder="Type tag & enter..."
+                />
+            </div>
+        </div>
+    */
+
+    // INSIDE EDIT FORM (add before buttons)
+    /*
+       <div>
+           <label className="block text-sm font-medium mb-1">Target Interest Tags</label>
+           <div className="flex flex-wrap gap-2 mb-2 p-2 border rounded-lg min-h-[42px]">
+               {editingAd.tags?.map(tag => (
+                  <span key={tag} className="flex items-center gap-1 bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full">
+                      #{tag}
+                      <button type="button" onClick={() => removeEditTag(tag)}><X size={12}/></button>
+                  </span> 
+               ))}
+               <input 
+                   type="text" 
+                   value={editTagInput}
+                   onChange={e => setEditTagInput(e.target.value)}
+                   onKeyDown={handleAddEditTag}
+                   className="flex-1 outline-none text-sm min-w-[100px]"
+                   placeholder="Type tag & enter..."
+               />
+           </div>
+       </div>
+   */
+
+    // INSIDE AD CARD (display tags)
+    /*
+        <div className="flex flex-wrap gap-1 mt-2">
+            {ad.tags?.map(tag => (
+                <span key={tag} className="text-[10px] bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded">#{tag}</span>
+            ))}
+        </div>
+    */
 
     useEffect(() => {
         fetchCampaignDetails()
@@ -276,6 +375,13 @@ export default function CampaignDetails({ session }) {
                                 </span>
                             </div>
 
+                            {/* Tags display */}
+                            <div className="flex flex-wrap gap-1 mb-3">
+                                {ad.tags?.map(tag => (
+                                    <span key={tag} className="text-[10px] bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded">#{tag}</span>
+                                ))}
+                            </div>
+
                             <div className="flex items-center gap-2 mb-4">
                                 <span className="text-xs font-mono bg-blue-50 text-blue-700 px-2 py-1 rounded w-full truncate">
                                     {ad.target_url}
@@ -371,9 +477,6 @@ export default function CampaignDetails({ session }) {
                                         className="w-full border rounded-lg px-3 py-2"
                                         placeholder="https://..."
                                     />
-                                    <button type="button" className="p-2 border rounded-lg hover:bg-gray-50" title="Upload Image (Mock)">
-                                        <ImageIcon size={20} className="text-gray-500" />
-                                    </button>
                                 </div>
                             </div>
 
@@ -387,6 +490,26 @@ export default function CampaignDetails({ session }) {
                                     className="w-full border rounded-lg px-3 py-2"
                                     placeholder="Where users will go..."
                                 />
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-medium mb-1">Target Interest Tags (Hit Enter)</label>
+                                <div className="flex flex-wrap gap-2 mb-2 p-2 border rounded-lg min-h-[42px]">
+                                    {newAd.tags?.map(tag => (
+                                        <span key={tag} className="flex items-center gap-1 bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full">
+                                            #{tag}
+                                            <button type="button" onClick={() => removeTag(tag)}><X size={12} /></button>
+                                        </span>
+                                    ))}
+                                    <input
+                                        type="text"
+                                        value={tagInput}
+                                        onChange={e => setTagInput(e.target.value)}
+                                        onKeyDown={handleAddTag}
+                                        className="flex-1 outline-none text-sm min-w-[100px]"
+                                        placeholder="Type tag & enter..."
+                                    />
+                                </div>
                             </div>
 
                             <div className="grid grid-cols-2 gap-4">
@@ -435,6 +558,180 @@ export default function CampaignDetails({ session }) {
                                 </button>
                             </div>
                         </form>
+                    </div>
+                </div>
+            )}
+
+            {/* Edit Campaign Modal */}
+            {editingCampaign && (
+                <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+                    <div className="bg-white rounded-xl max-w-lg w-full p-6 animate-scale-in">
+                        <div className="flex justify-between items-center mb-6">
+                            <h2 className="text-xl font-bold">Edit Campaign</h2>
+                            <button onClick={() => setEditingCampaign(false)} className="text-gray-400 hover:text-gray-600">
+                                <X size={24} />
+                            </button>
+                        </div>
+                        <div className="space-y-4">
+                            <div>
+                                <label className="block text-sm font-medium mb-1">Campaign Name</label>
+                                <input
+                                    type="text"
+                                    value={campaignEdit.name || ''}
+                                    onChange={e => setCampaignEdit({ ...campaignEdit, name: e.target.value })}
+                                    className="w-full border rounded-lg px-3 py-2"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium mb-1">Description</label>
+                                <textarea
+                                    value={campaignEdit.description || ''}
+                                    onChange={e => setCampaignEdit({ ...campaignEdit, description: e.target.value })}
+                                    className="w-full border rounded-lg px-3 py-2"
+                                    rows="3"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium mb-1">Total Budget</label>
+                                <input
+                                    type="number"
+                                    value={campaignEdit.budget || ''}
+                                    onChange={e => setCampaignEdit({ ...campaignEdit, budget: e.target.value })}
+                                    className="w-full border rounded-lg px-3 py-2"
+                                />
+                            </div>
+                            <div className="flex gap-3 mt-6 pt-4 border-t">
+                                <button
+                                    onClick={() => setEditingCampaign(false)}
+                                    className="flex-1 px-4 py-2 border rounded-lg hover:bg-gray-50"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    onClick={handleEditCampaign}
+                                    className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                                >
+                                    Save Changes
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Edit Ad Modal */}
+            {editingAd && (
+                <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+                    <div className="bg-white rounded-xl max-w-lg w-full p-6 animate-scale-in">
+                        <div className="flex justify-between items-center mb-6">
+                            <h2 className="text-xl font-bold">Edit Advertisement</h2>
+                            <button onClick={() => setEditingAd(null)} className="text-gray-400 hover:text-gray-600">
+                                <X size={24} />
+                            </button>
+                        </div>
+                        <div className="space-y-4">
+                            <div>
+                                <label className="block text-sm font-medium mb-1">Headline</label>
+                                <input
+                                    type="text"
+                                    value={editingAd.title || ''}
+                                    onChange={e => setEditingAd({ ...editingAd, title: e.target.value })}
+                                    className="w-full border rounded-lg px-3 py-2"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium mb-1">Description</label>
+                                <textarea
+                                    value={editingAd.description || ''}
+                                    onChange={e => setEditingAd({ ...editingAd, description: e.target.value })}
+                                    className="w-full border rounded-lg px-3 py-2"
+                                    rows="2"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium mb-1">Image URL</label>
+                                <input
+                                    type="url"
+                                    value={editingAd.image_url || ''}
+                                    onChange={e => setEditingAd({ ...editingAd, image_url: e.target.value })}
+                                    className="w-full border rounded-lg px-3 py-2"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium mb-1">Target URL</label>
+                                <input
+                                    type="url"
+                                    value={editingAd.target_url || ''}
+                                    onChange={e => setEditingAd({ ...editingAd, target_url: e.target.value })}
+                                    className="w-full border rounded-lg px-3 py-2"
+                                />
+                            </div>
+                            <div className="flex gap-3 mt-6 pt-4 border-t">
+                                <button
+                                    onClick={() => setEditingAd(null)}
+                                    className="flex-1 px-4 py-2 border rounded-lg hover:bg-gray-50"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    onClick={() => handleEditAd(editingAd)}
+                                    className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                                >
+                                    Update Ad
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Preview Ad Modal */}
+            {previewAd && (
+                <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 backdrop-blur-sm" onClick={() => setPreviewAd(null)}>
+                    <div className="bg-transparent max-w-sm w-full animate-scale-in" onClick={e => e.stopPropagation()}>
+                        <div className="flex justify-end mb-2">
+                            <button onClick={() => setPreviewAd(null)} className="text-white hover:text-gray-200 bg-white/10 rounded-full p-1">
+                                <X size={20} />
+                            </button>
+                        </div>
+                        {/* Render Ad Card-like preview */}
+                        <div className="bg-white rounded-2xl shadow-2xl overflow-hidden">
+                            <div className="p-4 flex items-center gap-3 border-b border-gray-100">
+                                <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold">
+                                    Ad
+                                </div>
+                                <div>
+                                    <h3 className="font-bold text-gray-900">Sponsored</h3>
+                                    <p className="text-xs text-gray-500">{campaign.name}</p>
+                                </div>
+                            </div>
+
+                            <div className="relative">
+                                {previewAd.image_url ? (
+                                    <img src={previewAd.image_url} alt={previewAd.title} className="w-full h-auto object-cover" />
+                                ) : (
+                                    <div className="w-full h-48 bg-gray-100 flex items-center justify-center text-gray-400">
+                                        <ImageIcon size={48} />
+                                    </div>
+                                )}
+                            </div>
+
+                            <div className="p-4">
+                                <h2 className="font-bold text-lg mb-1">{previewAd.title}</h2>
+                                <p className="text-sm text-gray-600 mb-4">{previewAd.description}</p>
+
+                                <a
+                                    href={previewAd.target_url}
+                                    target="_blank"
+                                    className="block w-full text-center py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-colors"
+                                >
+                                    {previewAd.cta_text || 'Learn More'}
+                                </a>
+                            </div>
+                            <div className="px-4 py-2 bg-gray-50 text-xs text-center text-gray-500 border-t border-gray-100">
+                                Preview Mode • Links are disabled
+                            </div>
+                        </div>
                     </div>
                 </div>
             )}

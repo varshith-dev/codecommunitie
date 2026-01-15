@@ -63,25 +63,76 @@ export default function Sidebar({ session }) {
                 const pinned = allTags.filter(tag => tag.is_pinned)
                 setPinnedTags(pinned)
 
-                // Get post counts for trending (non-pinned) tags
-                const { data: recentTags } = await supabase
+                // Fetch recent post usage with engagement metrics
+                // We fetch a larger batch of recent post-tag associations
+                const { data: rawData } = await supabase
                     .from('post_tags')
-                    .select('tags (id, name, slug), posts!inner (status)')
+                    .select(`
+                        tag_id,
+                        tags (id, name, slug),
+                        posts!inner (
+                            id,
+                            created_at,
+                            status,
+                            likes (count),
+                            comments (count)
+                        )
+                    `)
                     .eq('posts.status', 'published')
-                    .limit(50)
+                    .order('created_at', { foreignTable: 'posts', ascending: false })
+                    .limit(200)
 
-                if (recentTags) {
-                    const tagCounts = {}
-                    recentTags.forEach(item => {
-                        const tag = item.tags
-                        if (tag && !pinned.find(p => p.id === tag.id)) { // Exclude pinned from trending
-                            if (!tagCounts[tag.name]) {
-                                tagCounts[tag.name] = { ...tag, count: 0 }
+                if (rawData) {
+                    const tagStats = {}
+
+                    rawData.forEach(item => {
+                        const tagId = item.tag_id
+                        const tagName = item.tags.name
+                        const post = item.posts
+
+                        // Skip pinned tags from trending logic
+                        if (pinned.find(p => p.id === tagId)) return
+
+                        if (!tagStats[tagName]) {
+                            tagStats[tagName] = {
+                                name: tagName,
+                                count: 0,
+                                likes: 0,
+                                comments: 0,
+                                lastActive: new Date(post.created_at).getTime() // Initialize with first (latest) found
                             }
-                            tagCounts[tag.name].count++
+                        }
+
+                        // Aggregate stats
+                        tagStats[tagName].count += 1
+                        tagStats[tagName].likes += (post.likes?.[0]?.count || 0)
+                        tagStats[tagName].comments += (post.comments?.[0]?.count || 0)
+
+                        // Keep track of most recent post in this tag
+                        const postTime = new Date(post.created_at).getTime()
+                        if (postTime > tagStats[tagName].lastActive) {
+                            tagStats[tagName].lastActive = postTime
                         }
                     })
-                    setTrendingTags(Object.values(tagCounts).sort((a, b) => b.count - a.count).slice(0, 5))
+
+                    // Calculate Trending Score
+                    // Score = (Posts * 5) + (Likes * 2) + (Comments * 4)
+                    // Apply Gravity Decay based on lastActive time
+                    const trendingList = Object.values(tagStats).map(tag => {
+                        const baseScore = (tag.count * 10) + (tag.likes * 2) + (tag.comments * 5)
+
+                        const hoursAgo = (Date.now() - tag.lastActive) / (1000 * 60 * 60)
+                        const gravity = 1.6
+                        const decay = Math.pow(hoursAgo + 2, gravity)
+
+                        return {
+                            ...tag,
+                            score: baseScore / decay
+                        }
+                    })
+
+                    // Sort by Score
+                    setTrendingTags(trendingList.sort((a, b) => b.score - a.score).slice(0, 5))
                 }
             }
         } catch (error) {
