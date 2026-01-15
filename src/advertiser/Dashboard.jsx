@@ -12,6 +12,10 @@ export default function AdvertiserDashboard({ session }) {
     const [loading, setLoading] = useState(true)
     const [campaigns, setCampaigns] = useState([])
     const [editingCampaign, setEditingCampaign] = useState(null)
+    const [credits, setCredits] = useState(0)
+    const [requestModalOpen, setRequestModalOpen] = useState(false)
+    const [requestAmount, setRequestAmount] = useState('')
+    const [requesting, setRequesting] = useState(false)
     const [stats, setStats] = useState({
         totalCampaigns: 0,
         activeCampaigns: 0,
@@ -23,7 +27,40 @@ export default function AdvertiserDashboard({ session }) {
     useEffect(() => {
         checkAdvertiserAccess()
         fetchCampaigns()
+        fetchCredits()
     }, [])
+
+    const fetchCredits = async () => {
+        const { data } = await supabase
+            .from('profiles')
+            .select('ad_credits')
+            .eq('id', session.user.id)
+            .single()
+        setCredits(data?.ad_credits || 0)
+    }
+
+    const handleRequestCredits = async (e) => {
+        e.preventDefault()
+        setRequesting(true)
+        try {
+            const { error } = await supabase
+                .from('ad_credit_requests')
+                .insert({
+                    advertiser_id: session.user.id,
+                    amount: parseFloat(requestAmount)
+                })
+
+            if (error) throw error
+
+            toast.success('Credit request sent successfully!')
+            setRequestModalOpen(false)
+            setRequestAmount('')
+        } catch (error) {
+            toast.error('Failed to send request')
+        } finally {
+            setRequesting(false)
+        }
+    }
 
     const checkAdvertiserAccess = async () => {
         const { data: profile } = await supabase
@@ -178,23 +215,26 @@ export default function AdvertiserDashboard({ session }) {
     return (
         <div className="max-w-7xl mx-auto p-6">
             {/* Header */}
-            <div className="mb-8 flex justify-between items-center">
+            <div className="flex justify-between items-end mb-8">
                 <div>
-                    <h1 className="text-3xl font-bold text-gray-900">Advertiser Dashboard</h1>
-                    <p className="text-gray-600 mt-1">Manage your campaigns and track performance</p>
+                    <h1 className="text-3xl font-bold text-gray-900 mb-2">Advertiser Dashboard</h1>
+                    <p className="text-gray-600">Manage your campaigns, track specific performance, and reach your audience.</p>
                 </div>
                 <div className="flex gap-3">
+                    <div className="bg-blue-50 px-4 py-2 rounded-lg border border-blue-100 flex flex-col items-end">
+                        <span className="text-xs font-semibold text-blue-700 uppercase">Available Credits</span>
+                        <span className="text-xl font-bold text-blue-900">₹{credits.toLocaleString()}</span>
+                    </div>
                     <button
-                        onClick={fetchCampaigns}
-                        className="px-4 py-3 bg-gray-100 text-gray-700 rounded-xl font-semibold flex items-center gap-2 hover:bg-gray-200 transition-colors"
-                        title="Refresh Data"
+                        onClick={() => setRequestModalOpen(true)}
+                        className="bg-white border border-blue-200 text-blue-700 font-semibold px-4 py-2 rounded-lg hover:bg-blue-50 transition-colors flex items-center gap-2"
                     >
-                        <RefreshCw size={20} />
-                        Refresh
+                        <DollarSign size={20} />
+                        Request Credits
                     </button>
                     <button
                         onClick={() => navigate('/advertiser/create-campaign')}
-                        className="px-6 py-3 bg-blue-600 text-white rounded-xl font-semibold flex items-center gap-2 hover:bg-blue-700 transition-colors"
+                        className="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-4 py-2 rounded-lg transition-colors flex items-center gap-2 shadow-sm"
                     >
                         <Plus size={20} />
                         Create Campaign
@@ -381,6 +421,46 @@ export default function AdvertiserDashboard({ session }) {
                     </div>
                 )}
             </div>
+            {/* Request Credits Modal */}
+            {requestModalOpen && (
+                <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+                    <div className="bg-white rounded-xl max-w-sm w-full p-6 animate-scale-in">
+                        <h2 className="text-xl font-bold mb-1">Request Ad Credits</h2>
+                        <p className="text-sm text-gray-500 mb-4">Credits will be added after admin approval.</p>
+
+                        <form onSubmit={handleRequestCredits}>
+                            <div className="mb-4">
+                                <label className="block text-sm font-medium mb-1">Amount (₹)</label>
+                                <input
+                                    type="number"
+                                    required
+                                    min="100"
+                                    value={requestAmount}
+                                    onChange={e => setRequestAmount(e.target.value)}
+                                    className="w-full border rounded-lg px-3 py-2 text-lg"
+                                    placeholder="e.g. 1000"
+                                />
+                            </div>
+                            <div className="flex gap-3">
+                                <button
+                                    type="button"
+                                    onClick={() => setRequestModalOpen(false)}
+                                    className="flex-1 px-4 py-2 border rounded-lg hover:bg-gray-50"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    type="submit"
+                                    disabled={requesting}
+                                    className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold"
+                                >
+                                    {requesting ? 'Sending...' : 'Send Request'}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
         </div>
     )
 }

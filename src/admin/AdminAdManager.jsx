@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { supabase } from '../supabaseClient'
 import {
     LayoutDashboard, DollarSign, Users, MousePointerClick,
-    TrendingUp, Activity, Archive, PauseCircle, PlayCircle, Loader, CheckCircle, XCircle, Eye
+    TrendingUp, Activity, Archive, PauseCircle, PlayCircle, Loader, CheckCircle, XCircle, Eye, CreditCard
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import RollingCounter from '../components/RollingCounter'
@@ -13,13 +13,15 @@ export default function AdminAdManager() {
     const [loading, setLoading] = useState(true)
     const [campaigns, setCampaigns] = useState([])
     const [pendingAds, setPendingAds] = useState([])
-    const [activeTab, setActiveTab] = useState('campaigns') // 'campaigns' or 'pending'
+    const [creditRequests, setCreditRequests] = useState([])
+    const [activeTab, setActiveTab] = useState('campaigns') // 'campaigns', 'pending', 'credits'
     const [metrics, setMetrics] = useState({
         totalRevenue: 0,
         activeCampaigns: 0,
         totalImpressions: 0,
         totalClicks: 0,
-        pendingApprovals: 0
+        pendingApprovals: 0,
+        pendingCredits: 0
     })
 
     useEffect(() => {
@@ -32,6 +34,9 @@ export default function AdminAdManager() {
                 fetchAdData()
             })
             .on('postgres_changes', { event: '*', schema: 'public', table: 'ad_campaigns' }, () => {
+                fetchAdData()
+            })
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'ad_credit_requests' }, () => {
                 fetchAdData()
             })
             .subscribe()
@@ -71,7 +76,20 @@ export default function AdminAdManager() {
 
             setPendingAds(pendingData || [])
 
-            // 3. Process Data
+            // 3. Fetch Pending Credit Requests
+            const { data: creditData, error: creditError } = await supabase
+                .from('ad_credit_requests')
+                .select(`
+                    *,
+                    advertiser:profiles(username, display_name, email)
+                `)
+                .eq('status', 'pending')
+                .order('created_at', { ascending: true })
+
+            if (creditError) console.error('Error fetching credits:', creditError)
+            setCreditRequests(creditData || [])
+
+            // 4. Process Data
             let revenue = 0
             let impressions = 0
             let clicks = 0
@@ -109,7 +127,8 @@ export default function AdminAdManager() {
                 activeCampaigns: active,
                 totalImpressions: impressions,
                 totalClicks: clicks,
-                pendingApprovals: pending
+                pendingApprovals: pending,
+                pendingCredits: creditData?.length || 0
             })
 
         } catch (error) {
@@ -158,115 +177,222 @@ export default function AdminAdManager() {
 
             if (error) throw error
 
-            // Remove from pending list immediately
             setPendingAds(prev => prev.filter(ad => ad.id !== adId))
-
             toast.success('Ad rejected')
-
-            // Refresh all data in background
-            await fetchAdData()
+            fetchAdData()
         } catch (error) {
             console.error('Rejection error:', error)
             toast.error('Failed to reject ad')
         }
     }
 
-    if (loading) return (
-        <div className="flex items-center justify-center p-20 text-gray-400">
-            <Loader className="animate-spin mb-2" />
-            <span className="ml-2">Loading Ad Metrics...</span>
+    const handleApproveCredit = async (requestId) => {
+        try {
+            const { error } = await supabase.rpc('approve_ad_credit_request', { request_id: requestId })
+            if (error) throw error
+            toast.success('Credits approved & added to wallet')
+            fetchAdData()
+        } catch (error) {
+            console.error('Credit approval error:', error)
+            toast.error('Failed to approve credits')
+        }
+    }
+
+    const handleRejectCredit = async (requestId) => {
+        try {
+            const { error } = await supabase
+                .from('ad_credit_requests')
+                .update({ status: 'rejected' })
+                .eq('id', requestId)
+            if (error) throw error
+            toast.success('Credit request rejected')
+            fetchAdData()
+        } catch (error) {
+            toast.error('Failed to reject request')
+        }
+    })
+                .eq('id', adId)
+
+    if (error) throw error
+
+    // Remove from pending list immediately
+    setPendingAds(prev => prev.filter(ad => ad.id !== adId))
+
+    toast.success('Ad rejected')
+
+    // Refresh all data in background
+    await fetchAdData()
+} catch (error) {
+    console.error('Rejection error:', error)
+    toast.error('Failed to reject ad')
+}
+    }
+
+if (loading) return (
+    <div className="flex items-center justify-center p-20 text-gray-400">
+        <Loader className="animate-spin mb-2" />
+        <span className="ml-2">Loading Ad Metrics...</span>
+    </div>
+)
+
+return (
+    <div className="p-6 space-y-8 animate-fade-in">
+
+        {/* Header */}
+        <div>
+            <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+                <Activity className="text-blue-600" />
+                Ad Manager & Revenue
+            </h1>
+            <p className="text-gray-500">Monitor advertising campaigns and approve pending ads.</p>
         </div>
-    )
 
+        {/* Metrics Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
+            <MetricCard
+                title="Est. Revenue"
+                value={`₹${metrics.totalRevenue.toFixed(2)}`}
+                icon={DollarSign}
+                color="text-green-600"
+                bg="bg-green-50"
+            />
+            <MetricCard
+                title="Active Campaigns"
+                value={metrics.activeCampaigns}
+                icon={TrendingUp}
+                color="text-blue-600"
+                bg="bg-blue-50"
+            />
+            <MetricCard
+                title="Total Impressions"
+                value={<RollingCounter value={metrics.totalImpressions} />}
+                icon={Users}
+                color="text-purple-600"
+                bg="bg-purple-50"
+            />
+            <MetricCard
+                title="Total Clicks"
+                value={<RollingCounter value={metrics.totalClicks} />}
+                icon={MousePointerClick}
+                color="text-orange-600"
+                bg="bg-orange-50"
+            />
+            <MetricCard
+                title="Pending Approvals"
+                value={metrics.pendingApprovals}
+                icon={Archive}
+                color="text-yellow-600"
+                bg="bg-yellow-50"
+                onClick={() => setActiveTab('pending')}
+                clickable={true}
+            />
+        </div>
+
+        {/* Tabs */}
+        <div className="flex gap-4 border-b border-gray-200">
+            <button
+                onClick={() => setActiveTab('campaigns')}
+                className={`pb-3 px-4 font-semibold transition-colors ${activeTab === 'campaigns'
+                    ? 'text-blue-600 border-b-2 border-blue-600'
+                    : 'text-gray-500 hover:text-gray-700'
+                    }`}
+            >
+                Campaigns
+            </button>
+            <button
+                onClick={() => setActiveTab('pending')}
+                className={`pb-3 px-4 font-semibold transition-colors relative ${activeTab === 'pending'
+                    ? 'text-blue-600 border-b-2 border-blue-600'
+                    : 'text-gray-500 hover:text-gray-700'
+                    }`}
+            >
+                Pending Approvals
+                {metrics.pendingApprovals > 0 && (
+                    <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
+                        {metrics.pendingApprovals}
+                    </span>
+                )}
+            </button>
+            <button
+                onClick={() => setActiveTab('credits')}
+                className={`pb-3 px-4 font-semibold transition-colors relative ${activeTab === 'credits'
+                    ? 'text-blue-600 border-b-2 border-blue-600'
+                    : 'text-gray-500 hover:text-gray-700'
+                    }`}
+            >
+                Requests
+                {metrics.pendingCredits > 0 && (
+                    <span className="absolute -top-1 -right-1 bg-indigo-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
+                        {metrics.pendingCredits}
+                    </span>
+                )}
+            </button>
+        </div>
+
+        {activeTab === 'campaigns' && <CampaignsTable campaigns={campaigns} navigate={navigate} />}
+        {activeTab === 'pending' && <PendingAdsTable ads={pendingAds} onApprove={handleApprove} onReject={handleReject} />}
+        {activeTab === 'credits' && <CreditRequestsTable requests={creditRequests} onApprove={handleApproveCredit} onReject={handleRejectCredit} />}
+    </div>
+)
+}
+
+function CreditRequestsTable({ requests, onApprove, onReject }) {
     return (
-        <div className="p-6 space-y-8 animate-fade-in">
-
-            {/* Header */}
-            <div>
-                <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-                    <Activity className="text-blue-600" />
-                    Ad Manager & Revenue
-                </h1>
-                <p className="text-gray-500">Monitor advertising campaigns and approve pending ads.</p>
+        <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+            <div className="px-6 py-4 border-b border-gray-100">
+                <h2 className="font-bold text-gray-800">Pending Credit Requests</h2>
             </div>
-
-            {/* Metrics Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
-                <MetricCard
-                    title="Est. Revenue"
-                    value={`₹${metrics.totalRevenue.toFixed(2)}`}
-                    icon={DollarSign}
-                    color="text-green-600"
-                    bg="bg-green-50"
-                />
-                <MetricCard
-                    title="Active Campaigns"
-                    value={metrics.activeCampaigns}
-                    icon={TrendingUp}
-                    color="text-blue-600"
-                    bg="bg-blue-50"
-                />
-                <MetricCard
-                    title="Total Impressions"
-                    value={<RollingCounter value={metrics.totalImpressions} />}
-                    icon={Users}
-                    color="text-purple-600"
-                    bg="bg-purple-50"
-                />
-                <MetricCard
-                    title="Total Clicks"
-                    value={<RollingCounter value={metrics.totalClicks} />}
-                    icon={MousePointerClick}
-                    color="text-orange-600"
-                    bg="bg-orange-50"
-                />
-                <MetricCard
-                    title="Pending Approvals"
-                    value={metrics.pendingApprovals}
-                    icon={Archive}
-                    color="text-yellow-600"
-                    bg="bg-yellow-50"
-                    onClick={() => setActiveTab('pending')}
-                    clickable={true}
-                />
-            </div>
-
-            {/* Tabs */}
-            <div className="flex gap-4 border-b border-gray-200">
-                <button
-                    onClick={() => setActiveTab('campaigns')}
-                    className={`pb-3 px-4 font-semibold transition-colors ${activeTab === 'campaigns'
-                        ? 'text-blue-600 border-b-2 border-blue-600'
-                        : 'text-gray-500 hover:text-gray-700'
-                        }`}
-                >
-                    Campaigns
-                </button>
-                <button
-                    onClick={() => setActiveTab('pending')}
-                    className={`pb-3 px-4 font-semibold transition-colors relative ${activeTab === 'pending'
-                        ? 'text-blue-600 border-b-2 border-blue-600'
-                        : 'text-gray-500 hover:text-gray-700'
-                        }`}
-                >
-                    Pending Approvals
-                    {metrics.pendingApprovals > 0 && (
-                        <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
-                            {metrics.pendingApprovals}
-                        </span>
-                    )}
-                </button>
-            </div>
-
-            {/* Content */}
-            {activeTab === 'campaigns' ? (
-                <CampaignsTable campaigns={campaigns} navigate={navigate} /> // Pass navigate
+            {requests.length === 0 ? (
+                <div className="p-12 text-center text-gray-500">
+                    <p>No pending credit requests.</p>
+                </div>
             ) : (
-                <PendingAdsTable
-                    ads={pendingAds}
-                    onApprove={handleApprove}
-                    onReject={handleReject}
-                />
+                <div className="overflow-x-auto">
+                    <table className="w-full text-left">
+                        <thead className="bg-gray-50 text-gray-500 text-xs uppercase font-medium">
+                            <tr>
+                                <th className="px-6 py-3">Advertiser</th>
+                                <th className="px-6 py-3">Amount</th>
+                                <th className="px-6 py-3">Date</th>
+                                <th className="px-6 py-3">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-100">
+                            {requests.map(req => (
+                                <tr key={req.id}>
+                                    <td className="px-6 py-4">
+                                        <div className="font-semibold text-gray-900">@{req.advertiser?.username}</div>
+                                        <div className="text-xs text-gray-500">{req.advertiser?.email}</div>
+                                    </td>
+                                    <td className="px-6 py-4 font-bold text-green-600">
+                                        ₹{req.amount}
+                                    </td>
+                                    <td className="px-6 py-4 text-sm text-gray-500">
+                                        {new Date(req.created_at).toLocaleDateString()}
+                                    </td>
+                                    <td className="px-6 py-4">
+                                        <div className="flex gap-2">
+                                            <button
+                                                onClick={() => onApprove(req.id)}
+                                                className="p-1.5 bg-green-100 text-green-700 rounded hover:bg-green-200"
+                                                title="Approve"
+                                            >
+                                                <CheckCircle size={18} />
+                                            </button>
+                                            <button
+                                                onClick={() => onReject(req.id)}
+                                                className="p-1.5 bg-red-100 text-red-700 rounded hover:bg-red-200"
+                                                title="Reject"
+                                            >
+                                                <XCircle size={18} />
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
             )}
         </div>
     )
