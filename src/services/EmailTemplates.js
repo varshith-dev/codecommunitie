@@ -2,6 +2,9 @@ export const EmailTemplates = {
     WELCOME: {
         subject: (name) => `Welcome to CodCommunitie! 🚀`,
         body: (name) => `
+            <div style="text-align: center; margin-bottom: 24px;">
+                <img src="https://cdn-icons-png.flaticon.com/512/8805/8805064.png" width="80" alt="Welcome" />
+            </div>
             <p>Hi ${name},</p>
             <p>Welcome to the family! We're excited to have you join <strong>CodCommunitie</strong>.</p>
             <p>You are now part of a global community of developers dedicated to building the future of software. Let us know if you have any questions!</p>
@@ -14,6 +17,9 @@ export const EmailTemplates = {
     SIGNUP_CONFIRMATION: {
         subject: () => `Please Verify Your Email - Action Required ✉️`,
         body: (name, verificationLink = 'https://codecommunitie.vercel.app/verify-email') => `
+            <div style="text-align: center; margin-bottom: 24px;">
+                <img src="https://cdn-icons-png.flaticon.com/512/2058/2058765.png" width="80" alt="Verify" />
+            </div>
             <p>Hi ${name},</p>
             <p>Thanks for creating an account with <strong>CodCommunitie</strong>.</p>
             <p>To complete your registration and unlock full access, please verify your email address by clicking the button below.</p>
@@ -27,6 +33,9 @@ export const EmailTemplates = {
     OTP: {
         subject: () => `Your Verification Code 🔐`,
         body: (name, otp = '123456') => `
+            <div style="text-align: center; margin-bottom: 24px;">
+                <img src="https://cdn-icons-png.flaticon.com/512/10695/10695882.png" width="80" alt="Security Code" />
+            </div>
             <p>Hi ${name},</p>
             <p>Here is your verification code to access your account:</p>
             <div class="code-box">${otp}</div>
@@ -37,6 +46,9 @@ export const EmailTemplates = {
     RESET_PASSWORD: {
         subject: () => `Reset Your Password 🔑`,
         body: (name, link = 'https://codecommunitie.vercel.app/reset-password') => `
+            <div style="text-align: center; margin-bottom: 24px;">
+                <img src="https://cdn-icons-png.flaticon.com/512/6357/6357048.png" width="80" alt="Reset Password" />
+            </div>
             <p>Hi ${name},</p>
             <p>We received a request to reset your password for your CodCommunitie account.</p>
             <div class="button-wrapper">
@@ -49,12 +61,12 @@ export const EmailTemplates = {
     VERIFIED_BADGE: {
         subject: () => `You're Verified! 🔷`,
         body: (name) => `
+            <div style="text-align: center; margin-bottom: 24px;">
+                <img src="https://cdn-icons-png.flaticon.com/512/7595/7595571.png" width="80" alt="Verified" />
+            </div>
             <p>Hi ${name},</p>
             <p>Great news! Your identity has been verified.</p>
             <p>You now have the prestigious <strong>Blue Checkmark</strong> on your profile.</p>
-            <div style="text-align:center; margin: 30px;">
-                <img src="https://cdn-icons-png.flaticon.com/512/7595/7595571.png" width="60" alt="Verified" />
-            </div>
             <div class="button-wrapper">
                 <a href="https://codecommunitie.vercel.app/profile" class="button">View Profile</a>
             </div>
@@ -64,6 +76,9 @@ export const EmailTemplates = {
     BETA_ACCESS: {
         subject: (name) => `You're in! Welcome to CodeKrafts Beta 🚀`,
         body: (name) => `
+            <div style="text-align: center; margin-bottom: 24px;">
+                <img src="https://cdn-icons-png.flaticon.com/512/1356/1356479.png" width="80" alt="Rocket" />
+            </div>
             <p>Hi ${name},</p>
             <p>Great news! You've been selected for exclusive Early Access.</p>
             <p>Click below to start exploring:</p>
@@ -77,7 +92,7 @@ export const EmailTemplates = {
         subject: () => `Important: Account Policy Update ⚠️`,
         body: (name, reason) => `
             <div style="text-align: center; margin-bottom: 20px;">
-                <img src="https://cdn-icons-png.flaticon.com/512/6897/6897039.png" width="64" alt="Account Deleted" />
+                <img src="https://cdn-icons-png.flaticon.com/512/6897/6897039.png" width="80" alt="Account Deleted" />
             </div>
             <p>Hi ${name},</p>
             <p>Your CodeKrafts account has been permanently removed by our administrative team.</p>
@@ -91,6 +106,9 @@ export const EmailTemplates = {
     PRODUCT_UPDATE: {
         subject: () => `New Updates: Read what's new 🚀`,
         body: (name) => `
+            <div style="text-align: center; margin-bottom: 24px;">
+                <img src="https://cdn-icons-png.flaticon.com/512/1163/1163774.png" width="80" alt="Update" />
+            </div>
             <p>Hi ${name},</p>
             <p>We've just released some exciting new features to help you build better and faster.</p>
             <p>Check out the latest improvements on your dashboard. We'd love to hear your thoughts.</p>
@@ -103,6 +121,9 @@ export const EmailTemplates = {
     AD_APPROVED: {
         subject: () => `Your Ad is Live! 🎉`,
         body: (name, adTitle) => `
+            <div style="text-align: center; margin-bottom: 24px;">
+                <img src="https://cdn-icons-png.flaticon.com/512/3176/3176294.png" width="80" alt="Ad Approved" />
+            </div>
             <p>Hi ${name},</p>
             <p>Great news! Your ad "<strong>${adTitle}</strong>" has been approved and is now live.</p>
             <p>You can track its performance in real-time from your dashboard.</p>
@@ -115,6 +136,9 @@ export const EmailTemplates = {
     CREDITS_APPROVED: {
         subject: () => `Funds Added to Your Wallet 💰`,
         body: (name, amount) => `
+            <div style="text-align: center; margin-bottom: 24px;">
+                <img src="https://cdn-icons-png.flaticon.com/512/2454/2454282.png" width="80" alt="Credits Added" />
+            </div>
             <p>Hi ${name},</p>
             <p>Your wallet has been credited with <strong>₹${amount}</strong>.</p>
             <p>Your campaigns will continue to run as long as you have a sufficient balance.</p>
@@ -127,6 +151,9 @@ export const EmailTemplates = {
     CAMPAIGN_CREATED: {
         subject: () => `Campaign Launched Successfully 🚀`,
         body: (name, campaignName) => `
+            <div style="text-align: center; margin-bottom: 24px;">
+                <img src="https://cdn-icons-png.flaticon.com/512/3094/3094918.png" width="80" alt="Campaign Created" />
+            </div>
             <p>Hi ${name},</p>
             <p>Your new campaign "<strong>${campaignName}</strong>" has been successfully created.</p>
             <p>To start showing ads, make sure to add advertisements to this campaign.</p>
