@@ -3,7 +3,8 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { supabase } from '../supabaseClient'
 import {
     ArrowLeft, Plus, Image as ImageIcon, Link as LinkIcon,
-    Type, MousePointerClick, Eye, Trash2, ExternalLink, Edit2, X, Clock, CheckCircle, XCircle
+    Type, MousePointerClick, Eye, Trash2, ExternalLink, Edit2, X, Clock, CheckCircle, XCircle,
+    Pause, Play
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import AdvertiserPoliciesModal from './AdvertiserPoliciesModal'
@@ -352,8 +353,8 @@ export default function CampaignDetails({ session }) {
                         <button
                             onClick={handleToggleStatus}
                             className={`p-2 rounded-lg transition-colors ${campaign.status === 'active'
-                                    ? 'bg-yellow-100 text-yellow-700 hover:bg-yellow-200'
-                                    : 'bg-green-100 text-green-700 hover:bg-green-200'
+                                ? 'bg-yellow-100 text-yellow-700 hover:bg-yellow-200'
+                                : 'bg-green-100 text-green-700 hover:bg-green-200'
                                 }`}
                             title={campaign.status === 'active' ? 'Pause Campaign' : 'Resume Campaign'}
                         >
