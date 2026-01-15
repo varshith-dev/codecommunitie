@@ -5,8 +5,11 @@ import {
     TrendingUp, Activity, Archive, PauseCircle, PlayCircle, Loader, CheckCircle, XCircle, Eye
 } from 'lucide-react'
 import toast from 'react-hot-toast'
+import RollingCounter from '../components/RollingCounter'
+import { useNavigate } from 'react-router-dom'
 
 export default function AdminAdManager() {
+    const navigate = useNavigate()
     const [loading, setLoading] = useState(true)
     const [campaigns, setCampaigns] = useState([])
     const [pendingAds, setPendingAds] = useState([])
@@ -21,6 +24,19 @@ export default function AdminAdManager() {
 
     useEffect(() => {
         fetchAdData()
+
+        // Realtime subscription
+        const subscription = supabase
+            .channel('admin-ads-manager')
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'advertisements' }, () => {
+                fetchAdData()
+            })
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'ad_campaigns' }, () => {
+                fetchAdData()
+            })
+            .subscribe()
+
+        return () => supabase.removeChannel(subscription)
     }, [])
 
     const fetchAdData = async () => {
@@ -192,14 +208,14 @@ export default function AdminAdManager() {
                 />
                 <MetricCard
                     title="Total Impressions"
-                    value={metrics.totalImpressions.toLocaleString()}
+                    value={<RollingCounter value={metrics.totalImpressions} />}
                     icon={Users}
                     color="text-purple-600"
                     bg="bg-purple-50"
                 />
                 <MetricCard
                     title="Total Clicks"
-                    value={metrics.totalClicks.toLocaleString()}
+                    value={<RollingCounter value={metrics.totalClicks} />}
                     icon={MousePointerClick}
                     color="text-orange-600"
                     bg="bg-orange-50"
@@ -244,7 +260,7 @@ export default function AdminAdManager() {
 
             {/* Content */}
             {activeTab === 'campaigns' ? (
-                <CampaignsTable campaigns={campaigns} />
+                <CampaignsTable campaigns={campaigns} navigate={navigate} /> // Pass navigate
             ) : (
                 <PendingAdsTable
                     ads={pendingAds}
@@ -256,7 +272,7 @@ export default function AdminAdManager() {
     )
 }
 
-function CampaignsTable({ campaigns }) {
+function CampaignsTable({ campaigns, navigate }) { // Accept navigate
     return (
         <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
             <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center">
@@ -278,7 +294,11 @@ function CampaignsTable({ campaigns }) {
                     </thead>
                     <tbody className="divide-y divide-gray-100">
                         {campaigns.map(camp => (
-                            <tr key={camp.id} className="hover:bg-gray-50 transition-colors">
+                            <tr
+                                key={camp.id}
+                                onClick={() => navigate(`/admin/ads/${camp.id}`)}
+                                className="hover:bg-gray-50 transition-colors cursor-pointer"
+                            >
                                 <td className="px-6 py-4">
                                     <div className="font-semibold text-gray-900">{camp.name}</div>
                                     <div className="text-xs text-gray-500 truncate max-w-[200px]">{camp.description}</div>

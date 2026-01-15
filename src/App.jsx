@@ -36,6 +36,7 @@ import AdvertiserDashboard from './advertiser/Dashboard'
 import CreateCampaign from './advertiser/CreateCampaign'
 import CampaignDetails from './advertiser/CampaignDetails'
 import AdminAdManager from './admin/AdminAdManager'
+import AdminCampaignDetails from './admin/AdminCampaignDetails'
 
 
 
@@ -172,6 +173,7 @@ export default function App() {
             <Route path="email" element={<EmailComposer />} />
             <Route path="referrals" element={<AdminReferrals />} />
             <Route path="ads" element={<AdminAdManager />} />
+            <Route path="ads/:campaignId" element={<AdminCampaignDetails />} />
             <Route path="beta" element={<BetaManager />} />
             <Route path="releases" element={<ReleaseManager />} />
             <Route path="prompt-settings" element={<PromptSettings />} />
