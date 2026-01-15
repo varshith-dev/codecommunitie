@@ -1,6 +1,31 @@
-import { X, ShieldCheck, DollarSign, FileText } from 'lucide-react'
+import { X, ShieldCheck, DollarSign, FileText, Loader } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { supabase } from '../supabaseClient'
 
 export default function AdvertiserPoliciesModal({ isOpen, onClose }) {
+    const [rates, setRates] = useState({ cpc_rate: 5.0, cpm_rate: 2.0 })
+    const [loading, setLoading] = useState(true)
+
+    useEffect(() => {
+        if (isOpen) {
+            fetchRates()
+        }
+    }, [isOpen])
+
+    const fetchRates = async () => {
+        try {
+            const { data, error } = await supabase
+                .from('ad_settings')
+                .select('*')
+                .single()
+            if (data) setRates(data)
+        } catch (error) {
+            console.error('Error fetching rates:', error)
+        } finally {
+            setLoading(false)
+        }
+    }
+
     if (!isOpen) return null
 
     return (
@@ -26,18 +51,28 @@ export default function AdvertiserPoliciesModal({ isOpen, onClose }) {
                             <DollarSign className="text-green-600" size={20} />
                             Real-time Ad Rates
                         </h3>
-                        <div className="grid md:grid-cols-2 gap-4">
-                            <div className="p-4 bg-green-50 rounded-xl border border-green-100">
-                                <p className="text-xs font-bold text-green-700 uppercase mb-1">Cost Per Click (CPC)</p>
-                                <p className="text-3xl font-black text-green-900">5.00 <span className="text-sm font-medium text-green-700">credits</span></p>
-                                <p className="text-xs text-green-600 mt-2">Deducted when a user clicks your ad</p>
+                        {loading ? (
+                            <div className="flex justify-center p-4">
+                                <Loader className="animate-spin text-gray-400" />
                             </div>
-                            <div className="p-4 bg-blue-50 rounded-xl border border-blue-100">
-                                <p className="text-xs font-bold text-blue-700 uppercase mb-1">Cost Per 1000 Impressions (CPM)</p>
-                                <p className="text-3xl font-black text-blue-900">2.00 <span className="text-sm font-medium text-blue-700">credits</span></p>
-                                <p className="text-xs text-blue-600 mt-2">Deducted for every 1k views (Coming Soon)</p>
+                        ) : (
+                            <div className="grid md:grid-cols-2 gap-4">
+                                <div className="p-4 bg-green-50 rounded-xl border border-green-100">
+                                    <p className="text-xs font-bold text-green-700 uppercase mb-1">Cost Per Click (CPC)</p>
+                                    <p className="text-3xl font-black text-green-900">
+                                        {rates.cpc_rate} <span className="text-sm font-medium text-green-700">credits</span>
+                                    </p>
+                                    <p className="text-xs text-green-600 mt-2">Deducted when a user clicks your ad</p>
+                                </div>
+                                <div className="p-4 bg-blue-50 rounded-xl border border-blue-100">
+                                    <p className="text-xs font-bold text-blue-700 uppercase mb-1">Cost Per 1000 Impressions (CPM)</p>
+                                    <p className="text-3xl font-black text-blue-900">
+                                        {rates.cpm_rate} <span className="text-sm font-medium text-blue-700">credits</span>
+                                    </p>
+                                    <p className="text-xs text-blue-600 mt-2">Deducted for every 1k views (Pro-rated)</p>
+                                </div>
                             </div>
-                        </div>
+                        )}
                     </section>
 
                     {/* Policies Section */}

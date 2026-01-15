@@ -6,8 +6,8 @@ export default function AdCard({ ad }) {
 
     const trackClick = async () => {
         try {
-            await supabase.rpc('track_ad_click', {
-                ad_id: ad.id
+            await supabase.rpc('track_ad_click_secure', {
+                target_ad_id: ad.id
             })
         } catch (error) {
             console.error('Error tracking click:', error)
@@ -16,8 +16,8 @@ export default function AdCard({ ad }) {
 
     const trackImpression = async () => {
         try {
-            await supabase.rpc('track_ad_impression', {
-                ad_id: ad.id
+            await supabase.rpc('track_ad_impression_secure', {
+                target_ad_id: ad.id
             })
         } catch (error) {
             console.error('Error tracking impression:', error)

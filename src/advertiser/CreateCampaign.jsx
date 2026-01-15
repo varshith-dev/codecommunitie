@@ -4,6 +4,9 @@ import { useNavigate } from 'react-router-dom'
 import { ArrowLeft, DollarSign, Calendar, Target, Loader } from 'lucide-react'
 import toast from 'react-hot-toast'
 
+import { EmailService } from '../services/EmailService'
+import { EmailTemplates, wrapInTemplate } from '../services/EmailTemplates'
+
 export default function CreateCampaign({ session }) {
     const navigate = useNavigate()
     const [loading, setLoading] = useState(false)
@@ -49,6 +52,22 @@ export default function CreateCampaign({ session }) {
             if (error) throw error
 
             toast.success('Campaign created successfully!')
+
+            // Send Email Notification
+            if (session.user.email) {
+                const template = EmailTemplates.CAMPAIGN_CREATED
+                const userName = session.user.user_metadata?.full_name || session.user.email.split('@')[0]
+
+                await EmailService.send({
+                    recipientEmail: session.user.email,
+                    memberName: userName,
+                    subject: template.subject(),
+                    htmlContent: wrapInTemplate(template.body(userName, formData.name), template.title),
+                    templateType: 'CAMPAIGN_CREATED',
+                    triggeredBy: 'advertiser'
+                }).catch(err => console.error('Failed to send email:', err))
+            }
+
             navigate(`/advertiser/campaign/${data.id}`)
         } catch (error) {
             console.error('Error creating campaign:', error)

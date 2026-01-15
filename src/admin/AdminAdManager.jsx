@@ -2,11 +2,13 @@ import { useState, useEffect } from 'react'
 import { supabase } from '../supabaseClient'
 import {
     LayoutDashboard, DollarSign, Users, MousePointerClick,
-    TrendingUp, Activity, Archive, PauseCircle, PlayCircle, Loader, CheckCircle, XCircle, Eye, CreditCard
+    TrendingUp, Activity, Archive, PauseCircle, PlayCircle, Loader, CheckCircle, XCircle, Eye, CreditCard, Settings
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import RollingCounter from '../components/RollingCounter'
 import { useNavigate } from 'react-router-dom'
+import { EmailService } from '../services/EmailService'
+import { EmailTemplates, wrapInTemplate } from '../services/EmailTemplates'
 
 export default function AdminAdManager() {
     const navigate = useNavigate()
@@ -19,6 +21,9 @@ export default function AdminAdManager() {
     const [isAddCreditModalOpen, setIsAddCreditModalOpen] = useState(false)
     const [selectedAdvertiser, setSelectedAdvertiser] = useState(null)
     const [creditAmount, setCreditAmount] = useState('')
+    const [adSettings, setAdSettings] = useState({ cpc_rate: 5.0, cpm_rate: 2.0 })
+    const [isSettingsOpen, setIsSettingsOpen] = useState(false)
+    const [settingsLoading, setSettingsLoading] = useState(false)
     const [metrics, setMetrics] = useState({
         totalRevenue: 0,
         activeCampaigns: 0,
@@ -109,8 +114,25 @@ export default function AdminAdManager() {
             const advs = advertiserData || []
             setAdvertisers(advs)
 
-            // 5. Process Data
-            let revenue = 0
+            // 5. Fetch Ad Settings
+            const { data: settingsData, error: settingsError } = await supabase
+                .from('ad_settings')
+                .select('*')
+                .single()
+
+            if (settingsData) setAdSettings(settingsData)
+
+            // 6. Calculate Real Revenue (Sum of approved credit requests)
+            const { data: approvedCredits, error: revError } = await supabase
+                .from('ad_credit_requests')
+                .select('amount')
+                .eq('status', 'approved')
+
+            // Also should theoretically include manually added credits if we tracked them separately as transactions. 
+            // For now, let's rely on approved requests as the "Revenue".
+            const realRevenue = approvedCredits?.reduce((sum, item) => sum + item.amount, 0) || 0
+
+            // 7. Process Campaign Data
             let impressions = 0
             let clicks = 0
             let active = 0
@@ -121,10 +143,8 @@ export default function AdminAdManager() {
                 const campClicks = camp.ads.reduce((sum, ad) => sum + (ad.clicks || 0), 0)
                 const pendingCount = camp.ads.filter(ad => ad.approval_status === 'pending').length
 
-                // Mock Revenue Calculation
-                const estRevenue = (campImpressions / 1000 * 5) + (campClicks * 0.50)
+                // Removed Mock Revenue Calculation
 
-                revenue += estRevenue
                 impressions += campImpressions
                 clicks += campClicks
                 pending += pendingCount
@@ -135,7 +155,7 @@ export default function AdminAdManager() {
                     stats: {
                         impressions: campImpressions,
                         clicks: campClicks,
-                        estRevenue,
+                        estRevenue: 0, // Deprecated at campaign level for now or calc based on hits
                         pendingAds: pendingCount
                     }
                 }
@@ -143,7 +163,7 @@ export default function AdminAdManager() {
 
             setCampaigns(processedCampaigns)
             setMetrics({
-                totalRevenue: revenue,
+                totalRevenue: realRevenue,
                 activeCampaigns: active,
                 totalImpressions: impressions,
                 totalClicks: clicks,
@@ -162,6 +182,18 @@ export default function AdminAdManager() {
 
     const handleApprove = async (adId) => {
         try {
+            // Fetch ad details first for email
+            const { data: adData, error: fetchError } = await supabase
+                .from('advertisements')
+                .select(`
+                    *,
+                    campaign:ad_campaigns(profiles(username, display_name, email))
+                `)
+                .eq('id', adId)
+                .single()
+
+            if (fetchError) throw fetchError
+
             const { error } = await supabase
                 .from('advertisements')
                 .update({
@@ -174,8 +206,21 @@ export default function AdminAdManager() {
 
             // Remove from pending list immediately
             setPendingAds(prev => prev.filter(ad => ad.id !== adId))
-
             toast.success('Ad approved!')
+
+            // Send Email
+            if (adData?.campaign?.profiles?.email) {
+                const user = adData.campaign.profiles
+                const template = EmailTemplates.AD_APPROVED
+                await EmailService.send({
+                    recipientEmail: user.email,
+                    memberName: user.display_name || user.username,
+                    subject: template.subject(),
+                    htmlContent: wrapInTemplate(template.body(user.display_name || user.username, adData.title), template.title),
+                    templateType: 'AD_APPROVED',
+                    triggeredBy: 'admin'
+                }).catch(err => console.error('Failed to send email:', err))
+            }
 
             // Refresh all data in background
             await fetchAdData()
@@ -209,9 +254,31 @@ export default function AdminAdManager() {
 
     const handleApproveCredit = async (requestId) => {
         try {
+            // Fetch request details for email
+            const { data: reqData } = await supabase
+                .from('ad_credit_requests')
+                .select(`*, advertiser:profiles(username, display_name, email)`)
+                .eq('id', requestId)
+                .single()
+
             const { error } = await supabase.rpc('approve_ad_credit_request', { request_id: requestId })
             if (error) throw error
             toast.success('Credits approved & added to wallet')
+
+            // Send Email
+            if (reqData?.advertiser?.email) {
+                const user = reqData.advertiser
+                const template = EmailTemplates.CREDITS_APPROVED
+                await EmailService.send({
+                    recipientEmail: user.email,
+                    memberName: user.display_name || user.username,
+                    subject: template.subject(),
+                    htmlContent: wrapInTemplate(template.body(user.display_name || user.username, reqData.amount), template.title),
+                    templateType: 'CREDITS_APPROVED',
+                    triggeredBy: 'admin'
+                }).catch(err => console.error('Failed to send email:', err))
+            }
+
             fetchAdData()
         } catch (error) {
             console.error('Credit approval error:', error)
@@ -246,6 +313,20 @@ export default function AdminAdManager() {
             if (error) throw error
 
             toast.success(`Successfully added ₹${creditAmount} to ${selectedAdvertiser.username}`)
+
+            // Send Email
+            if (selectedAdvertiser.email) {
+                const template = EmailTemplates.CREDITS_APPROVED
+                await EmailService.send({
+                    recipientEmail: selectedAdvertiser.email,
+                    memberName: selectedAdvertiser.display_name || selectedAdvertiser.username,
+                    subject: template.subject(),
+                    htmlContent: wrapInTemplate(template.body(selectedAdvertiser.display_name || selectedAdvertiser.username, creditAmount), template.title),
+                    templateType: 'CREDITS_APPROVED',
+                    triggeredBy: 'admin'
+                }).catch(err => console.error('Failed to send email:', err))
+            }
+
             setIsAddCreditModalOpen(false)
             setCreditAmount('')
             setSelectedAdvertiser(null)
@@ -253,6 +334,30 @@ export default function AdminAdManager() {
         } catch (error) {
             console.error('Error adding credits:', error)
             toast.error('Failed to add credits: ' + error.message)
+        }
+    }
+
+    const handleUpdateSettings = async (e) => {
+        e.preventDefault()
+        setSettingsLoading(true)
+        try {
+            const { error } = await supabase
+                .from('ad_settings')
+                .update({
+                    cpc_rate: parseFloat(adSettings.cpc_rate),
+                    cpm_rate: parseFloat(adSettings.cpm_rate),
+                    updated_at: new Date().toISOString()
+                })
+                .eq('id', adSettings.id || 1) // Assuming ID 1 or getting from fetch
+
+            if (error) throw error
+            toast.success('Ad rates updated successfully!')
+            setIsSettingsOpen(false)
+        } catch (error) {
+            console.error('Error updating settings:', error)
+            toast.error('Failed to update settings')
+        } finally {
+            setSettingsLoading(false)
         }
     }
 
@@ -267,19 +372,28 @@ export default function AdminAdManager() {
         <div className="p-6 space-y-8 animate-fade-in">
 
             {/* Header */}
-            <div>
-                <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-                    <Activity className="text-blue-600" />
-                    Ad Manager & Revenue
-                </h1>
-                <p className="text-gray-500">Monitor advertising campaigns and approve pending ads.</p>
+            <div className="flex justify-between items-end">
+                <div>
+                    <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+                        <Activity className="text-blue-600" />
+                        Ad Manager & Revenue
+                    </h1>
+                    <p className="text-gray-500">Monitor advertising campaigns and approve pending ads.</p>
+                </div>
+                <button
+                    onClick={() => setIsSettingsOpen(true)}
+                    className="flex items-center gap-2 px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors"
+                >
+                    <Settings size={18} />
+                    Ad Settings
+                </button>
             </div>
 
             {/* Metrics Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
                 <MetricCard
-                    title="Est. Revenue"
-                    value={`₹${metrics.totalRevenue.toFixed(2)}`}
+                    title="Total Revenue"
+                    value={`₹${metrics.totalRevenue.toLocaleString()}`}
                     icon={DollarSign}
                     color="text-green-600"
                     bg="bg-green-50"
@@ -416,6 +530,73 @@ export default function AdminAdManager() {
                                     className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium"
                                 >
                                     Add Credits
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+
+            {/* Settings Modal */}
+            {isSettingsOpen && (
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+                    <div className="bg-white rounded-xl max-w-sm w-full p-6 animate-scale-in">
+                        <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
+                            <Settings size={20} /> Ad Platform Settings
+                        </h2>
+                        <form onSubmit={handleUpdateSettings}>
+                            <div className="space-y-4 mb-6">
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                                        Cost Per Click (CPC) Rate
+                                    </label>
+                                    <div className="relative">
+                                        <span className="absolute left-3 top-2.5 text-gray-400">₹</span>
+                                        <input
+                                            type="number"
+                                            step="0.01"
+                                            min="0"
+                                            required
+                                            value={adSettings.cpc_rate}
+                                            onChange={e => setAdSettings({ ...adSettings, cpc_rate: e.target.value })}
+                                            className="w-full border rounded-lg pl-8 pr-3 py-2 outline-none focus:ring-2 focus:ring-blue-500"
+                                        />
+                                    </div>
+                                    <p className="text-xs text-gray-500 mt-1">Cost deducted per ad click.</p>
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                                        CPM Rate (Per 1k Impressions)
+                                    </label>
+                                    <div className="relative">
+                                        <span className="absolute left-3 top-2.5 text-gray-400">₹</span>
+                                        <input
+                                            type="number"
+                                            step="0.01"
+                                            min="0"
+                                            required
+                                            value={adSettings.cpm_rate}
+                                            onChange={e => setAdSettings({ ...adSettings, cpm_rate: e.target.value })}
+                                            className="w-full border rounded-lg pl-8 pr-3 py-2 outline-none focus:ring-2 focus:ring-blue-500"
+                                        />
+                                    </div>
+                                    <p className="text-xs text-gray-500 mt-1">Cost deducted per 1,000 views.</p>
+                                </div>
+                            </div>
+                            <div className="flex gap-3">
+                                <button
+                                    type="button"
+                                    onClick={() => setIsSettingsOpen(false)}
+                                    className="flex-1 px-4 py-2 border rounded-lg hover:bg-gray-50"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    type="submit"
+                                    disabled={loading}
+                                    className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium"
+                                >
+                                    {settingsLoading ? 'Saving...' : 'Save Settings'}
                                 </button>
                             </div>
                         </form>

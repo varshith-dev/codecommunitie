@@ -99,6 +99,42 @@ export const EmailTemplates = {
             </div>
         `,
         title: "Product Update"
+    },
+    AD_APPROVED: {
+        subject: () => `Your Ad is Live! 🎉`,
+        body: (name, adTitle) => `
+            <p>Hi ${name},</p>
+            <p>Great news! Your ad "<strong>${adTitle}</strong>" has been approved and is now live.</p>
+            <p>You can track its performance in real-time from your dashboard.</p>
+            <div class="button-wrapper">
+                <a href="https://codecommunitie.vercel.app/advertiser/dashboard" class="button">View Performance</a>
+            </div>
+        `,
+        title: "Ad Approved"
+    },
+    CREDITS_APPROVED: {
+        subject: () => `Funds Added to Your Wallet 💰`,
+        body: (name, amount) => `
+            <p>Hi ${name},</p>
+            <p>Your wallet has been credited with <strong>₹${amount}</strong>.</p>
+            <p>Your campaigns will continue to run as long as you have a sufficient balance.</p>
+            <div class="button-wrapper">
+                <a href="https://codecommunitie.vercel.app/advertiser/dashboard" class="button">Check Balance</a>
+            </div>
+        `,
+        title: "Credits Added"
+    },
+    CAMPAIGN_CREATED: {
+        subject: () => `Campaign Launched Successfully 🚀`,
+        body: (name, campaignName) => `
+            <p>Hi ${name},</p>
+            <p>Your new campaign "<strong>${campaignName}</strong>" has been successfully created.</p>
+            <p>To start showing ads, make sure to add advertisements to this campaign.</p>
+            <div class="button-wrapper">
+                <a href="https://codecommunitie.vercel.app/advertiser/dashboard" class="button">Manage Campaign</a>
+            </div>
+        `,
+        title: "Campaign Launched"
     }
 }
 
