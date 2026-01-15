@@ -35,9 +35,11 @@ export default function Sidebar({ session }) {
                 .eq('status', 'active')
                 .eq('campaign.status', 'active')
                 .eq('approval_status', 'approved')
-                .eq('placement', 'feed') // Or 'sidebar' if we had that, but reusing 'feed' for now or picking one
+                .eq('approval_status', 'approved')
+                .eq('placement', 'sidebar')
+                .is('deleted_at', null)
                 .order('created_at', { ascending: false })
-                .limit(2) // Get a couple to pick from
+                .limit(1)
 
             if (data && data.length > 0) {
                 // Pick the second one if available (to simulate "sidebar" ad distinct from top feed ad), or just random
