@@ -287,8 +287,8 @@ export default function AdvertiserDashboard({ session }) {
                                             <div className="flex items-center gap-3 mb-2">
                                                 <h3 className="text-lg font-semibold text-gray-900">{campaign.name}</h3>
                                                 <span className={`px-2 py-1 text-xs font-semibold rounded-full ${campaign.status === 'active' ? 'bg-green-100 text-green-700' :
-                                                        campaign.status === 'paused' ? 'bg-yellow-100 text-yellow-700' :
-                                                            'bg-gray-100 text-gray-700'
+                                                    campaign.status === 'paused' ? 'bg-yellow-100 text-yellow-700' :
+                                                        'bg-gray-100 text-gray-700'
                                                     }`}>
                                                     {campaign.status.toUpperCase()}
                                                 </span>
@@ -316,6 +316,24 @@ export default function AdvertiserDashboard({ session }) {
                                                 <div>
                                                     <span className="text-gray-500">Clicks:</span>
                                                     <span className="ml-2 font-semibold text-blue-600">{totalClicks.toLocaleString()}</span>
+                                                </div>
+                                            </div>
+
+                                            {/* Budget Progress Bar */}
+                                            <div className="mt-4 pt-4 border-t border-gray-100">
+                                                <div className="flex justify-between items-center text-xs font-medium text-gray-500 mb-1">
+                                                    <span>Budget Usage</span>
+                                                    <span className={campaign.budget - (campaign.spent || 0) < 100 ? "text-red-600" : "text-green-600"}>
+                                                        {Math.max(0, campaign.budget - (campaign.spent || 0))} credits remaining
+                                                    </span>
+                                                </div>
+                                                <div className="w-full bg-gray-100 rounded-full h-2 overflow-hidden">
+                                                    <div
+                                                        className={`h-2 rounded-full transition-all duration-500 ${(campaign.spent || 0) / campaign.budget > 0.9 ? 'bg-red-500' :
+                                                                (campaign.spent || 0) / campaign.budget > 0.7 ? 'bg-yellow-500' : 'bg-blue-600'
+                                                            }`}
+                                                        style={{ width: `${Math.min(100, ((campaign.spent || 0) / campaign.budget) * 100)}%` }}
+                                                    ></div>
                                                 </div>
                                             </div>
                                         </div>
