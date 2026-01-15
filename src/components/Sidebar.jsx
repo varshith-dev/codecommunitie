@@ -39,7 +39,7 @@ export default function Sidebar({ session }) {
                 .eq('placement', 'sidebar')
                 .is('deleted_at', null)
                 .order('created_at', { ascending: false })
-                .limit(1)
+                .limit(10)
 
             if (data && data.length > 0) {
                 // Shuffle and pick one for dynamic display
