@@ -342,11 +342,11 @@ export default function AdvertiserDashboard({ session }) {
                                             )}
                                             <div className="grid grid-cols-2 md:grid-cols-5 gap-4 text-sm">
                                                 <div>
-                                                    <span className="text-gray-500">Budget:</span>
+                                                    <span className="text-gray-500">Campaign Limit:</span>
                                                     <span className="ml-2 font-semibold">₹{campaign.budget}</span>
                                                 </div>
                                                 <div>
-                                                    <span className="text-gray-500">Spent:</span>
+                                                    <span className="text-gray-500">Credits Used:</span>
                                                     <span className="ml-2 font-semibold text-orange-600">₹{campaign.spent}</span>
                                                 </div>
                                                 <div>
@@ -363,12 +363,12 @@ export default function AdvertiserDashboard({ session }) {
                                                 </div>
                                             </div>
 
-                                            {/* Budget Progress Bar */}
+                                            {/* Limit Progress Bar */}
                                             <div className="mt-4 pt-4 border-t border-gray-100">
                                                 <div className="flex justify-between items-center text-xs font-medium text-gray-500 mb-1">
-                                                    <span>Budget Usage</span>
+                                                    <span>Campaign Limit Usage</span>
                                                     <span className={campaign.budget - (campaign.spent || 0) < 100 ? "text-red-600" : "text-green-600"}>
-                                                        {Math.max(0, campaign.budget - (campaign.spent || 0))} credits remaining
+                                                        {Math.max(0, campaign.budget - (campaign.spent || 0))} limit remaining
                                                     </span>
                                                 </div>
                                                 <div className="w-full bg-gray-100 rounded-full h-2 overflow-hidden">
@@ -379,6 +379,12 @@ export default function AdvertiserDashboard({ session }) {
                                                         style={{ width: `${Math.min(100, ((campaign.spent || 0) / campaign.budget) * 100)}%` }}
                                                     ></div>
                                                 </div>
+                                                {/* Global Credits Warning */}
+                                                {credits <= 10 && (
+                                                    <div className="mt-1 text-xs text-red-600 font-medium">
+                                                        Warning: Your wallet is low ({credits} credits). Campaigns may pause soon.
+                                                    </div>
+                                                )}
                                             </div>
                                         </div>
                                         <div className="flex gap-2 ml-4">

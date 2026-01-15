@@ -14,7 +14,11 @@ export default function AdminAdManager() {
     const [campaigns, setCampaigns] = useState([])
     const [pendingAds, setPendingAds] = useState([])
     const [creditRequests, setCreditRequests] = useState([])
-    const [activeTab, setActiveTab] = useState('campaigns') // 'campaigns', 'pending', 'credits'
+    const [activeTab, setActiveTab] = useState('campaigns') // 'campaigns', 'pending', 'credits', 'advertisers'
+    const [advertisers, setAdvertisers] = useState([])
+    const [isAddCreditModalOpen, setIsAddCreditModalOpen] = useState(false)
+    const [selectedAdvertiser, setSelectedAdvertiser] = useState(null)
+    const [creditAmount, setCreditAmount] = useState('')
     const [metrics, setMetrics] = useState({
         totalRevenue: 0,
         activeCampaigns: 0,
@@ -90,7 +94,21 @@ export default function AdminAdManager() {
             if (creditError) console.error('Error fetching credits:', creditError)
             setCreditRequests(creditData || [])
 
-            // 4. Process Data
+            // 4. Fetch All Advertisers (profiles with role 'advertiser' or have campaigns)
+            // For now fetching all profiles, or we could filter. Let's fetch profiles with role 'advertiser'
+            // If role column doesn't exist or isn't reliable, allow fetching all.
+            // Assuming 'role' exists based on previous code.
+            const { data: advertiserData, error: advertiserError } = await supabase
+                .from('profiles')
+                .select('*')
+                .order('created_at', { ascending: false })
+
+            if (advertiserError) console.error('Error fetching advertisers:', advertiserError)
+            // Filter locally or via query if 'role' column acts as discriminator
+            const advs = advertiserData || []
+            setAdvertisers(advs)
+
+            // 5. Process Data
             let revenue = 0
             let impressions = 0
             let clicks = 0
@@ -214,6 +232,29 @@ export default function AdminAdManager() {
         }
     }
 
+    const handleAddManualCredits = async (e) => {
+        e.preventDefault()
+        if (!selectedAdvertiser || !creditAmount) return
+
+        try {
+            const { error } = await supabase.rpc('admin_add_credits', {
+                target_user_id: selectedAdvertiser.id,
+                amount: parseFloat(creditAmount)
+            })
+
+            if (error) throw error
+
+            toast.success(`Successfully added ₹${creditAmount} to ${selectedAdvertiser.username}`)
+            setIsAddCreditModalOpen(false)
+            setCreditAmount('')
+            setSelectedAdvertiser(null)
+            fetchAdData() // Refresh data
+        } catch (error) {
+            console.error('Error adding credits:', error)
+            toast.error('Failed to add credits: ' + error.message)
+        }
+    }
+
     if (loading) return (
         <div className="flex items-center justify-center p-20 text-gray-400">
             <Loader className="animate-spin mb-2" />
@@ -313,11 +354,73 @@ export default function AdminAdManager() {
                         </span>
                     )}
                 </button>
+                <button
+                    onClick={() => setActiveTab('advertisers')}
+                    className={`pb-3 px-4 font-semibold transition-colors ${activeTab === 'advertisers'
+                        ? 'text-blue-600 border-b-2 border-blue-600'
+                        : 'text-gray-500 hover:text-gray-700'
+                        }`}
+                >
+                    Advertisers
+                </button>
             </div>
 
             {activeTab === 'campaigns' && <CampaignsTable campaigns={campaigns} navigate={navigate} />}
             {activeTab === 'pending' && <PendingAdsTable ads={pendingAds} onApprove={handleApprove} onReject={handleReject} />}
             {activeTab === 'credits' && <CreditRequestsTable requests={creditRequests} onApprove={handleApproveCredit} onReject={handleRejectCredit} />}
+            {activeTab === 'advertisers' && (
+                <AdvertisersTable
+                    advertisers={advertisers}
+                    onAddCredits={(user) => {
+                        setSelectedAdvertiser(user)
+                        setIsAddCreditModalOpen(true)
+                    }}
+                />
+            )}
+
+            {/* Add Credit Modal */}
+            {isAddCreditModalOpen && (
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+                    <div className="bg-white rounded-xl max-w-sm w-full p-6 animate-scale-in">
+                        <h2 className="text-xl font-bold mb-4">Add Credits Manually</h2>
+                        <div className="mb-4">
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Advertiser</label>
+                            <div className="p-2 bg-gray-50 rounded border border-gray-200 text-gray-900 font-medium">
+                                @{selectedAdvertiser?.username}
+                            </div>
+                        </div>
+                        <form onSubmit={handleAddManualCredits}>
+                            <div className="mb-6">
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Amount (₹)</label>
+                                <input
+                                    type="number"
+                                    min="1"
+                                    required
+                                    value={creditAmount}
+                                    onChange={e => setCreditAmount(e.target.value)}
+                                    className="w-full border rounded-lg px-3 py-2 text-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                                    placeholder="Enter amount"
+                                />
+                            </div>
+                            <div className="flex gap-3">
+                                <button
+                                    type="button"
+                                    onClick={() => setIsAddCreditModalOpen(false)}
+                                    className="flex-1 px-4 py-2 border rounded-lg hover:bg-gray-50"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    type="submit"
+                                    className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium"
+                                >
+                                    Add Credits
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
         </div>
     )
 }
@@ -536,6 +639,66 @@ function PendingAdsTable({ ads, onApprove, onReject }) {
                     ))}
                 </div>
             )}
+        </div>
+    )
+}
+
+
+function AdvertisersTable({ advertisers, onAddCredits }) {
+    return (
+        <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+            <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center">
+                <h2 className="font-bold text-gray-800">All Advertisers</h2>
+                <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">
+                    {advertisers.length} Users
+                </span>
+            </div>
+
+            <div className="overflow-x-auto">
+                <table className="w-full text-left">
+                    <thead className="bg-gray-50 text-gray-500 text-xs uppercase font-medium">
+                        <tr>
+                            <th className="px-6 py-3">User</th>
+                            <th className="px-6 py-3">Role</th>
+                            <th className="px-6 py-3">Wallet Balance</th>
+                            <th className="px-6 py-3">Joined</th>
+                            <th className="px-6 py-3">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100">
+                        {advertisers.map(user => (
+                            <tr key={user.id} className="hover:bg-gray-50 transition-colors">
+                                <td className="px-6 py-4">
+                                    <div className="font-semibold text-gray-900">@{user.username || 'Unknown'}</div>
+                                    <div className="text-xs text-gray-500">{user.email}</div>
+                                </td>
+                                <td className="px-6 py-4">
+                                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${user.role === 'admin' ? 'bg-purple-100 text-purple-700' :
+                                            user.role === 'advertiser' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-600'
+                                        }`}>
+                                        {(user.role || 'User').toUpperCase()}
+                                    </span>
+                                </td>
+                                <td className="px-6 py-4">
+                                    <div className="font-bold text-gray-900">₹{user.ad_credits || 0}</div>
+                                </td>
+                                <td className="px-6 py-4 text-sm text-gray-500">
+                                    {new Date(user.created_at).toLocaleDateString()}
+                                </td>
+                                <td className="px-6 py-4">
+                                    <button
+                                        onClick={() => onAddCredits(user)}
+                                        className="text-sm bg-blue-50 text-blue-600 hover:bg-blue-100 px-3 py-1.5 rounded-lg transition-colors font-medium flex items-center gap-1"
+                                    >
+                                        <CreditCard size={14} />
+                                        Add Funds
+                                    </button>
+                                </td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
         </div>
     )
 }
