@@ -850,7 +850,5 @@ export default function Feed({ session }) {
         )
       }
     </div>
-
-    </div >
   )
 }
