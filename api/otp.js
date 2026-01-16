@@ -211,6 +211,18 @@ export default async function handler(req, res) {
             return res.status(200).json({ success: true, message: 'Reset OTP Sent' });
         }
 
+        // === ACTION: VERIFY RESET CODE (Check Only) ===
+        if (action === 'verify_reset') {
+            if (!code) return res.status(400).json({ error: 'Code is required' });
+
+            const { data, error } = await supabase.from('verification_codes').select('*').eq('email', email).eq('code', code).single();
+            if (error || !data) return res.status(400).json({ success: false, error: 'Invalid or expired code' });
+            if (new Date(data.expires_at) < new Date()) return res.status(400).json({ success: false, error: 'Code expired' });
+
+            // Do NOT delete the code here. It is needed for the final reset step.
+            return res.status(200).json({ success: true, message: 'Code Verified' });
+        }
+
         // === ACTION: RESET PASSWORD (Verify & Update) ===
         if (action === 'reset_password') {
             if (!code || !newPassword) return res.status(400).json({ error: 'Code and Password required' });
