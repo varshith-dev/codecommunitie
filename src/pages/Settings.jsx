@@ -469,7 +469,8 @@ export default function Settings({ session }) {
                                                 if (error) throw error
                                                 toast.success('Password reset email sent! Check your inbox.')
                                             } catch (error) {
-                                                toast.error(error.message || 'Failed to send reset email')
+                                                console.error('Password reset error:', error)
+                                                toast.error('Error sending recovery email: ' + (error.message || 'Check console'))
                                             }
                                         }}
                                         className="px-4 py-2 bg-white border border-gray-200 text-gray-700 text-sm font-semibold rounded-lg hover:bg-gray-50 transition-colors"

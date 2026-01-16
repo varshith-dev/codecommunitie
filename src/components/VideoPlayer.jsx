@@ -22,6 +22,66 @@ export default function VideoPlayer({ src, title, poster, className = "" }) {
     const [showControls, setShowControls] = useState(true)
     const [showSettings, setShowSettings] = useState(false)
     const [playbackRate, setPlaybackRate] = useState(1)
+    const [quality, setQuality] = useState('auto') // auto, 720p, 480p, 360p
+    const [currentSrc, setCurrentSrc] = useState(src)
+    const [isSourceLoading, setIsSourceLoading] = useState(false)
+
+    // Helper to inject Cloudinary transformations
+    const getQualityUrl = (originalUrl, targetQuality) => {
+        if (!originalUrl.includes('cloudinary.com')) return originalUrl
+
+        // Remove existing transformations if any to start fresh from /upload/
+        // Simple regex to insert typical cloudinary params after /upload/
+        // Note: This is a basic implementation. Robust one would parse URL.
+        const baseUrl = originalUrl.replace(/\/upload\/.*?\//, '/upload/')
+
+        let params = 'q_auto' // Default
+        switch (targetQuality) {
+            case '720p': params = 'w_1280,c_limit,q_auto'; break;
+            case '480p': params = 'w_854,c_limit,q_auto'; break;
+            case '360p': params = 'w_640,c_limit,q_auto'; break;
+            case '240p': params = 'w_426,c_limit,q_auto'; break;
+            default: params = 'q_auto';
+        }
+
+        if (originalUrl.includes('/upload/')) {
+            return originalUrl.replace('/upload/', `/upload/${params}/`)
+        }
+        return originalUrl
+    }
+
+    const changeQuality = (newQuality) => {
+        if (quality === newQuality) return
+
+        const video = videoRef.current
+        const currentTime = video.currentTime
+        const wasPlaying = !video.paused
+
+        setQuality(newQuality)
+        setIsSourceLoading(true)
+
+        const newUrl = getQualityUrl(src, newQuality)
+        setCurrentSrc(newUrl)
+
+        // Wait for new source to load metadata then seek and play
+        // We use a one-time event listener in useEffect for 'loadeddata' or handle here
+        // But simply setting src triggers reload.
+
+        // We need to restore state after reload
+        const onLoaded = () => {
+            videoRef.current.currentTime = currentTime
+            if (wasPlaying) videoRef.current.play()
+            setIsSourceLoading(false)
+            videoRef.current.removeEventListener('loadedmetadata', onLoaded)
+        }
+        videoRef.current.addEventListener('loadedmetadata', onLoaded)
+    }
+
+    // Update currentSrc if prop src changes
+    useEffect(() => {
+        setCurrentSrc(src)
+        setQuality('auto')
+    }, [src])
 
     // Hide controls timeout
     const controlsTimeoutRef = useRef(null)
@@ -188,7 +248,7 @@ export default function VideoPlayer({ src, title, poster, className = "" }) {
 
             <video
                 ref={videoRef}
-                src={src}
+                src={currentSrc}
                 className={`w-full max-h-[85vh] object-contain ${isFullscreen ? 'h-full max-h-none' : ''}`}
                 poster={poster}
                 onClick={togglePlay}
@@ -279,6 +339,18 @@ export default function VideoPlayer({ src, title, poster, className = "" }) {
                                         >
                                             {rate}x
                                             {playbackRate === rate && <div className="w-1.5 h-1.5 bg-blue-400 rounded-full" />}
+                                        </button>
+                                    ))}
+
+                                    <div className="p-2 text-xs font-semibold text-gray-400 border-b border-white/10 mb-1 mt-2">Quality</div>
+                                    {['auto', '720p', '480p', '360p', '240p'].map(q => (
+                                        <button
+                                            key={q}
+                                            onClick={() => changeQuality(q)}
+                                            className={`w-full text-left px-3 py-1.5 text-sm rounded-lg hover:bg-white/10 flex items-center justify-between ${quality === q ? 'text-green-400 font-bold' : 'text-gray-300'}`}
+                                        >
+                                            {q === 'auto' ? 'Auto' : q}
+                                            {quality === q && <div className="w-1.5 h-1.5 bg-green-400 rounded-full" />}
                                         </button>
                                     ))}
                                 </div>

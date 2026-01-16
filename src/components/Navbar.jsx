@@ -37,6 +37,7 @@ export default function Navbar({ session, isMobile = false }) {
   const handleLogout = async () => {
     if (window.confirm('Are you sure you want to sign out?')) {
       await supabase.auth.signOut()
+      window.location.href = '/login'
     }
   }
 
