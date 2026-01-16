@@ -47,7 +47,18 @@ export default function Settings({ session }) {
     const [usernameError, setUsernameError] = useState('')
     const [checkingUsername, setCheckingUsername] = useState(false)
     const [verificationRequest, setVerificationRequest] = useState(null)
+    const [cooldown, setCooldown] = useState(0)
     const { hasFeature } = useFeature()
+
+    useEffect(() => {
+        let timer
+        if (cooldown > 0) {
+            timer = setInterval(() => {
+                setCooldown((prev) => prev - 1)
+            }, 1000)
+        }
+        return () => clearInterval(timer)
+    }, [cooldown])
 
 
     useEffect(() => {
@@ -460,22 +471,28 @@ export default function Settings({ session }) {
                                         <p className="text-gray-600 text-sm">Update your password to keep your account secure.</p>
                                     </div>
                                     <button
+                                        disabled={cooldown > 0}
                                         onClick={async () => {
+                                            if (cooldown > 0) return
                                             try {
-                                                // Using Supabase default until backend APIs are deployed
-                                                const { error } = await supabase.auth.resetPasswordForEmail(session.user.email, {
-                                                    redirectTo: `${window.location.origin}/reset-password`
-                                                })
-                                                if (error) throw error
-                                                toast.success('Password reset email sent! Check your inbox.')
+                                                // Using EmailService OTP flow for consistency and to avoid SMTP rate limits
+                                                const { success, error } = await EmailService.sendResetOTP(session.user.email)
+
+                                                if (success) {
+                                                    toast.success('Reset code sent! Redirecting to verify...')
+                                                    setCooldown(60)
+                                                    navigate('/reset-password', { state: { email: session.user.email } })
+                                                } else {
+                                                    throw new Error(error || 'Failed to send OTP')
+                                                }
                                             } catch (error) {
                                                 console.error('Password reset error:', error)
-                                                toast.error('Error sending recovery email: ' + (error.message || 'Check console'))
+                                                toast.error('Error sending code: ' + (error.message || 'Check console'))
                                             }
                                         }}
-                                        className="px-4 py-2 bg-white border border-gray-200 text-gray-700 text-sm font-semibold rounded-lg hover:bg-gray-50 transition-colors"
+                                        className="px-4 py-2 bg-white border border-gray-200 text-gray-700 text-sm font-semibold rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                                     >
-                                        Send Reset Link
+                                        {cooldown > 0 ? `Wait ${cooldown}s` : 'Send Reset Link'}
                                     </button>
                                 </div>
                             </div>

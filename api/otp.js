@@ -58,16 +58,45 @@ export default async function handler(req, res) {
                 },
             });
 
+            // Standard Template Wrapper
+            const getHtml = (otpCode, title) => `
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+  body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; background-color: #f0f8ff; margin: 0; padding: 0; }
+  .wrapper { background-color: #f0f8ff; padding: 40px 20px; text-align: center; }
+  .card { background-color: #ffffff; max-width: 500px; margin: 0 auto; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); overflow: hidden; border: 1px solid #e2e8f0; }
+  .header { background-color: #2563eb; color: #ffffff; padding: 20px; font-weight: bold; font-size: 18px; }
+  .content { padding: 30px 20px; color: #334155; line-height: 1.6; }
+  .otp-box { background-color: #f1f5f9; border: 2px dashed #cbd5e1; border-radius: 8px; padding: 15px; font-size: 32px; font-weight: bold; letter-spacing: 5px; color: #1e293b; margin: 20px 0; text-align: center; }
+  .footer { background-color: #f8fafc; padding: 15px; font-size: 12px; color: #64748b; border-top: 1px solid #e2e8f0; }
+</style>
+</head>
+<body>
+  <div class="wrapper">
+    <div class="card">
+      <div class="header">${title}</div>
+      <div class="content">
+        <p>Hello,</p>
+        <p>You requested a verification code for your CodeCommunities account.</p>
+        <div class="otp-box">${otpCode}</div>
+        <p>This code expires in 10 minutes.</p>
+      </div>
+      <div class="footer">
+        &copy; ${new Date().getFullYear()} CodeCommunities. If you didn't request this, please ignore.
+      </div>
+    </div>
+  </div>
+</body>
+</html>`;
+
             await transporter.sendMail({
                 from: '"CodeCommunities" <varshith@truvgo.me>',
                 to: email,
                 subject: "Your Verification Code",
-                html: `
-                    <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
-                        <h2>Verify your CodeCommunities Account</h2>
-                        <h1 style="background: #f4f4f5; padding: 20px; text-align: center; letter-spacing: 5px;">${otp}</h1>
-                    </div>
-                `,
+                subject: "Your Verification Code",
+                html: getHtml(otp, "Verify Your Account"),
             });
 
             return res.status(200).json({ success: true, message: 'OTP Sent' });
@@ -177,12 +206,7 @@ export default async function handler(req, res) {
                 from: '"CodeCommunities" <varshith@truvgo.me>',
                 to: email,
                 subject: "Reset Your Password",
-                html: `
-                    <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
-                        <h2>Reset Your Password</h2>
-                        <h1 style="background: #f4f4f5; padding: 20px; text-align: center; letter-spacing: 5px;">${otp}</h1>
-                    </div>
-                `,
+                html: getHtml(otp, "Reset Your Password"),
             });
 
             return res.status(200).json({ success: true, message: 'Reset OTP Sent' });
@@ -197,23 +221,24 @@ export default async function handler(req, res) {
             if (error || !data) return res.status(400).json({ success: false, error: 'Invalid or expired code' });
             if (new Date(data.expires_at) < new Date()) return res.status(400).json({ success: false, error: 'Code expired' });
 
-            // 2. Find User ID (Source of Truth: Auth Users, not Profiles)
-            // profiles table might be desynced or contain bad IDs.
+            // 2. Find User ID (Optimized)
             let userId;
-            const { data: { users }, error: listError } = await supabase.auth.admin.listUsers({ perPage: 1000 });
 
-            if (listError || !users) {
-                console.error("ListUsers failed", listError);
-                return res.status(500).json({ error: 'System error resolving user.' });
+            // Optimization: Try finding in Profiles first (Fast)
+            const { data: profile } = await supabase.from('profiles').select('id').eq('email', email.toLowerCase()).maybeSingle();
+
+            if (profile) {
+                userId = profile.id;
+            } else {
+                // Fallback: List Users (Slow)
+                console.log('Profile not found for reset, falling back to admin.listUsers');
+                const { data: { users }, error: listError } = await supabase.auth.admin.listUsers({ perPage: 1000 });
+                if (listError || !users) return res.status(500).json({ error: 'System error resolving user.' });
+
+                const user = users.find(u => u.email?.toLowerCase() === email.toLowerCase());
+                if (!user) return res.status(404).json({ error: 'User account not found' });
+                userId = user.id;
             }
-
-            const user = users.find(u => u.email?.toLowerCase() === email.toLowerCase());
-
-            if (!user) {
-                // If user doesn't exist in Auth, we can't reset password.
-                return res.status(404).json({ error: 'User account not found' });
-            }
-            userId = user.id;
 
             // 3. Update Password & Confirm Email
             // We force email_confirm: true just in case that's blocking login.
