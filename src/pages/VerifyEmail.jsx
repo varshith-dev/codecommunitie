@@ -132,7 +132,7 @@ export default function VerifyEmail() {
                             disabled={loading || !email}
                             className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl transition-all flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed"
                         >
-                            {loading ? <Loader2 className="animate-spin" /> : <>Send Verification Code <ArrowRight size={18} /></>}
+                            {loading ? <Loader2 className="animate-spin" /> : <>Verify with OTP <ArrowRight size={18} /></>}
                         </button>
                     </div>
                 ) : step === 'verify' ? (

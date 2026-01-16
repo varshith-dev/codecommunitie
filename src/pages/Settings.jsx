@@ -595,17 +595,28 @@ export default function Settings({ session }) {
 
                                             if (signInError) throw new Error('Incorrect password')
 
-                                            // 2. Log logic (optional: save reason somewhere)
-                                            console.log('Account deletion requested:', reason)
+                                            // 2. Call Secure Delete API
+                                            const { data: { session: currentSession } } = await supabase.auth.getSession()
+                                            const token = currentSession?.access_token
 
-                                            // 3. Clear data (Simulated deletion since client can't always self-delete auth)
-                                            // Ideally call an RPC: await supabase.rpc('delete_user_account')
+                                            if (!token) throw new Error('Session expired')
 
-                                            // Note: Actual Auth deletion requires Admin API or RPC. 
-                                            // For now we will Sign Out and assume backend handles or manual cleanup.
+                                            // Use backend API to delete from auth.users
+                                            const response = await fetch(`${import.meta.env.VITE_API_URL || ''}/api/delete-user`, {
+                                                method: 'POST',
+                                                headers: {
+                                                    'Content-Type': 'application/json',
+                                                    'Authorization': `Bearer ${token}`
+                                                }
+                                            })
 
-                                            await supabase.from('profiles').delete().eq('id', session.user.id) // Try to delete profile if RLS allows
+                                            const result = await response.json()
 
+                                            if (!response.ok) {
+                                                throw new Error(result.error || 'Failed to delete account')
+                                            }
+
+                                            // 3. Client Cleanup
                                             await supabase.auth.signOut()
                                             toast.success('Account deleted successfully')
                                             navigate('/login')

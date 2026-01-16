@@ -66,10 +66,13 @@ const StandardLayout = ({ session }) => {
 
   // Global Verification Guard
   // If user is logged in but not verified, force them to /verify-email
-  // unless they are already on an allowed public/verification page.
   if (session && !session.user?.email_confirmed_at) {
     const allowedPaths = ['/verify-email', '/verify', '/terms', '/privacy', '/login', '/signup', '/logout']
+
+    // Strict check: If path is not exactly in allowed list, force redirect.
+    // Also use window.location for hard redirect if React Router navigate fails (failsafe).
     if (!allowedPaths.includes(location.pathname)) {
+      console.warn("Global Guard: Redirecting unverified user to /verify-email")
       return <Navigate to="/verify-email" replace />
     }
   }
