@@ -106,6 +106,22 @@ const StandardLayout = ({ session }) => {
   )
 }
 
+// Protected Route Guard
+const RequireAuth = ({ session, children }) => {
+  const location = useLocation()
+
+  if (!session) {
+    return <Navigate to="/login" state={{ from: location }} replace />
+  }
+
+  // Strict Email Verification Check
+  if (!session.user?.email_confirmed_at) {
+    return <Navigate to="/verify-email" replace />
+  }
+
+  return children
+}
+
 export default function App() {
   const [session, setSession] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -217,27 +233,27 @@ export default function App() {
             {/* Protected Routes */}
             <Route
               path="/create"
-              element={session ? <CreatePost /> : <Navigate to="/login" />}
+              element={<RequireAuth session={session}><CreatePost /></RequireAuth>}
             />
             <Route
               path="/profile"
-              element={session ? <UserProfile /> : <Navigate to="/login" />}
+              element={<RequireAuth session={session}><UserProfile /></RequireAuth>}
             />
             <Route
               path="/settings"
-              element={session ? <Settings session={session} /> : <Navigate to="/login" />}
+              element={<RequireAuth session={session}><Settings session={session} /></RequireAuth>}
             />
             <Route
               path="/get-verified"
-              element={session ? <GetVerified session={session} /> : <Navigate to="/login" />}
+              element={<RequireAuth session={session}><GetVerified session={session} /></RequireAuth>}
             />
             <Route
               path="/bookmarks"
-              element={session ? <Bookmarks session={session} /> : <Navigate to="/login" />}
+              element={<RequireAuth session={session}><Bookmarks session={session} /></RequireAuth>}
             />
             <Route
               path="/referrals"
-              element={session ? <Referrals session={session} /> : <Navigate to="/login" />}
+              element={<RequireAuth session={session}><Referrals session={session} /></RequireAuth>}
             />
           </Route>
 
