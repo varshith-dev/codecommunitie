@@ -35,31 +35,8 @@ export default async function handler(req, res) {
 
         const supabase = createClient(supabaseUrl, serviceRoleKey);
 
-        // === ACTION: SEND OTP (For Verification) ===
-        if (action === 'send') {
-            const otp = Math.floor(100000 + Math.random() * 900000).toString();
-            const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString(); // 10 mins
-
-            await supabase.from('verification_codes').delete().eq('email', email);
-
-            const { error: dbError } = await supabase
-                .from('verification_codes')
-                .insert({ email, code: otp, expires_at: expiresAt });
-
-            if (dbError) throw dbError;
-
-            const transporter = nodemailer.createTransport({
-                host: "smtp.zeptomail.in",
-                port: 587,
-                secure: false,
-                auth: {
-                    user: "emailapikey",
-                    pass: process.env.SMTP_PASSWORD || "PHtE6r0KF7/s2TEt8BVStvG8EMGsZt59/75uK1FGt95AX/ADHk1Wq9F6wza2+U8jAaFFFvbPzIJuuemet7+BcGu4Nz1IDWqyqK3sx/VYSPOZsbq6x00UsFkTckHfXITpcdJq1SbXvNbZNA=="
-                },
-            });
-
-            // Standard Template Wrapper
-            const getHtml = (otpCode, title) => `
+        // Standard Template Wrapper
+        const getHtml = (otpCode, title) => `
 <!DOCTYPE html>
 <html>
 <head>
@@ -91,10 +68,32 @@ export default async function handler(req, res) {
 </body>
 </html>`;
 
+        // === ACTION: SEND OTP (For Verification) ===
+        if (action === 'send') {
+            const otp = Math.floor(100000 + Math.random() * 900000).toString();
+            const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString(); // 10 mins
+
+            await supabase.from('verification_codes').delete().eq('email', email);
+
+            const { error: dbError } = await supabase
+                .from('verification_codes')
+                .insert({ email, code: otp, expires_at: expiresAt });
+
+            if (dbError) throw dbError;
+
+            const transporter = nodemailer.createTransport({
+                host: "smtp.zeptomail.in",
+                port: 587,
+                secure: false,
+                auth: {
+                    user: "emailapikey",
+                    pass: process.env.SMTP_PASSWORD || "PHtE6r0KF7/s2TEt8BVStvG8EMGsZt59/75uK1FGt95AX/ADHk1Wq9F6wza2+U8jAaFFFvbPzIJuuemet7+BcGu4Nz1IDWqyqK3sx/VYSPOZsbq6x00UsFkTckHfXITpcdJq1SbXvNbZNA=="
+                },
+            });
+
             await transporter.sendMail({
                 from: '"CodeCommunities" <varshith@truvgo.me>',
                 to: email,
-                subject: "Your Verification Code",
                 subject: "Your Verification Code",
                 html: getHtml(otp, "Verify Your Account"),
             });
