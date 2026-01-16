@@ -177,6 +177,11 @@ export default function Settings({ session }) {
 
             toast.success('Settings saved successfully')
             setOriginalProfile(profile)
+
+            // Auto-trigger automation check to dismiss "Complete Profile" prompt if now complete
+            import('../services/automationService').then(service => {
+                service.checkAndTriggerAutomations(session.user.id, 'incomplete_profile')
+            })
         } catch (error) {
             console.error('Error saving settings:', error)
             if (error.message.includes('unique constraint')) {

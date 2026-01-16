@@ -1,5 +1,8 @@
 import { supabase } from '../supabaseClient'
 
+// Simple in-memory lock to prevent race conditions from valid auth state changes firing rapidly
+const processingLocks = new Set()
+
 /**
  * Checks and triggers automations for a specific user and event type.
  * @param {string} userId - The ID of the user.
@@ -7,6 +10,19 @@ import { supabase } from '../supabaseClient'
  * @param {object} additionalContext - Optional context data (e.g., email for sending).
  */
 export const checkAndTriggerAutomations = async (userId, triggerType, additionalContext = {}) => {
+    // 0. RACE CONDITION GUARD
+    // Prevent multiple checks for the same trigger within a short window (e.g. page load)
+    const lockKey = `${userId}-${triggerType}`
+    if (processingLocks.has(lockKey)) {
+        console.log(`Skipping locked automation: ${triggerType}`)
+        return
+    }
+
+    // Set lock
+    processingLocks.add(lockKey)
+    // Auto-release lock after 5 seconds
+    setTimeout(() => processingLocks.delete(lockKey), 5000)
+
     try {
         console.log(`Checking automations: ${triggerType} for user ${userId}`)
 
@@ -23,23 +39,26 @@ export const checkAndTriggerAutomations = async (userId, triggerType, additional
         // 2. Specialized Checks
         // For 'incomplete_profile', we double-check if the profile is actually incomplete
         if (triggerType === 'incomplete_profile') {
-            const { data: profile } = await supabase
+            const { data: profile, error: profileError } = await supabase
                 .from('profiles')
-                .select('username, bio, website, avatar_url, banner_image_url, display_name')
+                .select('username, bio, website, profile_picture_url, banner_image_url, display_name')
                 .eq('id', userId)
                 .single()
 
+            if (profileError) {
+                console.error("Error fetching profile for automation:", profileError)
+            }
+
             if (profile) {
-                // Define what "Incomplete" means (Checked against screenshot fields)
-                // User has: Avatar, Banner, Display Name, Bio, Username
-                const isComplete =
-                    profile.username &&
-                    profile.bio &&
-                    (profile.avatar_url || profile.profile_picture_url) &&
-                    profile.display_name
+                // RELAXED CHECK: If they have a username and at least ONE other field (bio, name, or pic), stop annoying them.
+                // We don't want to spam users who just don't want a banner image.
+                const hasIdentity = !!profile.username;
+                const hasContent = profile.bio || profile.display_name || profile.profile_picture_url || profile.avatar_url;
+
+                const isComplete = hasIdentity && hasContent;
 
                 if (isComplete) {
-                    console.log('Profile is complete. Auto-dismissing any existing "Complete Your Profile" prompts.')
+                    console.log('Profile is sufficiently complete. Auto-dismissing prompts.')
 
                     // AUTO-DISMISS: If profile is complete, remove the prompt!
                     await supabase
@@ -49,37 +68,34 @@ export const checkAndTriggerAutomations = async (userId, triggerType, additional
                         .ilike('title', '%Complete Your Profile%')
 
                     return
+                } else {
+                    console.log('Profile is STILL incomplete. Missing:', {
+                        username: !!profile.username,
+                        bio: !!profile.bio,
+                        pic: !!profile.profile_picture_url,
+                        name: !!profile.display_name
+                    })
                 }
             }
         }
 
         // 3. Execute Automations
         for (const auto of automations) {
-            // SPAM PREVENTION: Check if we already sent this specific prompt recently (e.g. last 24h) or if it's currently unread
-            // We can match by title match for now
+            // SPAM PREVENTION: Strict check for existing active prompts
+            // If the user already has this prompt and hasn't dismissed it, DO NOT send another.
             const { data: existing } = await supabase
                 .from('user_prompts')
-                .select('id, created_at, is_read')
+                .select('id, created_at, is_dismissed')
                 .eq('user_id', userId)
                 .eq('title', auto.title)
-                .order('created_at', { ascending: false })
+                .eq('is_dismissed', false) // Only check active ones
                 .limit(1)
 
             if (existing && existing.length > 0) {
-                const lastPrompt = existing[0]
-                // If unread, definitely don't send again
-                if (!lastPrompt.is_read) {
-                    console.log(`Skipping duplicate unread prompt: ${auto.title}`)
-                    continue
-                }
-
-                // If read but very recent (e.g. < 1 day), maybe skip? 
-                const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000)
-                if (new Date(lastPrompt.created_at) > oneDayAgo) {
-                    console.log(`Skipping recently sent prompt: ${auto.title}`)
-                    continue
-                }
+                console.log(`Skipping duplicate active prompt: ${auto.title}`)
+                continue
             }
+
 
             // A. Insert In-App Prompt
             const { error: insertError } = await supabase

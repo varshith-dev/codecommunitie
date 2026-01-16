@@ -72,15 +72,21 @@ export default function UserPrompts({ session }) {
                             <p className="text-sm mt-1 opacity-90">{prompt.message}</p>
 
                             {prompt.action_url && (
-                                <a
-                                    href={prompt.action_url}
-                                    target={prompt.action_url.startsWith('http') ? '_blank' : '_self'}
-                                    className="inline-flex items-center gap-1 text-xs font-bold mt-3 hover:underline"
-                                    rel="noopener noreferrer"
+                                <button
+                                    onClick={(e) => {
+                                        e.preventDefault()
+                                        dismissPrompt(prompt.id)
+                                        if (prompt.action_url.startsWith('http')) {
+                                            window.open(prompt.action_url, '_blank')
+                                        } else {
+                                            window.location.href = prompt.action_url // Using href to ensure fresh state if needed, or use navigate
+                                        }
+                                    }}
+                                    className="inline-flex items-center gap-1 text-xs font-bold mt-3 hover:underline text-left"
                                 >
                                     {prompt.action_label || 'View Details'}
                                     <ExternalLink size={10} />
-                                </a>
+                                </button>
                             )}
                         </div>
                         <button
