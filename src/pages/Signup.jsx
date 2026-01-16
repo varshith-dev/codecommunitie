@@ -117,32 +117,16 @@ export default function Signup() {
                     service.checkAndTriggerAutomations(user.id, 'new_user', { email: formData.email })
                 })
 
-                // Send custom verification email with secure token
+                // Send custom verification OTP
                 try {
-                    const response = await fetch('/api/send-verification-email', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            email: formData.email,
-                            userId: user.id
-                        })
-                    })
-                    // ... rest of existing code
-
-
-                    const data = await response.json()
-
-                    if (data.success) {
-                        toast.success('Account created! Check your email for verification link.')
-                    } else {
-                        toast.success('Account created! Please check your email for verification.')
-                    }
+                    await import('../services/EmailService').then(m => m.EmailService.sendOTP(formData.email))
+                    toast.success('Account created! Check your email for the verification code.')
                 } catch (emailErr) {
                     console.error('Email send error:', emailErr)
-                    toast.success('Account created! Please check your email for verification.')
+                    toast.error('Failed to send verification code. Please try again.')
                 }
 
-                navigate('/verify-email', { state: { email: formData.email } })
+                navigate('/verify-email', { state: { email: formData.email, otpSent: true } })
             }
         } catch (error) {
             console.error('Signup error:', error)

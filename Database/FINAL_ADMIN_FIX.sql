@@ -5,7 +5,7 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 -- 2. Grant Admin Role by Username (Primary Target)
 UPDATE profiles
 SET role = 'admin'
-WHERE username = 'varshith.code';
+WHERE username = 'varshithtillu';
 
 -- 3. Grant Admin Role by Email (Secondary Target, handling typos)
 UPDATE profiles

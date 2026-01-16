@@ -15,53 +15,35 @@ export default function VerifyEmail() {
     const [loading, setLoading] = useState(false)
     const [userDetected, setUserDetected] = useState(false)
 
-    // Auto-detect logged-in user's email
+    // Auto-detect logged-in user's email and state
     useEffect(() => {
         const loadUserEmail = async () => {
             // First try to get email from navigation state (just signed up)
             if (location.state?.email) {
                 setEmail(location.state.email)
                 setUserDetected(true)
+
+                // If we just sent the OTP from Signup, switch directly to verify step
+                if (location.state?.otpSent) {
+                    setStep('verify')
+                }
                 return
             }
 
-            // Otherwise, check if user is logged in and get their email
+            // Otherwise, check if user is logged in
             const { data: { session } } = await supabase.auth.getSession()
             if (session?.user?.email) {
                 setEmail(session.user.email)
                 setUserDetected(true)
 
-                // Check if email is already confirmed
                 if (session.user.email_confirmed_at) {
-                    setStep('verified') // Show verified page
+                    setStep('verified')
                 }
             }
         }
         loadUserEmail()
     }, [location.state, navigate])
 
-
-    // Resend confirmation email via Supabase
-    const handleResendConfirmation = async () => {
-        if (!email) {
-            toast.error('Please enter your email')
-            return
-        }
-        setLoading(true)
-        try {
-            const { error } = await supabase.auth.resend({
-                type: 'signup',
-                email: email
-            })
-
-            if (error) throw error
-            toast.success(`Confirmation email resent to ${email}! Check your inbox.`)
-        } catch (error) {
-            toast.error(error.message || 'Failed to resend confirmation email')
-        } finally {
-            setLoading(false)
-        }
-    }
 
     const handleSendOTP = async () => {
         if (!email) {
@@ -104,7 +86,6 @@ export default function VerifyEmail() {
         newOtp[index] = value
         setOtp(newOtp)
 
-        // Auto-focus next
         if (value && index < 5) {
             document.getElementById(`otp-${index + 1}`).focus()
         }
@@ -146,35 +127,12 @@ export default function VerifyEmail() {
                             />
                         </div>
 
-                        <div className="space-y-2">
-                            <button
-                                onClick={handleResendConfirmation}
-                                disabled={loading || !email}
-                                className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl transition-all flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed"
-                            >
-                                {loading ? <Loader2 className="animate-spin" /> : <>Resend Confirmation Email <Mail size={18} /></>}
-                            </button>
-
-                            <p className="text-xs text-center text-gray-500">
-                                Click the link in the email to verify your account
-                            </p>
-                        </div>
-
-                        <div className="relative">
-                            <div className="absolute inset-0 flex items-center">
-                                <div className="w-full border-t border-gray-300"></div>
-                            </div>
-                            <div className="relative flex justify-center text-sm">
-                                <span className="px-2 bg-white text-gray-500">Or use OTP code</span>
-                            </div>
-                        </div>
-
                         <button
                             onClick={handleSendOTP}
                             disabled={loading || !email}
-                            className="w-full py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium rounded-xl transition-all flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed"
+                            className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl transition-all flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed"
                         >
-                            {loading ? <Loader2 className="animate-spin" /> : <>Send OTP Code <ArrowRight size={18} /></>}
+                            {loading ? <Loader2 className="animate-spin" /> : <>Send Verification Code <ArrowRight size={18} /></>}
                         </button>
                     </div>
                 ) : step === 'verify' ? (
@@ -188,7 +146,6 @@ export default function VerifyEmail() {
                                     maxLength={1}
                                     value={digit}
                                     onChange={(e) => handleOtpChange(i, e.target.value)}
-                                    // Handle Backspace
                                     onKeyDown={(e) => {
                                         if (e.key === 'Backspace' && !digit && i > 0) {
                                             document.getElementById(`otp-${i - 1}`).focus()
@@ -208,10 +165,18 @@ export default function VerifyEmail() {
                         </button>
 
                         <button
-                            onClick={() => setStep('input')}
-                            className="w-full text-sm text-gray-500 hover:text-gray-700"
+                            onClick={handleSendOTP} // Resend logic reuses sendOTP
+                            disabled={loading}
+                            className="w-full text-sm text-blue-600 hover:text-blue-700 font-medium"
                         >
-                            Change Email or Resend
+                            Resend Code
+                        </button>
+
+                        <button
+                            onClick={() => setStep('input')}
+                            className="w-full text-center text-sm text-gray-500 hover:text-gray-700"
+                        >
+                            Use different email
                         </button>
                     </div>
                 ) : step === 'verified' ? (
@@ -233,13 +198,6 @@ export default function VerifyEmail() {
                                 className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl transition-all flex items-center justify-center gap-2"
                             >
                                 Go to Home <ArrowRight size={18} />
-                            </button>
-
-                            <button
-                                onClick={() => setStep('input')}
-                                className="w-full py-2 text-sm text-gray-500 hover:text-gray-700"
-                            >
-                                Verify another email
                             </button>
                         </div>
                     </div>
