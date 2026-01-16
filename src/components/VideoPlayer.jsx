@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
-import { Play, Pause, Volume2, VolumeX, Maximize, Minimize, Settings, MoreVertical } from 'lucide-react'
+import { Play, Pause, Volume2, VolumeX, Maximize, Minimize, Settings, MoreVertical, Check } from 'lucide-react'
 
 // Helper if utility doesn't exist yet
 const formatDuration = (seconds) => {
@@ -25,6 +25,13 @@ export default function VideoPlayer({ src, title, poster, className = "" }) {
     const [quality, setQuality] = useState('auto') // auto, 720p, 480p, 360p
     const [currentSrc, setCurrentSrc] = useState(src)
     const [isSourceLoading, setIsSourceLoading] = useState(false)
+    const [settingsView, setSettingsView] = useState('main') // main, speed, quality
+
+    // Reset view when opening
+    const toggleSettings = () => {
+        if (!showSettings) setSettingsView('main')
+        setShowSettings(!showSettings)
+    }
 
     // Helper to inject Cloudinary transformations
     const getQualityUrl = (originalUrl, targetQuality) => {
@@ -235,7 +242,7 @@ export default function VideoPlayer({ src, title, poster, className = "" }) {
             className={`relative group bg-black rounded-xl overflow-hidden focus:outline-none focus:ring-2 focus:ring-blue-500/50 ${isFullscreen ? 'w-full h-full flex items-center justify-center' : ''} ${className}`}
             onMouseMove={handleMouseMove}
             onMouseLeave={() => isPlaying && setShowControls(false)}
-            onContextMenu={(e) => e.preventDefault()} // Disable context menu
+            onContextMenu={(e) => e.preventDefault()}
             tabIndex={0}
             onKeyDown={handleKeyDown}
         >
@@ -254,13 +261,18 @@ export default function VideoPlayer({ src, title, poster, className = "" }) {
                 onClick={togglePlay}
                 playsInline
                 preload="metadata"
-                onError={() => {
-                    // Silently handle video load errors
-                }}
+                onError={() => { }}
             />
 
+            {/* Loading Spinner */}
+            {isSourceLoading && (
+                <div className="absolute inset-0 flex items-center justify-center bg-black/50 z-20">
+                    <div className="animate-spin rounded-full h-12 w-12 border-4 border-white/20 border-t-white"></div>
+                </div>
+            )}
+
             {/* Play/Pause Overlay Icon (Center) */}
-            {!isPlaying && (
+            {!isPlaying && !isSourceLoading && (
                 <div className="absolute inset-0 flex items-center justify-center pointer-events-none group-hover:bg-black/10 transition-colors">
                     <div className="bg-black/40 backdrop-blur-sm p-4 rounded-full text-white ring-1 ring-white/20 shadow-xl pointer-events-auto cursor-pointer hover:bg-black/60 hover:scale-105 transition-all" onClick={togglePlay}>
                         <Play size={32} fill="currentColor" className="ml-1" />
@@ -285,7 +297,7 @@ export default function VideoPlayer({ src, title, poster, className = "" }) {
                         onChange={handleSeek}
                         className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                     />
-                    {/* Scrubber Knob (visible on hover) */}
+                    {/* Scrubber Knob */}
                     <div
                         className="absolute h-3 w-3 bg-white rounded-full -top-[3px] shadow opacity-0 group-hover/progress:opacity-100 pointer-events-none transition-opacity"
                         style={{ left: `${progress}%`, transform: 'translateX(-50%)' }}
@@ -319,40 +331,99 @@ export default function VideoPlayer({ src, title, poster, className = "" }) {
                     </div>
 
                     <div className="flex items-center gap-4">
-                        {/* Settings / Speed */}
+                        {/* Settings Menu */}
                         <div className="relative">
                             <button
-                                onClick={() => setShowSettings(!showSettings)}
-                                className={`text-white hover:text-white/80 transition-colors ${showSettings ? 'rotate-45' : ''}`}
+                                onClick={toggleSettings}
+                                className={`text-white hover:text-white/80 transition-colors transform ${showSettings ? 'rotate-45' : ''}`}
                             >
                                 <Settings size={20} />
                             </button>
 
                             {showSettings && (
-                                <div className="absolute bottom-full right-0 mb-3 bg-black/90 backdrop-blur-md border border-white/10 rounded-xl p-2 min-w-[120px] shadow-xl overflow-hidden animate-slide-up">
-                                    <div className="p-2 text-xs font-semibold text-gray-400 border-b border-white/10 mb-1">Playback Speed</div>
-                                    {[0.5, 1, 1.5, 2].map(rate => (
-                                        <button
-                                            key={rate}
-                                            onClick={() => changeSpeed(rate)}
-                                            className={`w-full text-left px-3 py-1.5 text-sm rounded-lg hover:bg-white/10 flex items-center justify-between ${playbackRate === rate ? 'text-blue-400 font-bold' : 'text-gray-300'}`}
-                                        >
-                                            {rate}x
-                                            {playbackRate === rate && <div className="w-1.5 h-1.5 bg-blue-400 rounded-full" />}
-                                        </button>
-                                    ))}
+                                <div className="absolute bottom-full right-0 mb-3 bg-black/95 backdrop-blur-md border border-white/10 rounded-xl min-w-[200px] shadow-2xl overflow-hidden animate-in fade-in slide-in-from-bottom-2 duration-200">
 
-                                    <div className="p-2 text-xs font-semibold text-gray-400 border-b border-white/10 mb-1 mt-2">Quality</div>
-                                    {['auto', '720p', '480p', '360p', '240p'].map(q => (
-                                        <button
-                                            key={q}
-                                            onClick={() => changeQuality(q)}
-                                            className={`w-full text-left px-3 py-1.5 text-sm rounded-lg hover:bg-white/10 flex items-center justify-between ${quality === q ? 'text-green-400 font-bold' : 'text-gray-300'}`}
-                                        >
-                                            {q === 'auto' ? 'Auto' : q}
-                                            {quality === q && <div className="w-1.5 h-1.5 bg-green-400 rounded-full" />}
-                                        </button>
-                                    ))}
+                                    {/* MAIN MENU */}
+                                    {settingsView === 'main' && (
+                                        <div className="py-2">
+                                            <button
+                                                onClick={() => setSettingsView('speed')}
+                                                className="w-full text-left px-4 py-3 hover:bg-white/10 flex items-center justify-between group"
+                                            >
+                                                <div className="flex items-center gap-3">
+                                                    <div className="text-white"><Settings size={16} /></div>
+                                                    {/* Ideally use a Speed/Gauge icon here if imported */}
+                                                    <span className="text-sm text-gray-200">Playback speed</span>
+                                                </div>
+                                                <div className="flex items-center gap-1 text-gray-400 text-xs">
+                                                    <span>{playbackRate === 1 ? 'Normal' : `${playbackRate}x`}</span>
+                                                    <MoreVertical size={14} className="rotate-90" />
+                                                    {/* Using MoreVertical rotated as a chevron right substitute if needed, or import ChevronRight */}
+                                                </div>
+                                            </button>
+
+                                            <button
+                                                onClick={() => setSettingsView('quality')}
+                                                className="w-full text-left px-4 py-3 hover:bg-white/10 flex items-center justify-between group"
+                                            >
+                                                <div className="flex items-center gap-3">
+                                                    <div className="text-white"><Settings size={16} className="rotate-90" /></div>
+                                                    {/* Placeholder for Sliders icon */}
+                                                    <span className="text-sm text-gray-200">Quality</span>
+                                                </div>
+                                                <div className="flex items-center gap-1 text-gray-400 text-xs">
+                                                    <span>{quality === 'auto' ? 'Auto' : quality}</span>
+                                                    <MoreVertical size={14} className="rotate-90" />
+                                                </div>
+                                            </button>
+                                        </div>
+                                    )}
+
+                                    {/* SPEED MENU */}
+                                    {settingsView === 'speed' && (
+                                        <div className="py-2">
+                                            <button
+                                                onClick={() => setSettingsView('main')}
+                                                className="w-full text-left px-4 py-2 hover:bg-white/10 flex items-center gap-2 border-b border-white/10 mb-1 text-gray-300"
+                                            >
+                                                <MoreVertical size={14} className="-rotate-90" />
+                                                <span className="text-sm font-semibold">Playback speed</span>
+                                            </button>
+                                            {[0.5, 1, 1.5, 2].map(rate => (
+                                                <button
+                                                    key={rate}
+                                                    onClick={() => changeSpeed(rate)}
+                                                    className="w-full text-left px-8 py-2.5 text-sm hover:bg-white/10 flex items-center justify-between text-gray-200"
+                                                >
+                                                    {rate === 1 ? 'Normal' : rate}
+                                                    {playbackRate === rate && <Check size={14} className="text-blue-400" />}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    )}
+
+                                    {/* QUALITY MENU */}
+                                    {settingsView === 'quality' && (
+                                        <div className="py-2">
+                                            <button
+                                                onClick={() => setSettingsView('main')}
+                                                className="w-full text-left px-4 py-2 hover:bg-white/10 flex items-center gap-2 border-b border-white/10 mb-1 text-gray-300"
+                                            >
+                                                <MoreVertical size={14} className="-rotate-90" />
+                                                <span className="text-sm font-semibold">Quality</span>
+                                            </button>
+                                            {['auto', '1080p', '720p', '480p', '360p'].map(q => (
+                                                <button
+                                                    key={q}
+                                                    onClick={() => { changeQuality(q); setShowSettings(false); }}
+                                                    className="w-full text-left px-8 py-2.5 text-sm hover:bg-white/10 flex items-center justify-between text-gray-200"
+                                                >
+                                                    {q === 'auto' ? 'Auto' : q}
+                                                    {quality === q && <Check size={14} className="text-blue-400" />}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    )}
                                 </div>
                             )}
                         </div>
