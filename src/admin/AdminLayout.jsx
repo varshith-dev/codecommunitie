@@ -73,6 +73,12 @@ export default function AdminLayout() {
                         isActive={location.pathname === '/admin/verification-requests'}
                     />
                     <SidebarItem
+                        to="/admin/prompt-settings"
+                        icon={Megaphone}
+                        label="Prompt Settings"
+                        isActive={location.pathname === '/admin/prompt-settings'}
+                    />
+                    <SidebarItem
                         to="/admin/media-review"
                         icon={Settings}
                         label="Media Review"

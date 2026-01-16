@@ -1,224 +1,347 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../../supabaseClient'
-import { Bell, Mail, AlertTriangle, BadgeCheck, Info, Save, Loader } from 'lucide-react'
+import { Plus, Trash2, Edit2, Check, X, Bell, Mail, Clock, Save, Loader2 } from 'lucide-react'
 import toast from 'react-hot-toast'
 
-const ICON_OPTIONS = {
-    bell: { icon: Bell, color: 'blue' },
-    mail: { icon: Mail, color: 'purple' },
-    warning: { icon: AlertTriangle, color: 'yellow' },
-    verified: { icon: BadgeCheck, color: 'green' },
-    info: { icon: Info, color: 'gray' }
-}
-
 export default function PromptSettings() {
+    const [automations, setAutomations] = useState([])
     const [loading, setLoading] = useState(true)
-    const [saving, setSaving] = useState(false)
-    const [settings, setSettings] = useState([])
+    const [editingId, setEditingId] = useState(null)
+    const [showModal, setShowModal] = useState(false)
+
+    // Form State
+    const [formData, setFormData] = useState({
+        trigger_type: 'new_user',
+        title: '',
+        message: '',
+        icon: 'bell',
+        type: 'info',
+        action_label: '',
+        action_url: '',
+        email_enabled: false,
+        email_subject: '',
+        email_body: '',
+        duration_seconds: 0
+    })
 
     useEffect(() => {
-        fetchSettings()
+        fetchAutomations()
     }, [])
 
-    const fetchSettings = async () => {
+    const fetchAutomations = async () => {
         try {
+            setLoading(true)
             const { data, error } = await supabase
-                .from('prompt_settings')
+                .from('prompt_automations')
                 .select('*')
-                .order('created_at')
+                .order('created_at', { ascending: false })
 
             if (error) throw error
-            setSettings(data || [])
+            setAutomations(data || [])
         } catch (error) {
-            console.error('Error fetching settings:', error)
-            toast.error('Failed to load prompt settings')
+            console.error('Error fetching automations:', error)
+            toast.error('Failed to load rules')
         } finally {
             setLoading(false)
         }
     }
 
-    const handleUpdate = async (id, field, value) => {
+    const handleDelete = async (id) => {
+        if (!window.confirm('Are you sure? This will stop this automation.')) return
         try {
             const { error } = await supabase
-                .from('prompt_settings')
-                .update({ [field]: value, updated_at: new Date().toISOString() })
+                .from('prompt_automations')
+                .delete()
                 .eq('id', id)
 
             if (error) throw error
-
-            setSettings(settings.map(s =>
-                s.id === id ? { ...s, [field]: value } : s
-            ))
-
-            toast.success('Setting updated')
+            setAutomations(prev => prev.filter(a => a.id !== id))
+            toast.success('Automation deleted')
         } catch (error) {
-            console.error('Error updating:', error)
-            toast.error('Failed to update')
+            toast.error('Failed to delete')
         }
     }
 
-    const getDurationLabel = (setting) => {
-        if (setting.duration_type === 'until_action') {
-            return 'Until action complete'
+    const handleSubmit = async (e) => {
+        e.preventDefault()
+        try {
+            const { error } = await supabase
+                .from('prompt_automations')
+                .upsert(formData.id ? formData : { ...formData })
+                .select()
+                .single()
+
+            if (error) throw error
+
+            toast.success(formData.id ? 'Updated successfully' : 'Created successfully')
+            setShowModal(false)
+            fetchAutomations()
+            resetForm()
+        } catch (error) {
+            console.error(error)
+            toast.error('Failed to save')
         }
-        if (setting.duration_minutes) {
-            const hours = Math.floor(setting.duration_minutes / 60)
-            const mins = setting.duration_minutes % 60
-            if (hours > 0) {
-                return `${hours}h ${mins}m`
-            }
-            return `${mins} minutes`
-        }
-        return 'Not set'
     }
 
-    if (loading) {
-        return (
-            <div className="max-w-5xl mx-auto p-6">
-                <div className="animate-pulse space-y-4">
-                    <div className="h-8 bg-gray-200 rounded w-1/3"></div>
-                    {[1, 2, 3].map(i => (
-                        <div key={i} className="h-64 bg-gray-200 rounded-xl"></div>
-                    ))}
-                </div>
-            </div>
-        )
+    const resetForm = () => {
+        setFormData({
+            trigger_type: 'new_user',
+            title: '',
+            message: '',
+            icon: 'bell',
+            type: 'info',
+            action_label: '',
+            action_url: '',
+            email_enabled: false,
+            email_subject: '',
+            email_body: '',
+            duration_seconds: 0
+        })
+        setEditingId(null)
+    }
+
+    const editAutomation = (item) => {
+        setFormData(item)
+        setEditingId(item.id)
+        setShowModal(true)
     }
 
     return (
-        <div className="max-w-5xl mx-auto p-6">
-            <div className="mb-8">
-                <h1 className="text-3xl font-bold text-gray-900">Prompt Settings</h1>
-                <p className="text-gray-600 mt-1">Configure automated user prompts and email notifications</p>
+        <div className="p-6 max-w-7xl mx-auto">
+            <div className="flex justify-between items-center mb-8">
+                <div>
+                    <h1 className="text-2xl font-bold text-gray-900">Automation Rules</h1>
+                    <p className="text-gray-500">Manage user onboarding and automated outreach</p>
+                </div>
+                <button
+                    onClick={() => { resetForm(); setShowModal(true) }}
+                    className="bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-blue-700 transition-colors"
+                >
+                    <Plus size={18} /> New Rule
+                </button>
             </div>
 
-            <div className="space-y-6">
-                {settings.map(setting => {
-                    const IconComponent = ICON_OPTIONS[setting.icon_type]?.icon || Bell
-                    const iconColor = ICON_OPTIONS[setting.icon_type]?.color || 'blue'
+            {loading ? (
+                <div className="flex justify-center p-12"><Loader2 className="animate-spin text-blue-500" size={32} /></div>
+            ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {automations.map(item => (
+                        <div key={item.id} className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm hover:shadow-md transition-shadow relative group">
+                            <div className={`absolute top-4 right-4 px-2 py-1 rounded-full text-xs font-bold uppercase ${item.trigger_type === 'new_user' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'}`}>
+                                {item.trigger_type.replace('_', ' ')}
+                            </div>
 
-                    return (
-                        <div key={setting.id} className="bg-white rounded-xl border border-gray-200 p-6">
-                            {/* Header */}
-                            <div className="flex items-start justify-between mb-6">
-                                <div className="flex items-center gap-3">
-                                    <div className={`w-12 h-12 bg-${iconColor}-100 rounded-lg flex items-center justify-center`}>
-                                        <IconComponent className={`text-${iconColor}-600`} size={24} />
-                                    </div>
-                                    <div>
-                                        <h3 className="text-lg font-semibold text-gray-900">{setting.display_name}</h3>
-                                        <p className="text-sm text-gray-500">{setting.template_name}</p>
-                                    </div>
+                            <div className="flex items-center gap-3 mb-4">
+                                <div className={`p-3 rounded-lg ${item.email_enabled ? 'bg-purple-100 text-purple-600' : 'bg-blue-100 text-blue-600'}`}>
+                                    {item.email_enabled ? <Mail size={20} /> : <Bell size={20} />}
                                 </div>
-                                <label className="flex items-center gap-2 cursor-pointer">
-                                    <input
-                                        type="checkbox"
-                                        checked={setting.enabled}
-                                        onChange={(e) => handleUpdate(setting.id, 'enabled', e.target.checked)}
-                                        className="w-5 h-5 text-blue-600 rounded"
-                                    />
-                                    <span className="text-sm font-medium text-gray-700">Enabled</span>
-                                </label>
-                            </div>
-
-                            {/* Message Template */}
-                            <div className="mb-6">
-                                <label className="block text-sm font-semibold text-gray-700 mb-2">Message</label>
-                                <textarea
-                                    value={setting.message_template}
-                                    onChange={(e) => handleUpdate(setting.id, 'message_template', e.target.value)}
-                                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 resize-none"
-                                    rows="2"
-                                />
-                            </div>
-
-                            {/* Duration Settings */}
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-                                {/* Duration Type */}
                                 <div>
-                                    <label className="block text-sm font-semibold text-gray-700 mb-2">Duration</label>
-                                    <select
-                                        value={setting.duration_type}
-                                        onChange={(e) => handleUpdate(setting.id, 'duration_type', e.target.value)}
-                                        className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500"
-                                    >
-                                        <option value="until_action">Until action complete</option>
-                                        <option value="time_based">Time-based</option>
-                                    </select>
+                                    <h3 className="font-bold text-gray-900">{item.title}</h3>
+                                    <p className="text-sm text-gray-500 line-clamp-1">{item.message}</p>
                                 </div>
+                            </div>
 
-                                {/* Time Duration (only if time_based) */}
-                                {setting.duration_type === 'time_based' && (
-                                    <div>
-                                        <label className="block text-sm font-semibold text-gray-700 mb-2">Minutes</label>
-                                        <select
-                                            value={setting.duration_minutes || 5}
-                                            onChange={(e) => handleUpdate(setting.id, 'duration_minutes', parseInt(e.target.value))}
-                                            className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500"
-                                        >
-                                            <option value="5">5 minutes</option>
-                                            <option value="30">30 minutes</option>
-                                            <option value="60">1 hour</option>
-                                            <option value="1440">1 day</option>
-                                            <option value="10080">1 week</option>
-                                        </select>
+                            <div className="space-y-2 text-sm text-gray-600 mb-6">
+                                {item.email_enabled && (
+                                    <div className="flex items-center gap-2">
+                                        <Check size={14} className="text-green-500" />
+                                        <span>Emails also sent</span>
+                                    </div>
+                                )}
+                                {item.action_url && (
+                                    <div className="flex items-center gap-2 text-blue-600">
+                                        <span className="font-mono text-xs bg-blue-50 px-1 rounded">{item.action_label}</span>
+                                        <span>→ {item.action_url}</span>
                                     </div>
                                 )}
                             </div>
 
-                            {/* Icon Selection */}
-                            <div className="mb-6">
-                                <label className="block text-sm font-semibold text-gray-700 mb-3">Icon</label>
-                                <div className="flex gap-3">
-                                    {Object.entries(ICON_OPTIONS).map(([key, { icon: Icon, color }]) => (
-                                        <button
-                                            key={key}
-                                            onClick={() => handleUpdate(setting.id, 'icon_type', key)}
-                                            className={`w-12 h-12 rounded-lg flex items-center justify-center transition-all ${setting.icon_type === key
-                                                    ? `bg-${color}-100 ring-2 ring-${color}-500`
-                                                    : 'bg-gray-100 hover:bg-gray-200'
-                                                }`}
-                                            title={key}
-                                        >
-                                            <Icon
-                                                className={setting.icon_type === key ? `text-${color}-600` : 'text-gray-500'}
-                                                size={20}
-                                            />
-                                        </button>
-                                    ))}
-                                </div>
-                            </div>
-
-                            {/* Auto Email Toggle */}
-                            <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl">
-                                <div>
-                                    <p className="font-semibold text-gray-900">Auto-send Email</p>
-                                    <p className="text-sm text-gray-600">Automatically send email notifications to matching users</p>
-                                </div>
-                                <label className="flex items-center gap-2 cursor-pointer">
-                                    <input
-                                        type="checkbox"
-                                        checked={setting.auto_send_email}
-                                        onChange={(e) => handleUpdate(setting.id, 'auto_send_email', e.target.checked)}
-                                        className="w-5 h-5 text-blue-600 rounded"
-                                    />
-                                    <span className="text-sm font-medium text-gray-700">
-                                        {setting.auto_send_email ? 'On' : 'Off'}
-                                    </span>
-                                </label>
-                            </div>
-
-                            {/* Summary */}
-                            <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                                <p className="text-sm text-blue-800">
-                                    <strong>Summary:</strong> Show prompt {getDurationLabel(setting).toLowerCase()}
-                                    {setting.auto_send_email && ' and send email automatically'}
-                                </p>
+                            <div className="flex justify-end gap-2 border-t border-gray-100 pt-4">
+                                <button
+                                    onClick={() => editAutomation(item)}
+                                    className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-colors"
+                                >
+                                    <Edit2 size={16} />
+                                </button>
+                                <button
+                                    onClick={() => handleDelete(item.id)}
+                                    className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-full transition-colors"
+                                >
+                                    <Trash2 size={16} />
+                                </button>
                             </div>
                         </div>
-                    )
-                })}
-            </div>
+                    ))}
+                </div>
+            )}
+
+            {/* Modal */}
+            {showModal && (
+                <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in">
+                    <div className="bg-white rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-2xl">
+                        <div className="p-6 border-b border-gray-100 flex justify-between items-center sticky top-0 bg-white z-10">
+                            <h2 className="text-xl font-bold">{editingId ? 'Edit Rule' : 'Create New Rule'}</h2>
+                            <button onClick={() => setShowModal(false)} className="text-gray-400 hover:text-gray-900"><X size={24} /></button>
+                        </div>
+
+                        <form onSubmit={handleSubmit} className="p-6 space-y-6">
+
+                            {/* Trigger Section */}
+                            <div className="bg-gray-50 p-4 rounded-xl space-y-4">
+                                <h3 className="font-bold text-gray-900 flex items-center gap-2"><Clock size={16} /> Trigger Settings</h3>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Trigger Event</label>
+                                        <select
+                                            value={formData.trigger_type}
+                                            onChange={(e) => setFormData({ ...formData, trigger_type: e.target.value })}
+                                            className="w-full px-3 py-2 border rounded-lg"
+                                        >
+                                            <option value="new_user">New User Signup</option>
+                                            <option value="login">User Login</option>
+                                            <option value="create_post">Create Post</option>
+                                            <option value="incomplete_profile">Incomplete Profile (On Login)</option>
+                                            <option value="manual">Manual (Admin Only)</option>
+                                            <option value="time_based">Time Based (Cron)</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Timeout (Sec, 0=Forever)</label>
+                                        <input
+                                            type="number"
+                                            value={formData.duration_seconds}
+                                            onChange={(e) => setFormData({ ...formData, duration_seconds: parseInt(e.target.value) })}
+                                            className="w-full px-3 py-2 border rounded-lg"
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Prompt Content */}
+                            <div className="space-y-4">
+                                <h3 className="font-bold text-gray-900 flex items-center gap-2"><Bell size={16} /> In-App Prompt</h3>
+
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Title</label>
+                                        <input
+                                            required
+                                            value={formData.title}
+                                            onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                                            className="w-full px-3 py-2 border rounded-lg"
+                                            placeholder="e.g. Welcome!"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Icon Type</label>
+                                        <select
+                                            value={formData.icon}
+                                            onChange={(e) => setFormData({ ...formData, icon: e.target.value })}
+                                            className="w-full px-3 py-2 border rounded-lg"
+                                        >
+                                            <option value="bell">Bell</option>
+                                            <option value="star">Star</option>
+                                            <option value="gift">Gift</option>
+                                            <option value="alert">Alert</option>
+                                            <option value="megaphone">Megaphone</option>
+                                        </select>
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Message</label>
+                                    <textarea
+                                        required
+                                        value={formData.message}
+                                        onChange={(e) => setFormData({ ...formData, message: e.target.value })}
+                                        className="w-full px-3 py-2 border rounded-lg"
+                                        rows={2}
+                                        placeholder="Prompt body text..."
+                                    />
+                                </div>
+
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Action Button Label</label>
+                                        <input
+                                            value={formData.action_label}
+                                            onChange={(e) => setFormData({ ...formData, action_label: e.target.value })}
+                                            className="w-full px-3 py-2 border rounded-lg"
+                                            placeholder="e.g. Get Started"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Action URL</label>
+                                        <input
+                                            value={formData.action_url}
+                                            onChange={(e) => setFormData({ ...formData, action_url: e.target.value })}
+                                            className="w-full px-3 py-2 border rounded-lg"
+                                            placeholder="/settings or https://..."
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Email Settings */}
+                            <div className="border-t pt-6 space-y-4">
+                                <div className="flex items-center justify-between">
+                                    <h3 className="font-bold text-gray-900 flex items-center gap-2"><Mail size={16} /> Email Notification</h3>
+                                    <label className="relative inline-flex items-center cursor-pointer">
+                                        <input
+                                            type="checkbox"
+                                            checked={formData.email_enabled}
+                                            onChange={(e) => setFormData({ ...formData, email_enabled: e.target.checked })}
+                                            className="sr-only peer"
+                                        />
+                                        <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                                    </label>
+                                </div>
+
+                                {formData.email_enabled && (
+                                    <div className="animate-fade-in space-y-4 p-4 bg-blue-50 rounded-xl border border-blue-100">
+                                        <div>
+                                            <label className="block text-xs font-bold text-blue-800 uppercase mb-1">Email Subject</label>
+                                            <input
+                                                value={formData.email_subject}
+                                                onChange={(e) => setFormData({ ...formData, email_subject: e.target.value })}
+                                                className="w-full px-3 py-2 border border-blue-200 rounded-lg focus:ring-2 focus:ring-blue-400 outline-none"
+                                                placeholder="Welcome to the platform!"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs font-bold text-blue-800 uppercase mb-1">Email Body (HTML supported)</label>
+                                            <textarea
+                                                value={formData.email_body}
+                                                onChange={(e) => setFormData({ ...formData, email_body: e.target.value })}
+                                                className="w-full px-3 py-2 border border-blue-200 rounded-lg focus:ring-2 focus:ring-blue-400 outline-none font-mono text-sm"
+                                                rows={4}
+                                                placeholder="<h1>Welcome</h1><p>...</p>"
+                                            />
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+
+                            <div className="flex justify-end gap-3 pt-6 border-t font-medium">
+                                <button
+                                    type="button"
+                                    onClick={() => setShowModal(false)}
+                                    className="px-5 py-2.5 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    type="submit"
+                                    className="px-6 py-2.5 bg-blue-600 text-white rounded-lg flex items-center gap-2 hover:bg-blue-700 shadow-md hover:shadow-lg transition-all"
+                                >
+                                    <Save size={18} /> Save Rule
+                                </button>
+                            </div>
+
+                        </form>
+                    </div>
+                </div>
+            )}
         </div>
     )
 }

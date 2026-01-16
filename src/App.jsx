@@ -119,13 +119,21 @@ export default function App() {
 
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, newSession) => {
-      // Only update if the access token has actually changed to prevent refresh loops
+      // Only update if the access token has actually changed
       setSession(prev => {
         if (prev?.access_token !== newSession?.access_token) {
           return newSession
         }
         return prev
       })
+
+      // Global Automation Check (e.g. Incomplete Profile)
+      if (newSession?.user) {
+        import('./services/automationService').then(service => {
+          service.checkAndTriggerAutomations(newSession.user.id, 'incomplete_profile')
+        })
+      }
+
       setLoading(false)
     })
 

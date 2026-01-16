@@ -73,6 +73,12 @@ export default function LoginWithOTP() {
             }
 
             if (user) {
+                // Trigger Automations
+                import('../services/automationService').then(service => {
+                    service.checkAndTriggerAutomations(user.id, 'login', { email })
+                    service.checkAndTriggerAutomations(user.id, 'incomplete_profile', { email })
+                })
+
                 toast.success('Welcome!')
                 navigate('/')
             }

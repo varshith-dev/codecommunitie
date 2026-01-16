@@ -110,7 +110,13 @@ export default function Signup() {
                 return
             }
 
+
             if (user) {
+                // Trigger "New User" Automations
+                import('../services/automationService').then(service => {
+                    service.checkAndTriggerAutomations(user.id, 'new_user', { email: formData.email })
+                })
+
                 // Send custom verification email with secure token
                 try {
                     const response = await fetch('/api/send-verification-email', {
@@ -121,6 +127,8 @@ export default function Signup() {
                             userId: user.id
                         })
                     })
+                    // ... rest of existing code
+
 
                     const data = await response.json()
 

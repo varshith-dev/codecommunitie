@@ -42,7 +42,8 @@ export default function CreatePost() {
   }
 
 
-  const canPostBlog = userProfile?.is_verified || ['admin', 'moderator'].includes(userProfile?.role)
+  // Removed canPostBlog restriction - everyone can post blogs now
+  // const canPostBlog = userProfile?.is_verified || ['admin', 'moderator'].includes(userProfile?.role)
 
   const handleSubmit = async (e, isDraft = false) => {
     e.preventDefault()
@@ -65,10 +66,10 @@ export default function CreatePost() {
       if (type === 'meme' && !file && !isDraft) throw new Error("Please upload an image or video")
       if (type === 'blog' && !description?.trim()) throw new Error("Blog content is required")
 
-      // Permission Check for Blog
-      if (type === 'blog' && !canPostBlog) {
-        throw new Error("Only verified users and moderators can post blogs.")
-      }
+      // Permission Check for Blog - REMOVED (Open to all)
+      // if (type === 'blog' && !canPostBlog) {
+      //   throw new Error("Only verified users and moderators can post blogs.")
+      // }
 
       // 2. Validation: Links
       // Rules:
@@ -159,6 +160,11 @@ export default function CreatePost() {
       } else if (scheduledAt) {
         toast.success(`Post scheduled for ${scheduledDate.toLocaleString()}`)
       } else {
+        // Trigger "Create Post" Automations
+        import('../services/automationService').then(service => {
+          service.checkAndTriggerAutomations(user.id, 'create_post')
+        })
+
         toast.success('Post published successfully!')
       }
 
@@ -198,10 +204,9 @@ export default function CreatePost() {
             <ImageIcon size={20} /> Meme / Video
           </button>
           <button
-            onClick={() => canPostBlog && setType('blog')}
-            disabled={!canPostBlog}
-            title={!canPostBlog ? "Only verified users can post blogs" : "Share custom elements and links"}
-            className={`flex-1 flex items-center justify-center gap-2 py-3 text-sm font-bold rounded-xl transition-all ${type === 'blog' ? 'bg-white text-purple-600 shadow-md transform scale-[1.02]' : !canPostBlog ? 'opacity-50 cursor-not-allowed text-gray-400' : 'text-gray-500 hover:text-gray-700 hover:bg-white/50'
+            onClick={() => setType('blog')}
+            title="Share custom elements and links (Verified users only for links)"
+            className={`flex-1 flex items-center justify-center gap-2 py-3 text-sm font-bold rounded-xl transition-all ${type === 'blog' ? 'bg-white text-purple-600 shadow-md transform scale-[1.02]' : 'text-gray-500 hover:text-gray-700 hover:bg-white/50'
               }`}
           >
             <Newspaper size={20} /> Blog

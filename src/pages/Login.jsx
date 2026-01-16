@@ -45,6 +45,47 @@ export default function Login() {
             }
 
             if (user) {
+                // Trigger "Login" Automations
+                try {
+                    const { data: automations } = await import('../supabaseClient').then(m => m.supabase)
+                        .from('prompt_automations')
+                        .select('*')
+                        .eq('trigger_type', 'login')
+                        .eq('is_active', true)
+
+                    if (automations && automations.length > 0) {
+                        for (const auto of automations) {
+                            // Insert Prompt
+                            await import('../supabaseClient').then(m => m.supabase)
+                                .from('user_prompts')
+                                .insert({
+                                    user_id: user.id,
+                                    title: auto.title,
+                                    message: auto.message,
+                                    icon: auto.icon,
+                                    type: auto.type,
+                                    action_label: auto.action_label,
+                                    action_url: auto.action_url
+                                })
+
+                            // Send Email if enabled
+                            if (auto.email_enabled) {
+                                await fetch('/api/send-email', {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({
+                                        recipientEmail: email,
+                                        subject: auto.email_subject,
+                                        htmlContent: auto.email_body
+                                    })
+                                }).catch(err => console.error('Auto-email failed', err))
+                            }
+                        }
+                    }
+                } catch (err) {
+                    console.error('Automation error:', err)
+                }
+
                 toast.success('Welcome back!')
                 navigate('/')
             }

@@ -123,7 +123,9 @@ export default function UserProfile() {
       if (profileData.is_verified || isPending || isDismissed) {
         setShowVerificationUpsell(false)
       } else {
-        setShowVerificationUpsell(true)
+        // Disabled automatic prompt as per user request
+        // setShowVerificationUpsell(true)
+        setShowVerificationUpsell(false)
       }
 
       // Fetch User's Posts
