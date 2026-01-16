@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../supabaseClient'
+import { EmailService } from '../services/EmailService'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import {
     Settings as SettingsIcon,
