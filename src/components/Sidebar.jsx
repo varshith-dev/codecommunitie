@@ -26,7 +26,20 @@ export default function Sidebar({ session }) {
 
     const fetchAd = async () => {
         try {
-            const { data } = await supabase
+            // First, get IDs of ads reported by this user
+            let excludedAdIds = []
+            if (session?.user?.id) {
+                const { data: reports } = await supabase
+                    .from('ad_reports')
+                    .select('ad_id')
+                    .eq('reporter_id', session.user.id)
+
+                if (reports) {
+                    excludedAdIds = reports.map(r => r.ad_id)
+                }
+            }
+
+            let query = supabase
                 .from('advertisements')
                 .select(`
                     *,
@@ -35,11 +48,16 @@ export default function Sidebar({ session }) {
                 .eq('status', 'active')
                 .eq('campaign.status', 'active')
                 .eq('approval_status', 'approved')
-                .eq('approval_status', 'approved')
                 .eq('placement', 'sidebar')
                 .is('deleted_at', null)
                 .order('created_at', { ascending: false })
                 .limit(10)
+
+            if (excludedAdIds.length > 0) {
+                query = query.not('id', 'in', `(${excludedAdIds.join(',')})`)
+            }
+
+            const { data } = await query
 
             if (data && data.length > 0) {
                 // Shuffle and pick one for dynamic display

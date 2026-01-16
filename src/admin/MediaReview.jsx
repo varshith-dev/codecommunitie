@@ -16,52 +16,66 @@ export default function MediaReview() {
 
     const fetchMedia = async () => {
         setLoading(true)
+        console.log('MediaReview: Fetching media...')
         try {
-            const { data, error } = await supabase
+            // Step 1: Fetch Posts (No Joins)
+            const { data: postsData, error: postsError } = await supabase
                 .from('posts')
-                .select('*, profiles(username, profile_picture_url)')
+                .select('*')
                 .not('content_url', 'is', null)
                 .neq('content_url', '')
                 .order('created_at', { ascending: false })
                 .limit(50)
 
-            if (error) throw error
-            setMedia((data || []).filter(p => p.content_url && p.content_url.trim() !== ''))
+            if (postsError) {
+                console.error('MediaReview: Fetch error:', postsError)
+                throw postsError
+            }
+
+            if (!postsData || postsData.length === 0) {
+                setMedia([])
+                setLoading(false)
+                return
+            }
+
+            // Step 2: Fetch Profiles for these posts
+            const userIds = [...new Set(postsData.map(p => p.user_id))]
+
+            const { data: profilesData, error: profilesError } = await supabase
+                .from('profiles')
+                .select('id, username, profile_picture_url')
+                .in('id', userIds)
+
+            if (profilesError) {
+                console.error('MediaReview: Profile fetch error:', profilesError)
+                // Don't crash, just show without profiles
+            }
+
+            // Map profiles to posts
+            const profilesMap = {}
+            profilesData?.forEach(p => {
+                profilesMap[p.id] = p
+            })
+
+            const mediaWithProfiles = postsData.map(post => ({
+                ...post,
+                profiles: profilesMap[post.user_id] || { username: 'Unknown', profile_picture_url: null }
+            }))
+
+            // Step 3: Initialize review status
+            // Initialize review status from DB
+            const initialStatus = {}
+            mediaWithProfiles.forEach(post => {
+                if (post.review_status) {
+                    initialStatus[post.id] = post.review_status
+                }
+            })
+            setReviewStatus(initialStatus)
+            setMedia(mediaWithProfiles)
 
         } catch (err) {
-            console.warn('Attempt 1 (Sort+Join) failed:', err.message)
-
-            try {
-                // Attempt 2: No Sort (Join only)
-                const { data, error: retryError } = await supabase
-                    .from('posts')
-                    .select('*, profiles(username, profile_picture_url)')
-                    .not('content_url', 'is', null)
-                    .neq('content_url', '')
-                    .limit(50)
-
-                if (retryError) throw retryError
-                setMedia((data || []).filter(p => p.content_url && p.content_url.trim() !== ''))
-            } catch (retryErr) {
-                console.warn('Attempt 2 (Join only) failed:', retryErr.message)
-
-                try {
-                    // Attempt 3: Raw Fetch
-                    const { data, error: rawError } = await supabase
-                        .from('posts')
-                        .select('*')
-                        .not('content_url', 'is', null)
-                        .neq('content_url', '')
-                        .limit(50)
-
-                    if (rawError) throw rawError
-                    setMedia((data || []).filter(p => p.content_url && p.content_url.trim() !== ''))
-                    if (data?.length > 0) toast('Loaded in safe mode (limited data)', { icon: '⚠️' })
-                } catch (finalError) {
-                    console.error('All fetch attempts failed:', finalError)
-                    toast.error('Failed to load media')
-                }
-            }
+            console.error('MediaReview: Fetch failed:', err)
+            toast.error('Failed to load media')
         } finally {
             setLoading(false)
         }

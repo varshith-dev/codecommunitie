@@ -181,6 +181,22 @@ export const EmailTemplates = {
             </div>
         `,
         title: "Ad Rejected"
+    },
+    ACCOUNT_RESET: {
+        subject: () => `Account Reset Notification 🛑`,
+        body: (name) => `
+            <div style="text-align: center; margin-bottom: 24px;">
+                <img src="https://cdn-icons-png.flaticon.com/512/564/564619.png" width="80" alt="Reset" />
+            </div>
+            <p>Hi ${name},</p>
+            <p>This is a notification that your advertising account history, including all campaigns, ads, and credits, has been <strong>reset by a site administrator</strong>.</p>
+            <p>Your wallet balance has been reset to <strong>0.00</strong>.</p>
+            <p>If you believe this action was taken in error or if you have any questions, please contact support immediately.</p>
+            <div class="button-wrapper">
+                <a href="https://codecommunitie.vercel.app/advertiser/dashboard" class="button">Go to Dashboard</a>
+            </div>
+        `,
+        title: "Account Reset"
     }
 }
 

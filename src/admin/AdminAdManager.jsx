@@ -1,15 +1,16 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../supabaseClient'
+import { useNavigate } from 'react-router-dom'
 import {
     LayoutDashboard, DollarSign, Users, MousePointerClick,
-    TrendingUp, Activity, Archive, PauseCircle, PlayCircle, Loader, CheckCircle, XCircle, Eye, CreditCard, Settings, AlertTriangle
+    TrendingUp, Activity, Archive, PauseCircle, PlayCircle, Loader, CheckCircle, XCircle, Eye, CreditCard, Settings, AlertTriangle, FileText, Terminal, Trash2
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import RollingCounter from '../components/RollingCounter'
-import { useNavigate } from 'react-router-dom'
 import { EmailService } from '../services/EmailService'
 import { EmailTemplates, wrapInTemplate } from '../services/EmailTemplates'
 import { InvoiceGenerator } from '../utils/InvoiceGenerator'
+import TransactionLogsTable from '../components/TransactionLogsTable'
 
 export default function AdminAdManager() {
     const navigate = useNavigate()
@@ -18,7 +19,8 @@ export default function AdminAdManager() {
     const [pendingAds, setPendingAds] = useState([])
     const [creditRequests, setCreditRequests] = useState([])
     const [adReports, setAdReports] = useState([])
-    const [activeTab, setActiveTab] = useState('campaigns') // 'campaigns', 'pending', 'credits', 'advertisers', 'reports'
+    const [activeTab, setActiveTab] = useState('campaigns') // 'campaigns', 'pending', 'credits', 'advertisers', 'reports', 'transactions'
+    const [transactions, setTransactions] = useState([])
     const [advertisers, setAdvertisers] = useState([])
     const [isAddCreditModalOpen, setIsAddCreditModalOpen] = useState(false)
     const [selectedAdvertiser, setSelectedAdvertiser] = useState(null)
@@ -113,7 +115,17 @@ export default function AdminAdManager() {
                 .order('created_at', { ascending: false })
 
             if (reportsError) console.error('Error fetching reports:', reportsError)
+            if (reportsError) console.error('Error fetching reports:', reportsError)
             setAdReports(reportsData || [])
+
+            // 3c. Fetch Transaction Logs (Approved/Rejected/Manual Credits)
+            const { data: txData, error: txError } = await supabase
+                .from('ad_credit_requests')
+                .select(`*, advertiser:profiles(username, display_name, email)`)
+                .neq('status', 'pending') // Only completed transactions
+                .order('created_at', { ascending: false })
+
+            setTransactions(txData || [])
 
             // 4. Fetch All Advertisers (profiles with role 'advertiser' or have campaigns)
             // For now fetching all profiles, or we could filter. Let's fetch profiles with role 'advertiser'
@@ -235,7 +247,8 @@ export default function AdminAdManager() {
                     subject: template.subject(),
                     htmlContent: wrapInTemplate(template.body(user.display_name || user.username, adData.title), template.title),
                     templateType: 'AD_APPROVED',
-                    triggeredBy: 'admin'
+                    triggeredBy: 'admin',
+                    attachments: adData.image_url ? [{ path: adData.image_url }] : []
                 }).catch(err => console.error('Failed to send email:', err))
             }
 
@@ -309,8 +322,17 @@ export default function AdminAdManager() {
                 try {
                     // Generate Invoice
                     console.log('Generating PDF invoice for:', requestId)
+
+                    // Format: TRUVGO_INVOICE_ID_#DDMMYY-XXXXX
+                    const dateObj = new Date(reqData.created_at);
+                    const day = String(dateObj.getDate()).padStart(2, '0');
+                    const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+                    const year = String(dateObj.getFullYear()).slice(-2);
+                    const uniqueSuffix = requestId.split('-')[0].toUpperCase().slice(0, 5);
+                    const formattedId = `TRUVGO_INVOICE_ID_#${day}${month}${year}-${uniqueSuffix}`;
+
                     const invoiceDataURI = InvoiceGenerator.getDataURI(
-                        { id: requestId, amount: reqData.amount, date: reqData.created_at, description: 'Ad Credits Replenishment' },
+                        { id: requestId, formattedId, amount: reqData.amount, date: reqData.created_at, description: 'Ad Credits Replenishment' },
                         { name: user.display_name || user.username, email: user.email }
                     )
                     console.log('PDF generated, length:', invoiceDataURI?.length)
@@ -377,10 +399,15 @@ export default function AdminAdManager() {
                 try {
                     // Manual credits - generate mock ID or use timestamp
                     const mockTxId = 'MANUAL-' + Date.now().toString().slice(-6)
+                    const dateObj = new Date();
+                    const day = String(dateObj.getDate()).padStart(2, '0');
+                    const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+                    const year = String(dateObj.getFullYear()).slice(-2);
+                    const formattedId = `TRUVGO_INVOICE_ID_#${day}${month}${year}-MANUAL`;
 
                     console.log('Generating Manual PDF invoice')
                     const invoiceDataURI = InvoiceGenerator.getDataURI(
-                        { id: mockTxId, amount: parseFloat(creditAmount), date: new Date().toISOString(), description: 'Ad Credits Replenishment (Manual)' },
+                        { id: mockTxId, formattedId, amount: parseFloat(creditAmount), date: new Date().toISOString(), description: 'Ad Credits Replenishment (Manual)' },
                         { name: selectedAdvertiser.display_name || selectedAdvertiser.username, email: selectedAdvertiser.email }
                     )
 
@@ -410,6 +437,39 @@ export default function AdminAdManager() {
         } catch (error) {
             console.error('Error adding credits:', error)
             toast.error('Failed to add credits: ' + error.message)
+        }
+    }
+
+    const handleResetHistory = async (user) => {
+        if (!confirm(`DANGER: Are you sure you want to completely wipe all campaigns, ads, and history for @${user.username}? This cannot be undone.`)) return
+        if (!confirm(`Please confirm one more time. All metrics and ads for ${user.username} will be deleted permanently.`)) return
+
+        try {
+            const { error } = await supabase.rpc('admin_reset_advertiser_history', {
+                target_user_id: user.id
+            })
+
+            if (error) throw error
+
+            toast.success(`Successfully reset history for @${user.username}`)
+
+            // Send Reset Notification Email
+            if (user.email) {
+                const template = EmailTemplates.ACCOUNT_RESET
+                await EmailService.send({
+                    recipientEmail: user.email,
+                    memberName: user.display_name || user.username,
+                    subject: template.subject(),
+                    htmlContent: wrapInTemplate(template.body(user.display_name || user.username), template.title),
+                    templateType: 'ACCOUNT_RESET',
+                    triggeredBy: 'admin'
+                }).catch(err => console.error('Failed to send reset email:', err))
+            }
+
+            fetchAdData()
+        } catch (error) {
+            console.error('Reset error:', error)
+            toast.error('Failed to reset history: ' + error.message)
         }
     }
 
@@ -619,6 +679,15 @@ export default function AdminAdManager() {
                         </span>
                     )}
                 </button>
+                <button
+                    onClick={() => setActiveTab('transactions')}
+                    className={`pb-3 px-4 font-semibold transition-colors flex items-center gap-2 ${activeTab === 'transactions'
+                        ? 'text-blue-600 border-b-2 border-blue-600'
+                        : 'text-gray-500 hover:text-gray-700'
+                        }`}
+                >
+                    <FileText size={16} /> Transactions
+                </button>
             </div>
 
             {activeTab === 'campaigns' && <CampaignsTable campaigns={campaigns} navigate={navigate} />}
@@ -631,6 +700,7 @@ export default function AdminAdManager() {
                         setSelectedAdvertiser(user)
                         setIsAddCreditModalOpen(true)
                     }}
+                    onResetHistory={handleResetHistory}
                 />
             )}
             {activeTab === 'reports' && (
@@ -640,6 +710,7 @@ export default function AdminAdManager() {
                     onRemove={handleRemoveReportedAd}
                 />
             )}
+            {activeTab === 'transactions' && <TransactionLogsTable transactions={transactions} />}
 
             {/* Add Credit Modal */}
             {isAddCreditModalOpen && (
@@ -1056,7 +1127,7 @@ function PendingAdsTable({ ads, onApprove, onReject }) {
 }
 
 
-function AdvertisersTable({ advertisers, onAddCredits }) {
+function AdvertisersTable({ advertisers, onAddCredits, onResetHistory }) {
     return (
         <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
             <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center">
@@ -1104,6 +1175,14 @@ function AdvertisersTable({ advertisers, onAddCredits }) {
                                     >
                                         <CreditCard size={14} />
                                         Add Funds
+                                    </button>
+                                    <button
+                                        onClick={() => onResetHistory(user)}
+                                        className="text-sm bg-red-50 text-red-600 hover:bg-red-100 px-3 py-1.5 rounded-lg transition-colors font-medium flex items-center gap-1 ml-2"
+                                        title="Wipe Account History"
+                                    >
+                                        <Trash2 size={14} />
+                                        Reset
                                     </button>
                                 </td>
                             </tr>

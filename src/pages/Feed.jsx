@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { supabase } from '../supabaseClient'
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism'
-import { Heart, MessageCircle, Trash2, Code2, Share2, Edit2, TrendingUp, Clock, Users, AlertTriangle, Sparkles } from 'lucide-react'
+import { Heart, MessageCircle, Trash2, Code2, Share2, Edit2, TrendingUp, Clock, Users, AlertTriangle, Sparkles, Eye, EyeOff } from 'lucide-react'
 import toast from 'react-hot-toast'
 import CommentSection from '../components/CommentSection'
 import Avatar from '../components/Avatar'
@@ -259,7 +259,20 @@ export default function Feed({ session }) {
       setPosts(postsWithData)
 
       // Fetch active ads (only approved ones)
-      const { data: adsData, error: adsError } = await supabase
+      // First, get IDs of ads reported by this user
+      let excludedAdIds = []
+      if (session?.user?.id) {
+        const { data: reports } = await supabase
+          .from('ad_reports')
+          .select('ad_id')
+          .eq('reporter_id', session.user.id)
+
+        if (reports) {
+          excludedAdIds = reports.map(r => r.ad_id)
+        }
+      }
+
+      let adsQuery = supabase
         .from('advertisements')
         .select(`
           *,
@@ -272,6 +285,12 @@ export default function Feed({ session }) {
         .is('deleted_at', null)
         .order('created_at', { ascending: false })
         .limit(10)
+
+      if (excludedAdIds.length > 0) {
+        adsQuery = adsQuery.not('id', 'in', `(${excludedAdIds.join(',')})`)
+      }
+
+      const { data: adsData, error: adsError } = await adsQuery
 
       if (adsError) {
         console.error('Error fetching ads:', adsError)
@@ -677,15 +696,60 @@ export default function Feed({ session }) {
             <div className="px-4 pb-2">
               {post.type === 'meme' && post.content_url && (
                 <>
-                  <div className="rounded-xl overflow-hidden bg-black/5 border border-gray-100">
+                  <div className="rounded-xl overflow-hidden bg-black/5 border border-gray-100 relative group">
+                    {/* Restricted Content Overlay */}
+                    {post.review_status === 'restricted' && !previewStates[`reveal_${post.id}`] && (
+                      <div className="absolute inset-0 z-20 backdrop-blur-md bg-black/40 flex flex-col items-center justify-center text-center p-6 animate-fade-in">
+                        <AlertTriangle className="w-12 h-12 text-yellow-500 mb-2 drop-shadow-md" strokeWidth={1.5} />
+                        <h3 className="text-white font-bold text-lg mb-1 drop-shadow-sm">Sensitive Content</h3>
+                        <p className="text-white/80 text-xs max-w-[200px] mb-4 drop-shadow-sm">
+                          This post has been marked as restricted by our moderators.
+                        </p>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            setPreviewStates(prev => ({ ...prev, [`reveal_${post.id}`]: true }))
+                          }}
+                          className="px-4 py-2 bg-white/20 hover:bg-white/30 backdrop-blur-md text-white border border-white/50 rounded-full text-xs font-bold transition-all flex items-center gap-2"
+                        >
+                          <Eye size={14} />
+                          Show Anyway
+                        </button>
+                      </div>
+                    )}
+
                     {/* Robust Video Detection */}
                     {(post.content_url.match(/\.(mp4|webm|ogg|mov|mkv|avi|qt)$/i) || post.content_url.includes('video')) ? (
-                      <VideoPlayer
-                        src={post.content_url}
-                        title={post.title}
-                      />
+                      <div className={post.review_status === 'restricted' && !previewStates[`reveal_${post.id}`] ? 'blur-xl scale-105 transition-all duration-700' : 'transition-all duration-700'}>
+                        <VideoPlayer
+                          src={post.content_url}
+                          title={post.title}
+                        />
+                      </div>
                     ) : (
-                      <img src={post.content_url} alt={post.title} className="w-full max-h-[600px] object-contain" loading="lazy" />
+                      <img
+                        src={post.content_url}
+                        alt={post.title}
+                        className={`w-full max-h-[600px] object-contain ${post.review_status === 'restricted' && !previewStates[`reveal_${post.id}`]
+                          ? 'blur-xl scale-105 transition-all duration-700'
+                          : 'transition-all duration-700'
+                          }`}
+                        loading="lazy"
+                      />
+                    )}
+
+                    {/* Re-hide button if revealed */}
+                    {post.review_status === 'restricted' && previewStates[`reveal_${post.id}`] && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setPreviewStates(prev => ({ ...prev, [`reveal_${post.id}`]: false }))
+                        }}
+                        className="absolute top-2 right-2 z-10 p-1.5 bg-black/50 hover:bg-black/70 text-white rounded-full backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-opacity"
+                        title="Hide Content"
+                      >
+                        <EyeOff size={14} />
+                      </button>
                     )}
                   </div>
                   {post.description && (

@@ -4,7 +4,7 @@ import { supabase } from '../supabaseClient'
 import {
     ArrowLeft, Plus, Image as ImageIcon, Link as LinkIcon,
     Type, MousePointerClick, Eye, Trash2, ExternalLink, Edit2, X, Clock, CheckCircle, XCircle,
-    Pause, Play
+    Pause, Play, RefreshCw
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import AdvertiserPoliciesModal from './AdvertiserPoliciesModal'
@@ -22,6 +22,8 @@ export default function CampaignDetails({ session }) {
 
     const [campaignEdit, setCampaignEdit] = useState({})
     const [policyModalOpen, setPolicyModalOpen] = useState(false)
+    const [relaunchModalOpen, setRelaunchModalOpen] = useState(false)
+    const [relaunchBudget, setRelaunchBudget] = useState('')
 
     // New Ad Form State
     const [newAd, setNewAd] = useState({
@@ -297,6 +299,68 @@ export default function CampaignDetails({ session }) {
         }
     }
 
+    const handleRelaunchCampaign = async () => {
+        if (!relaunchBudget || isNaN(relaunchBudget) || parseFloat(relaunchBudget) <= 0) {
+            return toast.error('Please enter a valid budget')
+        }
+
+        try {
+            // 1. Archive Current Campaign
+            const { error: archiveError } = await supabase
+                .from('ad_campaigns')
+                .update({ status: 'archived' })
+                .eq('id', campaign.id)
+
+            if (archiveError) throw archiveError
+
+            // 2. Create New Campaign Copy
+            const { data: newCampaign, error: createError } = await supabase
+                .from('ad_campaigns')
+                .insert([{
+                    advertiser_id: campaign.advertiser_id,
+                    name: campaign.name + ' (Relaunch)',
+                    description: campaign.description,
+                    budget: parseFloat(relaunchBudget),
+                    status: 'active',
+                    spent: 0
+                }])
+                .select()
+                .single()
+
+            if (createError) throw createError
+
+            // 3. Duplicate Active Ads
+            const adsToCopy = ads.filter(a => !a.deleted_at).map(ad => ({
+                campaign_id: newCampaign.id,
+                title: ad.title,
+                description: ad.description,
+                image_url: ad.image_url,
+                target_url: ad.target_url,
+                cta_text: ad.cta_text,
+                placement: ad.placement,
+                tags: ad.tags,
+                status: 'active',
+                approval_status: 'pending' // Re-verify or auto-approve? Let's default to pending for safety, or approved if system trusted. Assuming re-review.
+            }))
+
+            if (adsToCopy.length > 0) {
+                const { error: copyError } = await supabase
+                    .from('advertisements')
+                    .insert(adsToCopy)
+
+                if (copyError) throw copyError
+            }
+
+            toast.success('Campaign Relaunched!')
+            setRelaunchModalOpen(false)
+            navigate(`/advertiser/campaign/${newCampaign.id}`)
+
+        } catch (error) {
+            console.error('Relaunch failed:', error)
+            toast.error('Failed to relaunch campaign')
+        }
+    }
+
     const getApprovalBadge = (status) => {
         const badges = {
             pending: { color: 'bg-yellow-100 text-yellow-700', icon: Clock, text: 'Pending Approval' },
@@ -367,8 +431,51 @@ export default function CampaignDetails({ session }) {
                             <span className="hidden sm:inline">Policies & Rates</span>
                             <span className="sm:hidden">Policies</span>
                         </button>
+                        <button
+                            onClick={() => setRelaunchModalOpen(true)}
+                            className="p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                            title="Reset / Relaunch Campaign"
+                        >
+                            <RefreshCw size={20} />
+                        </button>
                     </div>
                 </div>
+
+                {/* Relaunch Modal */}
+                {relaunchModalOpen && (
+                    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+                        <div className="bg-white rounded-xl max-w-md w-full p-6 animate-scale-in">
+                            <h3 className="text-xl font-bold text-gray-900 mb-2">Relaunch Campaign</h3>
+                            <p className="text-sm text-gray-600 mb-6">
+                                This will archive the current campaign (preserving stats) and start a fresh copy with a new budget.
+                            </p>
+
+                            <label className="block text-sm font-medium mb-1">New Budget</label>
+                            <input
+                                type="number"
+                                value={relaunchBudget}
+                                onChange={e => setRelaunchBudget(e.target.value)}
+                                className="w-full border rounded-lg px-3 py-2 mb-6"
+                                placeholder="Enter budget amount..."
+                            />
+
+                            <div className="flex gap-3">
+                                <button
+                                    onClick={() => setRelaunchModalOpen(false)}
+                                    className="flex-1 px-4 py-2 border rounded-lg hover:bg-gray-50"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    onClick={handleRelaunchCampaign}
+                                    className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                                >
+                                    Relaunch
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
 
                 {/* Budget Status Bar */}
                 <div className="mt-6 p-4 bg-gray-50 rounded-xl border border-gray-100">

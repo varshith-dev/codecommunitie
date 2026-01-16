@@ -59,6 +59,14 @@ export default function AdvertiserDashboard({ session }) {
     }
 
     const downloadInvoice = (transaction) => {
+        // Format: TRUVGO_INVOICE_ID_#DDMMYY-XXXXX
+        const dateObj = new Date(transaction.created_at);
+        const day = String(dateObj.getDate()).padStart(2, '0');
+        const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+        const year = String(dateObj.getFullYear()).slice(-2);
+        const uniqueSuffix = transaction.id.split('-')[0].toUpperCase().slice(0, 5);
+        const formattedId = `TRUVGO_INVOICE_ID_#${day}${month}${year}-${uniqueSuffix}`;
+
         const user = {
             name: session.user.user_metadata?.full_name || session.user.email.split('@')[0],
             email: session.user.email
@@ -66,6 +74,7 @@ export default function AdvertiserDashboard({ session }) {
         InvoiceGenerator.download(
             {
                 id: transaction.id,
+                formattedId,
                 amount: transaction.amount,
                 date: transaction.created_at,
                 description: 'Ad Credits Replenishment'
@@ -358,7 +367,7 @@ export default function AdvertiserDashboard({ session }) {
                         `}
                     >
                         <Receipt size={18} />
-                        Billing & Invoices
+                        Wallet & History
                     </button>
                 </nav>
             </div>
@@ -496,7 +505,7 @@ export default function AdvertiserDashboard({ session }) {
             ) : (
                 <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
                     <div className="px-6 py-4 border-b border-gray-200 bg-gray-50 flex justify-between items-center">
-                        <h2 className="text-lg font-semibold text-gray-900">Billing History</h2>
+                        <h2 className="text-lg font-semibold text-gray-900">Wallet Transactions & History</h2>
                         <button
                             onClick={fetchTransactions}
                             className="text-sm text-blue-600 hover:text-blue-800 flex items-center gap-1"
@@ -529,8 +538,8 @@ export default function AdvertiserDashboard({ session }) {
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap">
                                             <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${tx.status === 'approved' ? 'bg-green-100 text-green-800' :
-                                                    tx.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
-                                                        'bg-red-100 text-red-800'
+                                                tx.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                                                    'bg-red-100 text-red-800'
                                                 }`}>
                                                 {tx.status.toUpperCase()}
                                             </span>
@@ -604,3 +613,4 @@ export default function AdvertiserDashboard({ session }) {
         </div>
     )
 }
+
