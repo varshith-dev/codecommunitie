@@ -25,15 +25,29 @@ export const checkAndTriggerAutomations = async (userId, triggerType, additional
         if (triggerType === 'incomplete_profile') {
             const { data: profile } = await supabase
                 .from('profiles')
-                .select('username, bio, website, avatar_url')
+                .select('username, bio, website, avatar_url, banner_image_url, display_name')
                 .eq('id', userId)
                 .single()
 
             if (profile) {
-                // Define what "Incomplete" means
-                const isComplete = profile.username && profile.bio && profile.avatar_url
+                // Define what "Incomplete" means (Checked against screenshot fields)
+                // User has: Avatar, Banner, Display Name, Bio, Username
+                const isComplete =
+                    profile.username &&
+                    profile.bio &&
+                    (profile.avatar_url || profile.profile_picture_url) &&
+                    profile.display_name
+
                 if (isComplete) {
-                    console.log('Profile is complete, skipping incomplete_profile automation.')
+                    console.log('Profile is complete. Auto-dismissing any existing "Complete Your Profile" prompts.')
+
+                    // AUTO-DISMISS: If profile is complete, remove the prompt!
+                    await supabase
+                        .from('user_prompts')
+                        .update({ is_dismissed: true })
+                        .eq('user_id', userId)
+                        .ilike('title', '%Complete Your Profile%')
+
                     return
                 }
             }
