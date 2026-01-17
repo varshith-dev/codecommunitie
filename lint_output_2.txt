@@ -145,6 +145,10 @@ C:\Users\ADMIN\Desktop\Playground\codekrafts\code-crafts\src\components\AuthModa
 C:\Users\ADMIN\Desktop\Playground\codekrafts\code-crafts\src\components\BookmarkButton.jsx
   14:8  warning  React Hook useEffect has missing dependencies: 'checkBookmarkStatus', 'fetchBookmarkCount', and 'showCount'. Either include them or remove the dependency array  react-hooks/exhaustive-deps
 
+C:\Users\ADMIN\Desktop\Playground\codekrafts\code-crafts\src\components\BottomNav.jsx
+  13:37  error  React Hook "React.useState" is called conditionally. React Hooks must be called in the exact same order in every component render   react-hooks/rules-of-hooks
+  15:5   error  React Hook "React.useEffect" is called conditionally. React Hooks must be called in the exact same order in every component render  react-hooks/rules-of-hooks
+
 C:\Users\ADMIN\Desktop\Playground\codekrafts\code-crafts\src\components\CommentSection.jsx
   18:6  warning  React Hook useEffect has a missing dependency: 'fetchComments'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
 
@@ -195,7 +199,9 @@ C:\Users\ADMIN\Desktop\Playground\codekrafts\code-crafts\src\components\UserProm
   70:8  warning  React Hook useEffect has a missing dependency: 'loadPrompts'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
 
 C:\Users\ADMIN\Desktop\Playground\codekrafts\code-crafts\src\components\VideoPlayer.jsx
-  43:15  error  'baseUrl' is assigned a value but never used  no-unused-vars
+   43:15  error  'baseUrl' is assigned a value but never used  no-unused-vars
+  225:17  error  Unexpected lexical declaration in case block  no-case-declarations
+  232:17  error  Unexpected lexical declaration in case block  no-case-declarations
 
 C:\Users\ADMIN\Desktop\Playground\codekrafts\code-crafts\src\context\FeatureContext.jsx
   117:14  warning  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  react-refresh/only-export-components
@@ -313,5 +319,5 @@ C:\Users\ADMIN\Desktop\Playground\codekrafts\code-crafts\src\services\deviceTrac
 C:\Users\ADMIN\Desktop\Playground\codekrafts\code-crafts\src\utils\cropImage.js
   84:34  error  'reject' is defined but never used  no-unused-vars
 
-✖ 172 problems (133 errors, 39 warnings)
+✖ 176 problems (137 errors, 39 warnings)
 

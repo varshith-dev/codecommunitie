@@ -220,19 +220,21 @@ export default function VideoPlayer({ src, title, poster, className = "" }) {
                 e.preventDefault()
                 if (videoRef.current) videoRef.current.currentTime += 5
                 break
-            case 'arrowup':
+            case 'arrowup': {
                 e.preventDefault()
                 const newVolUp = Math.min(volume + 0.1, 1)
                 setVolume(newVolUp)
                 if (videoRef.current) videoRef.current.volume = newVolUp
                 setIsMuted(false)
                 break
-            case 'arrowdown':
+            }
+            case 'arrowdown': {
                 e.preventDefault()
                 const newVolDown = Math.max(volume - 0.1, 0)
                 setVolume(newVolDown)
                 if (videoRef.current) videoRef.current.volume = newVolDown
                 break
+            }
         }
     }
 

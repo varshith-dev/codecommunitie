@@ -6,9 +6,6 @@ import { supabase } from '../supabaseClient'
 export default function BottomNav({ session }) {
     const location = useLocation()
     const path = location.pathname
-
-    if (!session) return null
-
     const isActive = (p) => path === p
     const [userRole, setUserRole] = React.useState(null)
 
@@ -21,6 +18,8 @@ export default function BottomNav({ session }) {
                 .then(({ data }) => setUserRole(data?.role))
         }
     }, [session])
+
+    if (!session) return null
 
     return (
         <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white/85 backdrop-blur-lg border-t border-gray-100/50 pb-safe z-50 shadow-[0_-10px_40px_-15px_rgba(0,0,0,0.1)]">
